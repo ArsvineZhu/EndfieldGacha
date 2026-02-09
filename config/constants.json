@@ -1,0 +1,23 @@
+{
+  "dir_names": {
+    "config_dir": "config"
+  },
+  "text_constants": {
+    "char_quota_name": "武库配额",
+    "weapon_quota_name": "集成配额",
+    "char_pool_name": "「轻飘飘的信使」",
+    "weapon_pool_name": "「迅行申领」",
+    "draw_text": "寻访",
+    "apply_text": "申领",
+    "weapon_draw_text": "抽",
+    "star_text": "星",
+    "up_text": "概率提升",
+    "rate_text": "出率",
+    "time_text": "秒",
+    "total_time_text": "总耗时",
+    "per_second_text": "每秒"
+  },
+  "default_values": {
+    "default_precision": 8
+  }
+}

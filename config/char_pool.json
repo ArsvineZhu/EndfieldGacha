@@ -1,0 +1,118 @@
+{
+    "6": [
+        {
+            "name": "洁尔佩塔",
+            "remove_after": 3,
+            "up_prob": 0.50
+        },
+        {
+            "name": "莱万汀",
+            "remove_after": 2,
+            "up_prob": 0.0
+        },
+        {
+            "name": "伊冯",
+            "remove_after": 4,
+            "up_prob": 0.0
+        },
+        {
+            "name": "余烬",
+            "remove_after": null,
+            "up_prob": 0.0
+        },
+        {
+            "name": "黎风",
+            "remove_after": null,
+            "up_prob": 0.0
+        },
+        {
+            "name": "艾尔黛拉",
+            "remove_after": null,
+            "up_prob": 0.0
+        },
+        {
+            "name": "别礼",
+            "remove_after": null,
+            "up_prob": 0.0
+        },
+        {
+            "name": "骏卫",
+            "remove_after": null,
+            "up_prob": 0.0
+        }
+    ],
+    "5": [
+        {
+            "name": "佩丽卡",
+            "remove_after": null,
+            "up_prob": 0.0
+        },
+        {
+            "name": "弧光",
+            "remove_after": null,
+            "up_prob": 0.0
+        },
+        {
+            "name": "艾维文娜",
+            "remove_after": null,
+            "up_prob": 0.0
+        },
+        {
+            "name": "大潘",
+            "remove_after": null,
+            "up_prob": 0.0
+        },
+        {
+            "name": "陈千语",
+            "remove_after": null,
+            "up_prob": 0.0
+        },
+        {
+            "name": "狼卫",
+            "remove_after": null,
+            "up_prob": 0.0
+        },
+        {
+            "name": "赛希",
+            "remove_after": null,
+            "up_prob": 0.0
+        },
+        {
+            "name": "昼雪",
+            "remove_after": null,
+            "up_prob": 0.0
+        },
+        {
+            "name": "阿列什",
+            "remove_after": null,
+            "up_prob": 0.0
+        }
+    ],
+    "4": [
+        {
+            "name": "秋栗",
+            "remove_after": null,
+            "up_prob": 0.0
+        },
+        {
+            "name": "卡契尔",
+            "remove_after": null,
+            "up_prob": 0.0
+        },
+        {
+            "name": "埃特拉",
+            "remove_after": null,
+            "up_prob": 0.0
+        },
+        {
+            "name": "萤石",
+            "remove_after": null,
+            "up_prob": 0.0
+        },
+        {
+            "name": "安塔尔",
+            "remove_after": null,
+            "up_prob": 0.0
+        }
+    ]
+}

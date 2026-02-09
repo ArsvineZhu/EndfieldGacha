@@ -1,0 +1,49 @@
+{
+  "char": {
+    "base_prob": {
+      "6": 0.008,
+      "5": 0.08,
+      "4": 0.912
+    },
+    "guarantee_5star_plus_draw": 10,
+    "guarantee_6star_draw": 80,
+    "6star_prob_increase_start": 65,
+    "prob_increase": 0.05,
+    "prob_upper_limit": 1.0,
+    "up_guarantee_draw": 120,
+    "quota_rule": {
+      "6": 2000,
+      "5": 200,
+      "4": 20
+    },
+    "rewards": {
+      "Type_A": "加急招募",
+      "Type_B": "寻访情报书",
+      "Type_C": "洁尔佩塔的信物"
+    },
+    "up_char_name": "洁尔佩塔"
+  },
+  "weapon": {
+    "base_prob": {
+      "6": 0.04,
+      "5": 0.15,
+      "4": 0.81
+    },
+    "guarantee_6star_apply": 4,
+    "up_guarantee_apply": 8,
+    "quota_rule": {
+      "6": 50,
+      "5": 10,
+      "4": 1
+    },
+    "rewards": {
+      "Type_A": "补充武库箱·迅行",
+      "Type_B": "使命必达",
+      "cycle": 8,
+      "start": 10
+    },
+    "per_apply_must_have": true,
+    "apply_draws": 10,
+    "up_weapon_name": "使命必达"
+  }
+}
