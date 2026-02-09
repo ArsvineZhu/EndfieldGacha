@@ -81,11 +81,11 @@ class GachaTestTool:
             if star == 6:
                 line += f"{Color.RED}{name}{Color.RESET}"
             elif star == 5:
-                line = f"{Color.YELLOW}{name}{Color.RESET}"
+                line += f"{Color.YELLOW}{name}{Color.RESET}"
             elif star == 4:
-                line = f"{Color.PURPLE}{name}{Color.RESET}"
+                line += f"{Color.PURPLE}{name}{Color.RESET}"
             else:
-                line = f"{name}"
+                line += f"{name}"
             # 触发保底时添加【保底】标注
             if result.is_5_g:
                 line += "【十连保底】"
@@ -149,11 +149,11 @@ class GachaTestTool:
                     f"{quota_text:<{self.width['quota']}} | "
                 )
                 if star == 6:
-                    line = f"{Color.RED}{name}{Color.RESET}"
+                    line += f"{Color.RED}{name}{Color.RESET}"
                 elif star == 5:
-                    line = f"{Color.YELLOW}{name}{Color.RESET}"
+                    line += f"{Color.YELLOW}{name}{Color.RESET}"
                 else:
-                    line = f"{name}"
+                    line += f"{name}"
                 # 触发保底时添加【保底】标注
                 if result.is_6_g:
                     line += "【保底】"
@@ -603,6 +603,8 @@ class GachaTestTool:
     ):
         """统计抽中UP角色所需的抽数"""
 
+        assert limit >= 0, "limit参数必须为非负整数"
+
         from tqdm import trange
 
         print(f"正在统计抽中UP角色所需的抽数...")
@@ -667,7 +669,7 @@ class GachaTestTool:
             (120, 120, "大保底"),
         ]
         for start, end, desc in intervals:
-            if end > limit:
+            if end > limit and limit > 0:
                 continue
             count = sum(1 for x in up_draw_counts if start <= x <= end)
             prob = count / len(up_draw_counts) * 100
