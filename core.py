@@ -240,8 +240,25 @@ class CharGacha:
                 name=result, star=star_int, quota=quota, is_5_g=True
             )  # 5星保底触发，标记为True
 
-        # 步骤5：无保底阶段（正常抽卡）：6星0.8%，5星8%，4星91.2%
+        # 步骤5：无保底阶段（正常抽卡）：6星概率提升后，五星与四星按比例重新映射
         base_5star_prob = self.rule_config["base_prob"][5]  # 基础8%
+        base_4star_prob = self.rule_config["base_prob"][4]  # 基础91.2%
+        
+        # 计算剩余概率并按比例重新映射五星和四星概率
+        remaining_prob = Decimal("1.0") - current_6star_prob
+        if remaining_prob > 0:
+            # 计算五星和四星的基础概率比例
+            total_base_prob = base_5star_prob + base_4star_prob
+            base_5star_ratio = base_5star_prob / total_base_prob
+            
+            # 重新计算五星和四星概率
+            adjusted_5star_prob = remaining_prob * base_5star_ratio
+            # adjusted_4star_prob = remaining_prob * (Decimal("1.0") - base_5star_ratio)
+        else:
+            # 剩余概率为0，所有概率都被六星挤占
+            adjusted_5star_prob = Decimal("0.0")
+            # adjusted_4star_prob = Decimal("0.0")
+        
         if rand < current_6star_prob:
             # 出6星：重置所有计数器
             result, star_int, is_up = self._get_char_by_star(6)
@@ -250,7 +267,7 @@ class CharGacha:
             if is_up:
                 self.no_up_draw = 0
                 self.up_guarantee_used = True  # 出6星UP时视同触发UP保底，永久失效
-        elif rand < current_6star_prob + base_5star_prob:
+        elif rand < current_6star_prob + adjusted_5star_prob:
             # 出5星：重置5星保底计数器
             result, star_int, is_up = self._get_char_by_star(5)
             self.no_5star_plus_draw = 0
