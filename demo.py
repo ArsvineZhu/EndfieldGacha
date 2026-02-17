@@ -805,6 +805,82 @@ class GachaTestTool:
             plt.tight_layout()
             plt.show()
 
+    def stats_urgent_quota(self, draw_times: int = 50000, gragh: bool = False):
+        """统计加急招募10连抽获得的武库配额数量分布"""
+
+        from tqdm import trange
+
+        print(f"正在统计加急招募10连抽获得的武库配额数量...")
+        quota_list = []  # 记录每次10连抽的配额值
+        total_quota = 0
+        for _ in trange(draw_times):
+            # 创建新的CharGacha实例（不计入先前卡池的保底计数）
+            urgent_gacha = CharGacha()
+            round_quota = 0
+            # 执行10连抽
+            for _ in range(10):
+                result = urgent_gacha.draw_once()
+                round_quota += result.quota
+            quota_list.append(round_quota)
+            total_quota += round_quota
+        colorprint(f"平均配额：{round(total_quota / draw_times, 1)}", Color.RED)
+
+        if gragh:
+            import matplotlib.pyplot as plt
+            import numpy as np
+
+            # 添加正态分布曲线拟合
+            from scipy import stats
+
+            # 计算区间边界
+            max_quota = max(quota_list)
+            min_quota = min(quota_list)
+
+            # 使用100配额为固定区间
+            bin_width = 100
+            start_quota = (min_quota // bin_width) * bin_width
+            bins = list[int](range(start_quota, max_quota + bin_width * 2, bin_width))
+
+            # 计算每个区间的出现次数和概率
+            counts, _ = np.histogram(quota_list, bins=bins)
+            probabilities = counts / draw_times * 100  # 转换为百分比
+
+            # 生成区间标签
+            bin_labels = [f"{bins[i]}-{bins[i+1]}" for i in range(len(bins) - 1)]
+
+            # 打印每个区间的概率（只打印有概率的区间）
+            print("\nQuota Distribution Probability：")
+            for label, prob in zip(bin_labels, probabilities):
+                if prob > 0:
+                    print(f"{label}: {prob:.2f}%")
+
+            # 生成配额分布图
+            plt.figure(figsize=(12, 6))
+            plt.bar(
+                range(len(bin_labels)),
+                probabilities,
+                color="skyblue",
+                edgecolor="black",
+                label="Actual Distribution",
+            )
+
+            # 间隔显示xticks
+            interval = max(1, len(bin_labels) // 10)  # 最多显示10个标签
+            plt.xticks(
+                range(0, len(bin_labels), interval),
+                [bin_labels[i] for i in range(0, len(bin_labels), interval)],
+                rotation=45,
+                ha="right",
+            )
+            plt.title("Urgent Recruitment Quota Distribution")
+
+            plt.xlabel("Quota Range")
+            plt.ylabel("Prob (%)")
+            plt.grid(axis="y", alpha=0.75)
+            plt.legend()
+            plt.tight_layout()
+            plt.show()
+
 
 # ===================== 主函数 =====================
 if __name__ == "__main__":
@@ -866,3 +942,7 @@ if __name__ == "__main__":
     # 5星：15.87%
     # 6星：5.02% (UP = 1.255%)
     # tool.stats_weapon_draw(20000, gragh=True)
+
+    # 统计加急招募的10连抽获得武库配额数量分布
+    # 结论：加急招募的10连抽获得武库配额数量均值为571（样本量100000）
+    # tool.stats_urgent_quota(20000, gragh=True)
