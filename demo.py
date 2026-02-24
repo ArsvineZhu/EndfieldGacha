@@ -12,7 +12,7 @@ class Color:
     RESET: str = "\033[0m"
 
 
-def colorprint(text: str, color: str) -> None:
+def colorprint(text: str, color: str = Color.WHITE) -> None:
     print(f"{color}{text}{Color.RESET}")
 
 
@@ -881,6 +881,72 @@ class GachaTestTool:
             plt.tight_layout()
             plt.show()
 
+    def stats_char_potential(self, draw_times: int = 50000, gragh: bool = False):
+        """统计将指定角色满潜所需的抽数"""
+
+        from tqdm import trange
+
+        print(f"正在统计将指定角色满潜所需的抽数...")
+        potential_draw_counts = []  # 记录每次满潜所需的抽数
+
+        for _ in trange(draw_times):
+            # 一次模拟抽卡
+            gacha = CharGacha()
+            urgent_gacha = CharGacha()  # 用于模拟加急招募抽卡，独立于主抽卡计数
+            urgent_used = False  # 标记是否已使用加急招募抽卡机会
+            draw_count = 0
+            char_count = 0  # 抽中角色的数量
+            token_count = 0  # 信物数量
+            up_char_names = gacha.star_up_prob[6][0]  # 获取当期UP角色列表
+
+            while True:
+                if char_count + token_count >= 6:
+                    potential_draw_counts.append(draw_count)
+                    break
+
+                # 单抽
+                draw_count += 1
+                result = gacha.draw_once()
+                if result.star == 6 and result.name in up_char_names:
+                    char_count += 1
+
+                # 获取累计奖励
+                rewards = gacha.get_accumulated_reward()
+                for reward in rewards:
+                    # 加急招募
+                    if reward[0].startswith("寻访情报书") and not urgent_used:
+                        urgent_used = True
+                        for _ in range(10):
+                            result = urgent_gacha.draw_once()
+                            if result.star == 6 and result.name in up_char_names:
+                                char_count += 1
+
+                    # 信物奖励
+                    if reward[0].endswith("的信物"):
+                        token_count = reward[1]
+
+        # 计算平均抽数
+        avg_draws = sum(potential_draw_counts) / len(potential_draw_counts)
+        colorprint(f"平均抽中UP角色满潜所需抽数：{round(avg_draws, 2)}", Color.RED)
+
+        if gragh:
+            import matplotlib.pyplot as plt
+
+            # 生成抽数分布图
+            plt.figure(figsize=(12, 6))
+            plt.hist(
+                potential_draw_counts,
+                bins=range(0, max(potential_draw_counts) + 10, 10),
+                color="skyblue",
+                edgecolor="black",
+            )
+            plt.title("UP Character Potential Draw Count Distribution")
+            plt.xlabel("Draw Count")
+            plt.ylabel("Frequency")
+            plt.grid(axis="y", alpha=0.75)
+            plt.tight_layout()
+            plt.show()
+
 
 # ===================== 主函数 =====================
 if __name__ == "__main__":
@@ -946,3 +1012,8 @@ if __name__ == "__main__":
     # 统计加急招募的10连抽获得武库配额数量分布
     # 结论：加急招募的10连抽获得武库配额数量均值为571（样本量100000）
     # tool.stats_urgent_quota(20000, gragh=True)
+
+    # 统计当期UP6星角色满潜（抽中角色数量 + 信物数量 = 6）所需要的抽数
+    # 说明：统计当期UP6星角色；计入累积奖励；“加急招募”的十连抽若获得当期UP6星角色也计入
+    # 结论：456.14抽（样本量100000）
+    # tool.stats_char_potential(20000, gragh=True)

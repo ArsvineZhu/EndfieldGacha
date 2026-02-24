@@ -18,6 +18,6 @@
     "per_second_text": "每秒"
   },
   "default_values": {
-    "default_precision": 8
+    "default_precision": 6
   }
 }
