@@ -58,6 +58,7 @@ from time import time
 from collections import deque
 from numpy import random as np_rand
 from random import choice
+from random import seed as rnd_seed
 from dataclasses import dataclass
 from decimal import Decimal, getcontext
 from typing import Dict, List, Tuple, Any
@@ -381,6 +382,8 @@ class CharGacha:
         self.rand = BatchRandom(
             seed, size=size
         )  # 用于生成随机数序列，支持性能优化和可复现性
+        if seed >= 0:
+            rnd_seed(seed)
         # 加载配置
         self.pool_data = self.config.get_pool_data("char")
         self.rule_config = self.config.get_rule_config("char")
@@ -708,6 +711,8 @@ class WeaponGacha:
         """
         self.config = GlobalConfigLoader()
         self.rand = BatchRandom(seed, size=size)  # 武器卡池使用独立的随机数生成器实例
+        if seed >= 0:
+            rnd_seed(seed)
         self.pool_data = self.config.get_pool_data("weapon")
         self.rule_config = self.config.get_rule_config("weapon")
         self._precache_data()
