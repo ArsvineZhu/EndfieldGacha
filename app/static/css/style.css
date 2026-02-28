@@ -13,6 +13,7 @@ body {
         linear-gradient(90deg, rgba(0, 255, 136, 0.05) 1px, transparent 1px);
     background-size: 20px 20px;
     overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .results-container {
@@ -22,7 +23,29 @@ body {
     padding: 10px 0;
     justify-content: center;
     flex-wrap: nowrap;
-    overflow-x: hidden;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.3) rgba(0, 0, 0, 0.3);
+}
+
+/* 自定义滚动条样式 */
+.results-container::-webkit-scrollbar {
+    height: 6px;
+}
+
+.results-container::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 3px;
+}
+
+.results-container::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+}
+
+.results-container::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
 }
 
 .app-container {
@@ -40,6 +63,10 @@ body {
     justify-content: space-between;
     align-items: center;
     border-bottom: 1px solid #333;
+    flex-wrap: wrap;
+    gap: 10px;
+    position: relative;
+    z-index: 1000;
 }
 
 .top-nav h1 {
@@ -48,29 +75,69 @@ body {
     color: #ffffff;
     text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
     letter-spacing: 2px;
+    flex-shrink: 0;
+}
+
+/* 移动端菜单按钮 */
+.mobile-menu-btn {
+    display: none !important;
+    justify-content: center;
+    align-items: center;
+    width: 40px;
+    height: 40px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    z-index: 1001;
+    -webkit-tap-highlight-color: transparent;
+    position: relative;
+    visibility: visible;
+    opacity: 1;
+}
+
+.mobile-menu-btn i {
+    font-size: 20px;
+    color: #ffffff;
+    transition: all 0.3s ease;
+}
+
+.mobile-menu-btn.active i {
+    color: #3498db;
+}
+
+.mobile-menu-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 5px;
 }
 
 .top-resources {
     display: flex;
-    gap: 20px;
+    gap: 15px;
     align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
 }
 
 .top-resources .resource-item {
     display: flex;
     align-items: center;
     gap: 5px;
+    flex-shrink: 0;
 }
 
 .top-resources .resource-label {
     color: #aaa;
-    font-size: 14px;
+    font-size: 12px;
+    white-space: nowrap;
 }
 
 .top-resources .resource-value {
     color: #ffffff;
     font-weight: bold;
-    font-size: 14px;
+    font-size: 12px;
+    min-width: 40px;
+    text-align: right;
 }
 
 /* 主内容区域 */
@@ -79,6 +146,7 @@ body {
     flex: 1;
     padding: 20px;
     gap: 20px;
+    flex-wrap: wrap;
 }
 
 /* 左侧导航栏 */
@@ -89,6 +157,44 @@ body {
     border-radius: 5px;
     padding: 20px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    flex-shrink: 0;
+    transition: transform 0.3s ease;
+}
+
+.left-nav::-webkit-scrollbar {
+    width: 6px;
+}
+
+.left-nav::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.left-nav::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+}
+
+.left-nav::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+/* 移动端导航遮罩层 */
+.nav-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 998;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.nav-overlay.active {
+    display: block;
+    opacity: 1;
 }
 
 .nav-section {
@@ -118,6 +224,9 @@ body {
     text-align: left;
     font-family: Arial, sans-serif;
     letter-spacing: 1px;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 .nav-btn:hover {
@@ -230,6 +339,10 @@ body {
     transition: all 0.3s ease;
     font-family: Arial, sans-serif;
     letter-spacing: 1px;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
 }
 
 /* 角色池单抽按钮 - 白色 */
@@ -1071,4 +1184,564 @@ body {
     min-width: 120px;
     text-align: center;
     border: 2px solid;
+}
+
+/* 响应式布局 - 平板设备 */
+@media screen and (max-width: 1024px) {
+    .main-content {
+        padding: 15px;
+        gap: 15px;
+    }
+
+    .left-nav {
+        width: 180px;
+        padding: 15px;
+    }
+
+    .nav-section h3 {
+        font-size: 14px;
+    }
+
+    .nav-btn {
+        font-size: 13px;
+        padding: 8px;
+    }
+
+    .content-area {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .top-nav h1 {
+        font-size: 20px;
+    }
+
+    .top-resources {
+        gap: 10px;
+    }
+
+    .top-resources .resource-label {
+        font-size: 11px;
+    }
+
+    .top-resources .resource-value {
+        font-size: 11px;
+    }
+
+    .pool-info {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .pool-info-content {
+        margin-right: 0;
+        margin-bottom: 15px;
+    }
+
+    .gacha-controls {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .draw-btn {
+        padding: 12px 20px;
+        font-size: 16px;
+    }
+
+    .stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+    }
+
+    .stat-value {
+        font-size: 20px;
+    }
+
+    .results-container {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .result-card {
+        min-width: 70px;
+        width: 70px;
+        height: 140px;
+        font-size: 12px;
+        padding: 20px 8px;
+    }
+
+    .recharge-options {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .recharge-btn.first-recharge {
+        width: 80%;
+        height: 200px;
+    }
+
+    .amount {
+        font-size: 28px;
+    }
+}
+
+/* 响应式布局 - 移动设备 */
+@media screen and (max-width: 768px) {
+    .mobile-menu-btn {
+        display: flex !important;
+        order: 0;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+
+    .mobile-menu-btn span {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        background-color: #ffffff !important;
+    }
+
+    .app-title {
+        display: none !important;
+    }
+
+    .top-nav {
+        padding: 8px 15px;
+        flex-direction: row;
+        align-items: center;
+        gap: 10px;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        justify-content: flex-start;
+        min-height: 50px;
+    }
+
+    .top-nav h1 {
+        display: none;
+    }
+
+    .top-resources {
+        order: 2;
+        margin-left: auto;
+        width: auto;
+        justify-content: flex-end;
+        gap: 5px;
+    }
+
+    /* 主内容区域添加顶部边距，避免被固定导航栏遮挡 */
+    .main-content {
+        margin-top: 60px;
+    }
+
+    .top-resources .resource-item {
+        flex-direction: column;
+        align-items: flex-end;
+        min-width: 60px;
+        text-align: right;
+    }
+
+    .top-resources .resource-label {
+        font-size: 9px;
+    }
+
+    .top-resources .resource-value {
+        font-size: 11px;
+        min-width: auto;
+    }
+
+    .main-content {
+        padding: 10px;
+        gap: 10px;
+        flex-direction: column;
+    }
+
+    .left-nav {
+        width: 250px;
+        padding: 15px;
+        padding-top: 60px;
+        position: fixed;
+        top: 50px !important;
+        left: 0;
+        height: calc(100% - 50px);
+        z-index: 999;
+        transform: translateX(-100%);
+        overflow-y: auto;
+    }
+
+    .left-nav.active {
+        transform: translateX(0);
+    }
+
+    .nav-section {
+        margin-bottom: 20px;
+    }
+
+    .nav-section:last-child {
+        margin-bottom: 0;
+    }
+
+    .nav-section h3 {
+        font-size: 14px;
+        margin-bottom: 8px;
+    }
+
+    .nav-btn {
+        font-size: 14px;
+        padding: 10px;
+        margin-bottom: 8px;
+    }
+
+    .content-area {
+        width: 100%;
+    }
+
+    .gacha-area,
+    .stats-area,
+    .collection-area,
+    .resources-area,
+    .history-area {
+        padding: 15px;
+        margin-bottom: 10px;
+    }
+
+    .pool-info {
+        padding: 12px;
+    }
+
+    .pool-name {
+        font-size: 16px !important;
+    }
+
+    .boosted-item {
+        font-size: 12px;
+        padding: 4px 8px;
+    }
+
+    .gacha-controls {
+        flex-direction: row;
+        gap: 10px;
+        width: 100%;
+        justify-content: center;
+    }
+
+    .draw-btn {
+        flex: 1;
+        max-width: 200px;
+        padding: 12px;
+        font-size: 16px;
+        margin: 0;
+    }
+
+    .result-area h2,
+    .stats-area h2,
+    .collection-area h2,
+    .resources-area h2,
+    .history-area h2 {
+        font-size: 18px;
+        margin-bottom: 12px;
+    }
+
+    .results-container {
+        gap: 5px;
+        padding: 8px 0;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+        max-width: 100%;
+        margin-left: 0;
+        margin-right: 0;
+    }
+
+    .result-card {
+        width: calc(20% - 4px);
+        min-width: calc(20% - 4px);
+        height: 200px;
+        font-size: 11px;
+        padding: 15px 2px;
+        flex: 0 0 calc(20% - 4px);
+    }
+
+    .result-card .card-content {
+        font-size: 11px;
+    }
+
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    .stat-item {
+        padding: 12px 8px;
+    }
+
+    .stat-label {
+        font-size: 12px;
+        margin-bottom: 8px;
+    }
+
+    .stat-value {
+        font-size: 18px;
+    }
+
+    .rewards-area {
+        padding: 12px;
+    }
+
+    .rewards-area h3 {
+        font-size: 16px;
+    }
+
+    .reward-item {
+        font-size: 12px;
+        padding: 6px 10px;
+    }
+
+    .collection-container {
+        gap: 8px;
+    }
+
+    .collection-item {
+        min-width: 80px;
+        font-size: 13px;
+        padding: 8px;
+    }
+
+    .char-card {
+        min-height: 150px;
+        padding: 15px;
+    }
+
+    .char-card .char-name {
+        font-size: 20px;
+        margin-top: 40px;
+    }
+
+    .char-card .char-potential {
+        font-size: 280px;
+    }
+
+    .recharge-options {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+        max-width: 600px;
+    }
+
+    .recharge-btn.first-recharge {
+        width: 100%;
+        height: 160px;
+    }
+
+    .amount {
+        font-size: 24px;
+        margin-top: 30px;
+    }
+
+    .reward {
+        font-size: 12px;
+    }
+
+    .resource-card {
+        padding: 15px;
+    }
+
+    .resource-card h3 {
+        font-size: 16px;
+    }
+
+    .exchange-options {
+        gap: 12px;
+    }
+
+    .exchange-item {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .exchange-item input {
+        width: 100% !important;
+        margin-right: 0 !important;
+    }
+
+    .exchange-btn {
+        width: 100%;
+        padding: 10px;
+    }
+
+    .exchange-btn.all-btn {
+        margin-left: 0;
+        margin-top: 5px;
+    }
+
+    .history-group {
+        padding: 12px;
+    }
+
+    .history-group-title {
+        font-size: 13px;
+    }
+
+    .history-result-card {
+        min-width: 100px;
+        font-size: 12px;
+        padding: 8px 10px;
+    }
+
+    .results-container {
+        justify-content: flex-start;
+    }
+
+    #temp-resources-area.resources-area {
+        padding: 15px;
+    }
+
+    .star-section h3 {
+        font-size: 16px;
+    }
+
+    .char-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)) !important;
+    }
+}
+
+/* 响应式布局 - 小屏移动设备 */
+@media screen and (max-width: 480px) {
+    .top-nav {
+        padding: 8px 10px;
+    }
+
+    .top-nav h1 {
+        font-size: 16px;
+    }
+
+    .top-resources .resource-item {
+        min-width: 60px;
+    }
+
+    .top-resources .resource-label {
+        font-size: 9px;
+    }
+
+    .top-resources .resource-value {
+        font-size: 11px;
+    }
+
+    .main-content {
+        padding: 8px;
+    }
+
+    .left-nav {
+        padding: 12px;
+    }
+
+    .nav-btn {
+        font-size: 13px;
+        padding: 8px;
+    }
+
+    .gacha-area,
+    .stats-area,
+    .collection-area,
+    .resources-area,
+    .history-area {
+        padding: 12px;
+    }
+
+    .pool-info {
+        padding: 10px;
+    }
+
+    .pool-name {
+        font-size: 14px !important;
+    }
+
+    .boosted-item {
+        font-size: 11px;
+        padding: 3px 6px;
+    }
+
+    .draw-btn {
+        font-size: 14px;
+        padding: 10px;
+    }
+
+    .result-card {
+        width: 50px;
+        min-width: 50px;
+        height: 100px;
+        font-size: 10px;
+        padding: 10px 3px;
+    }
+
+    .stats-grid {
+        gap: 8px;
+    }
+
+    .stat-label {
+        font-size: 11px;
+    }
+
+    .stat-value {
+        font-size: 16px;
+    }
+
+    .collection-item {
+        min-width: 70px;
+        font-size: 12px;
+    }
+
+    .char-card .char-name {
+        font-size: 18px;
+        margin-top: 35px;
+    }
+
+    .char-card .char-potential {
+        font-size: 200px;
+    }
+
+    .recharge-btn.first-recharge {
+        height: 160px;
+    }
+
+    .amount {
+        font-size: 20px;
+        margin-top: 25px;
+    }
+
+    .reward {
+        font-size: 11px;
+    }
+
+    .history-result-card {
+        min-width: 90px;
+        font-size: 11px;
+    }
+}
+
+/* 横屏移动设备优化 */
+@media screen and (max-width: 768px) and (orientation: landscape) {
+    .result-card {
+        height: 100px;
+        width: 55px;
+        min-width: 55px;
+    }
+
+    .stats-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+
+    .char-card {
+        min-height: 120px;
+    }
+
+    .char-card .char-name {
+        margin-top: 30px;
+    }
+
+    .char-card .char-potential {
+        font-size: 200px;
+    }
 }

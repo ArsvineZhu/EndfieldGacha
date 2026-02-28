@@ -1,29 +1,145 @@
 let currentPool = 'char';
 let currentCollection = 'chars';
 
+// 创建 DOM 结构
+function createDOMStructure() {
+    const app = document.getElementById('app');
+    app.innerHTML = `
+        <div class="app-container">
+            <!-- 移动端导航遮罩层 -->
+            <div class="nav-overlay" id="nav-overlay"></div>
+            
+            <!-- 顶部导航栏 -->
+            <header class="top-nav">
+                <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="菜单">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="app-title">终末地抽卡模拟器</h1>
+                <div class="top-resources">
+                    <div class="resource-item">
+                        <span class="resource-label">特许寻访凭证</span>
+                        <span id="chartered-permits" class="resource-value">10</span>
+                    </div>
+                    <div class="resource-item">
+                        <span class="resource-label">嵌晶玉</span>
+                        <span id="oroberyl" class="resource-value">5000</span>
+                    </div>
+                    <div class="resource-item">
+                        <span class="resource-label">武库配额</span>
+                        <span id="arsenal-tickets" class="resource-value">2000</span>
+                    </div>
+                    <div class="resource-item">
+                        <span class="resource-label">衍质源石</span>
+                        <span id="origeometry" class="resource-value">0</span>
+                    </div>
+                    <div class="resource-item">
+                        <span class="resource-label">累计充值</span>
+                        <span id="total-recharge" class="resource-value">￥0</span>
+                    </div>
+                </div>
+            </header>
+            
+            <div class="main-content">
+                <!-- 左侧导航栏 -->
+                <nav class="left-nav">
+                    <div class="nav-section">
+                        <h3>卡池</h3>
+                        <button id="char-pool-btn" class="nav-btn active">特许寻访</button>
+                        <button id="weapon-pool-btn" class="nav-btn">武库申领</button>
+                    </div>
+                    <div class="nav-section">
+                        <h3>历史记录</h3>
+                        <button id="char-history-btn" class="nav-btn">寻访记录</button>
+                        <button id="weapon-history-btn" class="nav-btn">申领记录</button>
+                    </div>
+                    <div class="nav-section">
+                        <h3>数据信息</h3>
+                        <button id="chars-tab" class="nav-btn">干员获取统计</button>
+                        <button id="chars-detail-tab" class="nav-btn">干员详情</button>
+                        <button id="weapons-tab" class="nav-btn">贵重品库/武器</button>
+                    </div>
+                    <div class="nav-section">
+                        <h3>资源管理</h3>
+                        <button id="resources-tab" class="nav-btn">资源管理</button>
+                        <button id="clear-data-btn" class="nav-btn danger">清空数据</button>
+                    </div>
+                </nav>
+                
+                <!-- 主内容区域 -->
+                <div class="content-area">
+                    <!-- 抽卡控制区 -->
+                    <div class="gacha-area">
+                        <!-- 卡池信息区域 -->
+                        <div class="pool-info">
+                            <div class="pool-info-content">
+                                <div class="pool-name" id="pool-name">特许寻访</div>
+                                <div class="boosted-items" id="boosted-items">
+                                </div>
+                            </div>
+                            <div class="gacha-controls">
+                                <button id="single-draw" class="draw-btn single-draw">Headhunt×1</button>
+                                <button id="ten-draw" class="draw-btn ten-draw">Headhunt×10</button>
+                                <button id="urgent-recruitment" class="draw-btn urgent-draw" style="display: none;">加急招募</button>
+                            </div>
+                        </div>
+                        
+                        <div class="result-area">
+                            <h2 id="result-title">寻访结果</h2>
+                            <div id="results-container" class="results-container"></div>
+                        </div>
+                        
+                        <div class="rewards-area">
+                            <h3 id="rewards-title">累计奖励</h3>
+                            <div id="rewards-container" class="rewards-container"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- 统计区域 -->
+                    <div class="stats-area">
+                        <h2 id="stats-title">寻访统计</h2>
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <span class="stat-label" id="total-label">累计寻访次数</span>
+                                <span id="total-draws" class="stat-value">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label" id="six-star-label">6 星保底计数</span>
+                                <span id="no-6star" class="stat-value">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label" id="five-star-label">5 星保底计数</span>
+                                <span id="no-5star" class="stat-value">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label" id="up-label">UP 保底计数</span>
+                                <span id="no-up" class="stat-value">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
 // 初始化页面
 async function initPage() {
-    // 先隐藏所有按钮，避免闪烁
+    createDOMStructure();
+    
     const singleDrawBtn = document.getElementById('single-draw');
     const tenDrawBtn = document.getElementById('ten-draw');
     const urgentRecruitmentBtn = document.getElementById('urgent-recruitment');
     
-    // 先隐藏所有按钮
     singleDrawBtn.style.display = 'none';
     tenDrawBtn.style.display = 'none';
     urgentRecruitmentBtn.style.display = 'none';
     
-    // 加载用户数据
     await loadUserData();
     setupEventListeners();
-    // 确保初始状态下收藏区域不显示
     document.querySelector('.gacha-area').style.display = 'block';
     document.querySelector('.stats-area').style.display = 'block';
-    // 更新UI用词
-    updatePoolUI(currentPool); // 初始化UI状态
-    // 再次加载用户数据，确保按钮状态正确
+    updatePoolUI(currentPool);
     await loadUserData();
-    // 初始化显示10个空白卡片
     showResults([]);
 }
 
@@ -446,7 +562,17 @@ function showResults(results) {
                     }, 500 + index * 100);
                 });
             }
-        }, 500); // 0.5秒后显示实际内容
+        }, 500); // 0.5 秒后显示实际内容
+    }
+    
+    // 移动端优化：滚动到结果区域
+    if (window.innerWidth <= 768) {
+        setTimeout(() => {
+            const resultArea = document.querySelector('.result-area');
+            if (resultArea) {
+                resultArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }, 1000);
     }
 }
 
@@ -624,6 +750,42 @@ async function updatePoolUI(poolType) {
 
 // 设置事件监听器
 function setupEventListeners() {
+    // 移动端菜单按钮
+    const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+    const navOverlay = document.getElementById('nav-overlay');
+    const leftNav = document.querySelector('.left-nav');
+    
+    if (mobileMenuBtn && navOverlay && leftNav) {
+        mobileMenuBtn.addEventListener('click', () => {
+            mobileMenuBtn.classList.toggle('active');
+            leftNav.classList.toggle('active');
+            navOverlay.classList.toggle('active');
+            document.body.style.overflow = leftNav.classList.contains('active') ? 'hidden' : '';
+        });
+        
+        navOverlay.addEventListener('click', () => {
+            mobileMenuBtn.classList.remove('active');
+            leftNav.classList.remove('active');
+            navOverlay.classList.remove('active');
+            document.body.style.overflow = '';
+        });
+        
+        // 导航按钮点击后关闭导航栏
+        const navBtns = leftNav.querySelectorAll('.nav-btn');
+        navBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (window.innerWidth <= 768) {
+                    setTimeout(() => {
+                        mobileMenuBtn.classList.remove('active');
+                        leftNav.classList.remove('active');
+                        navOverlay.classList.remove('active');
+                        document.body.style.overflow = '';
+                    }, 300);
+                }
+            });
+        });
+    }
+    
     // 卡池选择
     document.getElementById('char-pool-btn').addEventListener('click', async () => {
         currentPool = 'char';

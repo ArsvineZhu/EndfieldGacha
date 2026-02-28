@@ -2,123 +2,18 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="theme-color" content="#121212">
     <title>终末地抽卡模拟器</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.min.css') }}">
 </head>
 <body>
-    <div class="app-container">
-        <!-- 顶部导航栏 -->
-        <header class="top-nav">
-            <h1>终末地抽卡模拟器</h1>
-            <div class="top-resources">
-                <div class="resource-item">
-                    <span class="resource-label">衍质源石：</span>
-                    <span id="origeometry" class="resource-value">0</span>
-                </div>
-                <div class="resource-item">
-                    <span class="resource-label">特许寻访凭证：</span>
-                    <span id="chartered-permits" class="resource-value">10</span>
-                </div>
-                <div class="resource-item">
-                    <span class="resource-label">嵌晶玉：</span>
-                    <span id="oroberyl" class="resource-value">5000</span>
-                </div>
-                <div class="resource-item">
-                    <span class="resource-label">武库配额：</span>
-                    <span id="arsenal-tickets" class="resource-value">2000</span>
-                </div>
-                <div class="resource-item">
-                    <span class="resource-label">累计充值：</span>
-                    <span id="total-recharge" class="resource-value">￥0</span>
-                </div>
-            </div>
-        </header>
-        
-        <div class="main-content">
-            <!-- 左侧导航栏 -->
-            <nav class="left-nav">
-                <div class="nav-section">
-                    <h3>卡池</h3>
-                    <button id="char-pool-btn" class="nav-btn active">特许寻访</button>
-                    <button id="weapon-pool-btn" class="nav-btn">武库申领</button>
-                </div>
-                <div class="nav-section">
-                    <h3>历史记录</h3>
-                    <button id="char-history-btn" class="nav-btn">寻访记录</button>
-                    <button id="weapon-history-btn" class="nav-btn">申领记录</button>
-                </div>
-                <div class="nav-section">
-                    <h3>数据信息</h3>
-                    <button id="chars-tab" class="nav-btn">干员获取统计</button>
-                    <button id="chars-detail-tab" class="nav-btn">干员详情</button>
-                    <button id="weapons-tab" class="nav-btn">贵重品库/武器</button>
-                </div>
-                <div class="nav-section">
-                    <h3>资源管理</h3>
-                    <button id="resources-tab" class="nav-btn">资源管理</button>
-                    <button id="clear-data-btn" class="nav-btn danger">清空数据</button>
-                </div>
-            </nav>
-            
-            <!-- 主内容区域 -->
-            <div class="content-area">
-                <!-- 抽卡控制区 -->
-                <div class="gacha-area">
-                    <!-- 卡池信息区域 -->
-                    <div class="pool-info">
-                        <div class="pool-info-content">
-                            <div class="pool-name" id="pool-name">特许寻访</div>
-                            <div class="boosted-items" id="boosted-items">
-                                <!-- 概率提升物品将在这里动态显示 -->
-                            </div>
-                        </div>
-                        <div class="gacha-controls">
-                            <button id="single-draw" class="draw-btn single-draw">Headhunt×1</button>
-                            <button id="ten-draw" class="draw-btn ten-draw">Headhunt×10</button>
-                            <button id="urgent-recruitment" class="draw-btn urgent-draw" style="display: none;">加急招募</button>
-                        </div>
-                    </div>
-                    
-                    <div class="result-area">
-                        <h2 id="result-title">寻访结果</h2>
-                        <div id="results-container" class="results-container"></div>
-                    </div>
-                    
-                    <div class="rewards-area">
-                        <h3 id="rewards-title">累计奖励</h3>
-                        <div id="rewards-container" class="rewards-container"></div>
-                    </div>
-                </div>
-                
-                <!-- 统计区域 -->
-                <div class="stats-area">
-                    <h2 id="stats-title">寻访统计</h2>
-                    <div class="stats-grid">
-                        <div class="stat-item">
-                            <span class="stat-label" id="total-label">累计寻访次数</span>
-                            <span id="total-draws" class="stat-value">0</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label" id="six-star-label">6星保底计数</span>
-                            <span id="no-6star" class="stat-value">0</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label" id="five-star-label">5星保底计数</span>
-                            <span id="no-5star" class="stat-value">0</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label" id="up-label">UP保底计数</span>
-                            <span id="no-up" class="stat-value">0</span>
-                        </div>
-                    </div>
-                </div>
-                
-
-            </div>
-        </div>
-    </div>
-    
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <div id="app"></div>
+    <script src="{{ url_for('static', filename='js/main.min.js') }}"></script>
 </body>
 </html>
