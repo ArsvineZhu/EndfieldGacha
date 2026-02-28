@@ -3,7 +3,7 @@ import rcssmin
 import rjsmin
 
 # 静态文件目录（Flask 默认）
-STATIC_DIR = "static"
+STATIC_DIR = "app/static"
 # 压缩后的文件后缀（如 style.css → style.min.css）
 MIN_SUFFIX = ".min"
 

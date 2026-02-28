@@ -1603,7 +1603,8 @@ body {
     }
 
     .char-grid {
-        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)) !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 10px !important;
     }
 }
 

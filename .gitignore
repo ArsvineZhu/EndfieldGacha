@@ -221,3 +221,7 @@ users/
 
 # PyCharm
 .idea/
+
+# minified static files
+app/static/css/style.min.css
+app/static/js/main.min.js
