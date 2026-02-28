@@ -216,5 +216,8 @@ __marimo__/
 # Tests
 test_*
 
+# User data
+users/
+
 # PyCharm
 .idea/
