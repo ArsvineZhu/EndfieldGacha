@@ -16,14 +16,39 @@ body {
     -webkit-tap-highlight-color: transparent;
 }
 
+/* Emoji 飘落效果 */
+.emoji-fall {
+    position: fixed;
+    top: -50px;
+    font-size: 24px;
+    z-index: 9999;
+    pointer-events: none;
+    animation: fall linear forwards;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+@keyframes fall {
+    0% {
+        transform: translateY(-50px) rotate(0deg);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(100vh) rotate(720deg);
+        opacity: 0;
+    }
+}
+
 .results-container {
     display: flex;
     gap: 10px;
     margin-top: 20px;
-    padding: 10px 0;
+    padding: 30px 0;
     justify-content: center;
     flex-wrap: nowrap;
-    overflow-x: auto;
+    overflow-x: visible;
+    overflow-y: visible;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.3) rgba(0, 0, 0, 0.3);
@@ -431,6 +456,132 @@ body {
     flex-direction: column;
     justify-content: center;
     flex-shrink: 0;
+    transform-style: preserve-3d;
+    transform: perspective(1000px) rotateX(0deg) rotateY(0deg);
+    transition: transform 0.1s ease-out;
+    position: relative;
+    overflow: visible;
+}
+
+.result-card:hover {
+    z-index: 100;
+}
+
+/* 5、6 星卡片拉伸效果的伪元素背景 */
+.result-card.star-5::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: inherit;
+    border-radius: inherit;
+    z-index: -1;
+    opacity: 0;
+    transform: scaleY(1);
+    transform-origin: center center;
+    filter: blur(0px);
+    transition: all 0.2s ease-out;
+}
+
+.result-card.star-5.extended::after {
+    transform: scaleY(1.35);
+    opacity: 0.65;
+    filter: blur(10px);
+    background: radial-gradient(
+        ellipse at center,
+        rgba(243, 156, 18, 0.6) 0%,
+        rgba(243, 156, 18, 0.3) 50%,
+        transparent 65%
+    );
+    mask-image: linear-gradient(
+        to bottom,
+        transparent 0%,
+        rgba(0, 0, 0, 0.25) 8%,
+        rgba(0, 0, 0, 0.7) 18%,
+        rgba(0, 0, 0, 1) 28%,
+        rgba(0, 0, 0, 1) 72%,
+        rgba(0, 0, 0, 0.7) 82%,
+        rgba(0, 0, 0, 0.25) 92%,
+        transparent 100%
+    );
+    -webkit-mask-image: linear-gradient(
+        to bottom,
+        transparent 0%,
+        rgba(0, 0, 0, 0.25) 8%,
+        rgba(0, 0, 0, 0.7) 18%,
+        rgba(0, 0, 0, 1) 28%,
+        rgba(0, 0, 0, 1) 72%,
+        rgba(0, 0, 0, 0.7) 82%,
+        rgba(0, 0, 0, 0.25) 92%,
+        transparent 100%
+    );
+    box-shadow: 
+        0 0 20px rgba(243, 156, 18, 0.5),
+        0 0 40px rgba(243, 156, 18, 0.3);
+}
+
+/* 6 星卡片拉伸效果元素 */
+.result-card.star-6 .stretch-effect {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: inherit;
+    border-radius: inherit;
+    z-index: -1;
+    opacity: 0;
+    transform: scaleY(1);
+    transform-origin: center center;
+    pointer-events: none;
+    filter: blur(0px);
+    transition: all 0.25s ease-out;
+}
+
+.result-card.star-6.extended .stretch-effect {
+    transform: scaleY(1.5);
+    opacity: 0.8;
+    filter: blur(12px);
+    background: radial-gradient(
+        ellipse at center,
+        rgba(231, 76, 60, 0.8) 0%,
+        rgba(231, 76, 60, 0.4) 50%,
+        transparent 70%
+    );
+    mask-image: linear-gradient(
+        to bottom,
+        transparent 0%,
+        rgba(0, 0, 0, 0.2) 5%,
+        rgba(0, 0, 0, 0.6) 15%,
+        rgba(0, 0, 0, 1) 25%,
+        rgba(0, 0, 0, 1) 75%,
+        rgba(0, 0, 0, 0.6) 85%,
+        rgba(0, 0, 0, 0.2) 95%,
+        transparent 100%
+    );
+    -webkit-mask-image: linear-gradient(
+        to bottom,
+        transparent 0%,
+        rgba(0, 0, 0, 0.2) 5%,
+        rgba(0, 0, 0, 0.6) 15%,
+        rgba(0, 0, 0, 1) 25%,
+        rgba(0, 0, 0, 1) 75%,
+        rgba(0, 0, 0, 0.6) 85%,
+        rgba(0, 0, 0, 0.2) 95%,
+        transparent 100%
+    );
+    box-shadow: 
+        0 0 30px rgba(231, 76, 60, 0.6),
+        0 0 60px rgba(231, 76, 60, 0.4),
+        0 0 90px rgba(231, 76, 60, 0.2);
+}
+
+/* 5、6 星卡片拉伸时的光晕效果 */
+.result-card.star-5.extended,
+.result-card.star-6.extended {
+    filter: drop-shadow(0 0 15px currentColor);
 }
 
 .result-card.empty {
@@ -572,6 +723,8 @@ body {
     opacity: 0;
     animation: fadeIn 0.5s ease-in-out forwards;
     animation-delay: 0.8s;
+    transform: translateZ(20px);
+    backface-visibility: visible;
 }
 
 .result-card.star-6 {
@@ -579,7 +732,7 @@ body {
     color: #ff4444;
     border-color: #ff4444;
     position: relative;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .result-card.star-6::before,
@@ -1032,7 +1185,7 @@ body {
     overflow: hidden;
     color: #333;
     font-weight: bold;
-    padding: 20px;
+    padding: 0;
     border-radius: 10px;
     width: 60%;
     height: 240px;
@@ -1048,47 +1201,47 @@ body {
     flex: 1;
     display: flex;
     flex-direction: column;
-    justify-content: flex-start;
+    justify-content: center;
     align-items: center;
     z-index: 1;
+    padding: 15px;
 }
 
-/* 充值金额 */
-.amount {
-    font-size: 36px;
+/* 获得数量 */
+.oroberyl-count {
+    font-size: 42px;
     font-weight: bold;
     margin-bottom: 10px;
-    margin-top: 40px;
-    font-family: Arial, sans-serif;
-    color: #333;
+    font-family: Impact, Arial, sans-serif;
+    color: #212121;
+    line-height: 1;
 }
 
-/* 奖励信息 */
-.reward {
+/* 首充奖励信息 */
+.first-reward {
     font-size: 14px;
     text-align: center;
-    margin-bottom: 10px;
     font-family: Arial, sans-serif;
     color: #333;
+    margin-top: 5px;
 }
 
-/* 红色条带 */
-.recharge-btn.first-recharge::before {
-    content: attr(data-reward);
+/* 红色价格条带 */
+.price-bar {
     position: absolute;
-    bottom: 0px;
+    bottom: 0;
     left: 0;
     width: 100%;
-    height: 30px;
+    height: 40px;
     background: linear-gradient(90deg, rgb(238, 69, 0), rgb(210, 60, 0));
     color: white;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 12px;
+    font-size: 18px;
     font-weight: bold;
-    z-index: 1;
     font-family: Arial, sans-serif;
+    z-index: 2;
 }
 
 /* 由下向上的淡淡红色底色虹光效果 */
@@ -1124,13 +1277,6 @@ body {
     }
 }
 
-
-
-.recharge-btn.first-recharge:hover {
-    background: linear-gradient(135deg, #ffc107, #ffeb3b);
-    box-shadow: 0 6px 20px rgba(255, 193, 7, 0.5);
-    transform: translateY(-2px);
-}
 
 /* ALL 按钮样式 */
 .exchange-btn.all-btn {
@@ -1280,8 +1426,18 @@ body {
         height: 200px;
     }
 
-    .amount {
+    .oroberyl-count {
         font-size: 28px;
+        font-family: Impact, Arial, sans-serif;
+    }
+
+    .first-reward {
+        font-size: 12px;
+    }
+
+    .price-bar {
+        font-size: 16px;
+        height: 35px;
     }
 }
 
@@ -1446,12 +1602,14 @@ body {
 
     .results-container {
         gap: 5px;
-        padding: 8px 0;
+        padding: 30px 0;
         flex-wrap: wrap;
         justify-content: flex-start;
         max-width: 100%;
         margin-left: 0;
         margin-right: 0;
+        overflow-x: visible;
+        overflow-y: visible;
     }
 
     .result-card {
@@ -1461,6 +1619,7 @@ body {
         font-size: 11px;
         padding: 15px 2px;
         flex: 0 0 calc(20% - 4px);
+        transform: perspective(800px) rotateX(0deg) rotateY(0deg);
     }
 
     .result-card .card-content {
@@ -1533,13 +1692,18 @@ body {
         height: 160px;
     }
 
-    .amount {
+    .oroberyl-count {
         font-size: 24px;
-        margin-top: 30px;
+        font-family: Impact, Arial, sans-serif;
     }
 
-    .reward {
+    .first-reward {
         font-size: 12px;
+    }
+
+    .price-bar {
+        font-size: 14px;
+        height: 30px;
     }
 
     .resource-card {
@@ -1707,9 +1871,18 @@ body {
         height: 160px;
     }
 
-    .amount {
-        font-size: 20px;
-        margin-top: 25px;
+    .oroberyl-count {
+        font-size: 40px;
+        font-family: Impact, Arial, sans-serif;
+    }
+
+    .first-reward {
+        font-size: 11px;
+    }
+
+    .price-bar {
+        font-size: 13px;
+        height: 30px;
     }
 
     .reward {
