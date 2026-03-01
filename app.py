@@ -614,16 +614,13 @@ def get_pool_info():
 def compress_static_files():
     """压缩静态文件"""
     try:
-        import sys
-        import os
-        sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'app'))
-        from utils.compress import main as compress_main
+        from app.utils.compress import main as compress_main
         print('正在压缩静态文件...')
         compress_main()
-        print('静态文件压缩完成')
+        print('静态文件压缩完成，启动服务')
     except Exception as e:
         print(f'压缩静态文件时出错：{e}')
 
 if __name__ == '__main__':
     compress_static_files()
-    app.run(debug=False)
+    app.run(debug=False, port=5000)
