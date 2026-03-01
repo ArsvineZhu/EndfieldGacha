@@ -151,7 +151,13 @@ async function loadUserData() {
         updateStats(data);
         updateCollection(data.collection);
         updateResources(data.resources);
-        await updateRewards();
+        
+        // 只有在累计次数达到指定值时才更新奖励
+        const gachaData = currentPool === 'char' ? data.char_gacha : data.weapon_gacha;
+        const totalCount = currentPool === 'char' ? gachaData.total_draws : gachaData.total_apply;
+        if (shouldUpdateRewards(totalCount)) {
+            await updateRewards();
+        }
     } catch (error) {
         console.error('加载用户数据失败:', error);
     }
@@ -387,7 +393,6 @@ async function performGacha(count) {
                 }
                 
                 await loadUserData();
-                await updateRewards();
                 showResults(urgentResult.results);
                 return;
             }
@@ -412,7 +417,6 @@ async function performGacha(count) {
         }
         
         await loadUserData();
-        await updateRewards();
         showResults(result.results);
     } catch (error) {
         console.error('抽卡失败:', error);
@@ -437,7 +441,6 @@ async function performUrgentRecruitment() {
         }
         
         await loadUserData();
-        await updateRewards();
         showResults(result.results);
     } catch (error) {
         console.error('加急招募失败:', error);
@@ -1543,6 +1546,20 @@ function setupResourceManagementListeners() {
             }
         });
     }
+}
+
+// 检查是否需要更新累计奖励
+function shouldUpdateRewards(totalCount) {
+    // 检查是否是指定的次数：30, 60
+    const checkPoints = [30, 60];
+    if (checkPoints.includes(totalCount)) {
+        return true;
+    }
+    // 每240次检查一次
+    if (totalCount > 239 && (totalCount - 240) % 240 === 0) {
+        return true;
+    }
+    return false;
 }
 
 // 页面加载完成后初始化

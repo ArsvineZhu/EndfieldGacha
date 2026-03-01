@@ -10,10 +10,12 @@
     <meta name="theme-color" content="#121212">
     <title>终末地抽卡模拟器</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.min.css') }}">
+    <!-- 使用哈希化后的静态资源URL -->
+    <link rel="stylesheet" href="{{ url_for('static', filename=get_static_url('css/style.css')) }}">
 </head>
 <body>
     <div id="app"></div>
-    <script src="{{ url_for('static', filename='js/main.min.js') }}"></script>
+    <!-- 使用哈希化后的静态资源URL -->
+    <script src="{{ url_for('static', filename=get_static_url('js/main.js')) }}"></script>
 </body>
 </html>

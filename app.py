@@ -527,6 +527,10 @@ def exchange():
             if user_info['resources'].get('origeometry', 0) >= amount:
                 user_info['resources']['origeometry'] -= amount
                 user_info['resources']['oroberyl'] = user_info['resources'].get('oroberyl', 0) + amount * 75
+                # 更新最后访问时间
+                user_info['last_visit'] = __import__('datetime').datetime.now().isoformat()
+                # 保存用户数据
+                save_user(user_id, user_info)
                 return jsonify({'message': f'成功兑换 {amount} 衍质源石为 {amount * 75} 嵌晶玉'})
             else:
                 return jsonify({'error': '衍质源石不足'}), 400
@@ -535,6 +539,10 @@ def exchange():
             if user_info['resources'].get('origeometry', 0) >= amount:
                 user_info['resources']['origeometry'] -= amount
                 user_info['resources']['arsenal_tickets'] = user_info['resources'].get('arsenal_tickets', 0) + amount * 25
+                # 更新最后访问时间
+                user_info['last_visit'] = __import__('datetime').datetime.now().isoformat()
+                # 保存用户数据
+                save_user(user_id, user_info)
                 return jsonify({'message': f'成功兑换 {amount} 衍质源石为 {amount * 25} 武库配额'})
             else:
                 return jsonify({'error': '衍质源石不足'}), 400
@@ -610,6 +618,24 @@ def get_pool_info():
         'pool_name': pool_name,
         'boosted_items': boosted_items
     })
+
+
+# 添加静态资源映射函数
+def get_static_url(filename):
+    """根据原始文件名获取哈希化后的URL"""
+    try:
+        from app.utils.compress import load_manifest
+        manifest = load_manifest()
+        return manifest.get(filename, filename)
+    except:
+        # 如果无法加载manifest，返回原始文件名
+        return filename
+
+
+# 添加模板全局函数
+@app.context_processor
+def inject_static_url():
+    return dict(get_static_url=get_static_url)
 
 def compress_static_files():
     """压缩静态文件"""

@@ -223,5 +223,6 @@ users/
 .idea/
 
 # minified static files
-app/static/css/style.min.css
-app/static/js/main.min.js
+app/static/css/style.*.css
+app/static/js/main.*.js
+app/static/manifest.json
