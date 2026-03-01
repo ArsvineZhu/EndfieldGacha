@@ -18,12 +18,12 @@ const CacheUtil = {
             console.warn('LocalStorage 写入失败:', e);
         }
     },
-    
+
     get(key) {
         try {
             const cacheData = localStorage.getItem(key);
             if (!cacheData) return null;
-            
+
             const parsed = JSON.parse(cacheData);
             if (Date.now() - parsed.timestamp > parsed.ttl) {
                 localStorage.removeItem(key);
@@ -35,7 +35,7 @@ const CacheUtil = {
             return null;
         }
     },
-    
+
     remove(key) {
         try {
             localStorage.removeItem(key);
@@ -43,7 +43,7 @@ const CacheUtil = {
             console.warn('LocalStorage 删除失败:', e);
         }
     },
-    
+
     clear() {
         try {
             Object.values(CACHE_CONFIG).forEach(config => {
@@ -53,7 +53,7 @@ const CacheUtil = {
             console.warn('LocalStorage 清空失败:', e);
         }
     },
-    
+
     clearDataCache() {
         try {
             localStorage.removeItem(CACHE_CONFIG.USER_DATA.key);
@@ -189,15 +189,15 @@ function createDOMStructure() {
 
 async function initPage() {
     createDOMStructure();
-    
+
     const singleDrawBtn = document.getElementById('single-draw');
     const tenDrawBtn = document.getElementById('ten-draw');
     const urgentRecruitmentBtn = document.getElementById('urgent-recruitment');
-    
+
     singleDrawBtn.style.display = 'none';
     tenDrawBtn.style.display = 'none';
     urgentRecruitmentBtn.style.display = 'none';
-    
+
     await loadUserData();
     setupEventListeners();
     document.querySelector('.gacha-area').style.display = 'block';
@@ -215,7 +215,7 @@ async function loadUserData(forceRefresh = false) {
                 updateStats(cachedData);
                 updateCollection(cachedData.collection);
                 updateResources(cachedData.resources);
-                
+
                 const gachaData = currentPool === 'char' ? cachedData.char_gacha : cachedData.weapon_gacha;
                 const totalCount = currentPool === 'char' ? gachaData.total_draws : gachaData.total_apply;
                 if (shouldUpdateRewards(totalCount)) {
@@ -224,16 +224,16 @@ async function loadUserData(forceRefresh = false) {
                 return;
             }
         }
-        
+
         const response = await fetch('/api/user_data');
         const data = await response.json();
-        
+
         CacheUtil.set(CACHE_CONFIG.USER_DATA.key, data, CACHE_CONFIG.USER_DATA.ttl);
-        
+
         updateStats(data);
         updateCollection(data.collection);
         updateResources(data.resources);
-        
+
         const gachaData = currentPool === 'char' ? data.char_gacha : data.weapon_gacha;
         const totalCount = currentPool === 'char' ? gachaData.total_draws : gachaData.total_apply;
         if (shouldUpdateRewards(totalCount)) {
@@ -252,7 +252,7 @@ async function loadUserData(forceRefresh = false) {
 
 async function updateRewards(forceRefresh = false) {
     const cacheKey = `${CACHE_CONFIG.REWARDS.key}_${currentPool}`;
-    
+
     if (!forceRefresh) {
         const cachedData = CacheUtil.get(cacheKey);
         if (cachedData) {
@@ -260,12 +260,12 @@ async function updateRewards(forceRefresh = false) {
             return;
         }
     }
-    
+
     try {
         const response = await fetch(`/api/rewards?pool_type=${currentPool}`);
         const data = await response.json();
         const rewards = data.rewards || [];
-        
+
         CacheUtil.set(cacheKey, rewards, CACHE_CONFIG.REWARDS.ttl);
         displayRewards(rewards);
     } catch (error) {
@@ -284,9 +284,9 @@ async function updateRewards(forceRefresh = false) {
 function displayRewards(rewards) {
     const rewardsContainer = document.getElementById('rewards-container');
     if (!rewardsContainer) return;
-    
+
     rewardsContainer.innerHTML = '';
-    
+
     if (rewards.length === 0) {
         const emptyMessage = document.createElement('div');
         emptyMessage.style.cssText = 'color:#aaa;text-align:center;padding:10px';
@@ -306,7 +306,7 @@ function updateResources(resources) {
     const resourceIds = ['chartered-permits', 'oroberyl', 'arsenal-tickets', 'origeometry', 'total-recharge'];
     const resourceKeys = ['chartered_permits', 'oroberyl', 'arsenal_tickets', 'origeometry', 'total_recharge'];
     const prefix = ['￥', '', '', '', '￥'];
-    
+
     resourceIds.forEach((id, index) => {
         const el = document.getElementById(id);
         if (el) {
@@ -317,14 +317,14 @@ function updateResources(resources) {
             setTimeout(() => { el.style.transform = 'scale(1)'; }, 300);
         }
     });
-    
+
     const urgentCount = resources.urgent_recruitment || 0;
     const singleDrawBtn = document.getElementById('single-draw');
     const tenDrawBtn = document.getElementById('ten-draw');
     const urgentRecruitmentBtn = document.getElementById('urgent-recruitment');
-    
+
     console.log('updateResources called with currentPool:', currentPool, 'urgentCount:', urgentCount);
-    
+
     if (currentPool === 'weapon') {
         singleDrawBtn.style.display = 'inline-block';
         tenDrawBtn.style.display = 'none';
@@ -355,12 +355,12 @@ function formatNumber(num) {
 
 function updateStats(data) {
     const gachaData = currentPool === 'char' ? data.char_gacha : data.weapon_gacha;
-    
+
     const statIds = ['total-draws', 'no-6star', 'no-5star', 'no-up'];
-    const statKeys = currentPool === 'char' 
+    const statKeys = currentPool === 'char'
         ? ['total_draws', 'no_6star_draw', 'no_5star_plus_draw', 'no_up_draw']
         : ['total_apply', 'no_6star_apply', null, 'no_up_apply'];
-    
+
     statIds.forEach((id, index) => {
         const el = document.getElementById(id);
         if (el) {
@@ -377,10 +377,10 @@ function updateStats(data) {
 function updateCollection(collection) {
     const container = document.getElementById('collection-container');
     if (!container) return;
-    
+
     container.innerHTML = '';
     const items = currentCollection === 'chars' ? collection.chars : collection.weapons;
-    
+
     if (Object.keys(items).length === 0) {
         const emptyMessage = document.createElement('div');
         emptyMessage.style.cssText = 'color:#aaa;text-align:center;padding:20px';
@@ -392,7 +392,7 @@ function updateCollection(collection) {
             item.className = `collection-item star-${info.star}`;
             item.innerHTML = `${name}<span class="count">${info.count}</span>`;
             container.appendChild(item);
-            
+
             const countEl = item.querySelector('.count');
             if (countEl) {
                 countEl.style.cssText = 'font-weight:bold;font-size:16px;padding:2px 8px;border-radius:10px;background-color:rgba(0,0,0,0.3);box-shadow:0 2px 4px rgba(0,0,0,0.3);transition:all 0.5s ease;transform:scale(1.2)';
@@ -405,24 +405,24 @@ function updateCollection(collection) {
 async function performGacha(count) {
     try {
         const actualCount = currentPool === 'weapon' ? 1 : count;
-        
+
         if (currentPool === 'char') {
             const userDataResponse = await fetch('/api/user_data');
             const userData = await userDataResponse.json();
             const urgentCount = userData.resources.urgent_recruitment || 0;
-            
+
             if (urgentCount > 0) {
                 const urgentResponse = await fetch('/api/urgent_recruitment', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' }
                 });
-                
+
                 const urgentResult = await urgentResponse.json();
                 if (urgentResult.error) {
                     alert('加急招募失败：' + urgentResult.error);
                     return;
                 }
-                
+
                 CacheUtil.clearDataCache();
                 await loadUserData(true);
                 await updateRewards(true);
@@ -432,19 +432,19 @@ async function performGacha(count) {
                 return;
             }
         }
-        
+
         const response = await fetch('/api/gacha', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ pool_type: currentPool, count: actualCount })
         });
-        
+
         const result = await response.json();
         if (result.error) {
             alert('抽卡失败：' + result.error);
             return;
         }
-        
+
         CacheUtil.clearDataCache();
         await loadUserData(true);
         await updateRewards(true);
@@ -463,13 +463,13 @@ async function performUrgentRecruitment() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
         });
-        
+
         const result = await response.json();
         if (result.error) {
             alert('加急招募失败：' + result.error);
             return;
         }
-        
+
         CacheUtil.clearDataCache();
         await loadUserData(true);
         await updateRewards(true);
@@ -485,13 +485,13 @@ async function performUrgentRecruitment() {
 function createEmojiFall() {
     const emojis = ['🎉', '✨', '🌟', '💫', '🎊', '🌸', '💐', '🎈'];
     const congratulationTexts = ['恭喜', '欧气满满', '好运连连'];
-    
+
     // 创建 50 个飘落的 emoji
     for (let i = 0; i < 50; i++) {
         setTimeout(() => {
             const emoji = document.createElement('div');
             emoji.className = 'emoji-fall';
-            
+
             // 随机选择 emoji 或恭喜文字
             if (Math.random() > 0.7) {
                 emoji.textContent = congratulationTexts[Math.floor(Math.random() * congratulationTexts.length)];
@@ -500,19 +500,19 @@ function createEmojiFall() {
                 emoji.textContent = emojis[Math.floor(Math.random() * emojis.length)];
                 emoji.style.fontSize = `${14 + Math.random() * 20}px`;
             }
-            
+
             // 随机位置
             emoji.style.left = `${Math.random() * 100}vw`;
-            
+
             // 随机动画时长（2-5 秒）
             const duration = 2 + Math.random() * 3;
             emoji.style.animationDuration = `${duration}s`;
-            
+
             // 随机延迟（0-2 秒）
             emoji.style.animationDelay = `${Math.random() * 2}s`;
-            
+
             document.body.appendChild(emoji);
-            
+
             // 动画结束后移除元素
             setTimeout(() => {
                 emoji.remove();
@@ -524,10 +524,10 @@ function createEmojiFall() {
 function showResults(results) {
     const container = document.getElementById('results-container');
     container.innerHTML = '';
-    
+
     let maxStar = 0;
     let hasBoostedItem = false;
-    
+
     // 获取当前卡池的 UP 列表（boosted items）
     const boostedItemsEl = document.getElementById('boosted-items');
     const boostedItemNames = [];
@@ -540,20 +540,20 @@ function showResults(results) {
             boostedItemNames.push(name);
         });
     }
-    
-    results.forEach(result => { 
+
+    results.forEach(result => {
         maxStar = Math.max(maxStar, result.star);
         // 检查是否是概率提升的项目（UP 角色/武器）
         if (boostedItemNames.includes(result.name)) {
             hasBoostedItem = true;
         }
     });
-    
+
     // 如果抽到概率提升的项目，触发 emoji 飘落效果
     if (hasBoostedItem) {
         createEmojiFall();
     }
-    
+
     const cards = [];
     for (let i = 0; i < 10; i++) {
         if (i < results.length) {
@@ -562,19 +562,19 @@ function showResults(results) {
             const animationClass = results.length === 1 ? 'slide-in-left' : 'slide-in';
             card.className = `result-card star-${result.star} gray ${animationClass}`;
             card.style.animationDelay = `${i * 0.1}s`;
-            
+
             // 为 6 星卡片添加拉伸效果元素
             if (result.star === 6) {
                 const stretchEffect = document.createElement('div');
                 stretchEffect.className = 'stretch-effect';
                 card.appendChild(stretchEffect);
             }
-            
+
             const cardContent = document.createElement('div');
             cardContent.className = 'card-content';
             cardContent.style.opacity = '0';
             cardContent.innerHTML = result.name + (result.is_up_g || result.is_6_g || result.is_5_g ? '<br>*' : '');
-            
+
             card.appendChild(cardContent);
             container.appendChild(card);
             cards.push({ card, result, cardContent });
@@ -584,54 +584,54 @@ function showResults(results) {
             container.appendChild(card);
         }
     }
-    
+
     // 添加 3D 倾斜效果（容器级别监听）
     if (!('ontouchstart' in window)) {
         container.addEventListener('mousemove', (e) => {
             const containerRect = container.getBoundingClientRect();
             const containerCenterX = containerRect.left + containerRect.width / 2;
             const containerCenterY = containerRect.top + containerRect.height / 2;
-            
+
             const mouseX = e.clientX;
             const mouseY = e.clientY;
-            
+
             // 计算容器整体的倾斜角度
             const maxRotation = 10;
             const rotateContainerX = ((mouseY - containerCenterY) / (containerRect.height / 2)) * -maxRotation;
             const rotateContainerY = ((mouseX - containerCenterX) / (containerRect.width / 2)) * maxRotation;
-            
+
             // 为每个卡片应用倾斜效果
             cards.forEach(({ card, result }) => {
                 if (result) {
                     const cardRect = card.getBoundingClientRect();
                     const cardCenterX = cardRect.left + cardRect.width / 2;
                     const cardCenterY = cardRect.top + cardRect.height / 2;
-                    
+
                     // 计算卡片相对于容器的位置偏移
                     const offsetX = (cardCenterX - containerCenterX) / (containerRect.width / 2);
                     const offsetY = (cardCenterY - containerCenterY) / (containerRect.height / 2);
-                    
+
                     // 根据卡片位置调整倾斜角度，产生视差效果
                     const cardRotateX = rotateContainerX + (offsetY * 5);
                     const cardRotateY = rotateContainerY + (offsetX * 5);
-                    
+
                     // 计算卡片到鼠标的距离，用于缩放
                     const distanceX = Math.abs(mouseX - cardCenterX);
                     const distanceY = Math.abs(mouseY - cardCenterY);
                     const maxDistance = Math.sqrt(Math.pow(containerRect.width, 2) + Math.pow(containerRect.height, 2));
                     const distance = Math.sqrt(Math.pow(distanceX, 2) + Math.pow(distanceY, 2));
                     const scale = 1 + (1 - distance / maxDistance) * 0.1;
-                    
+
                     // 对于 5、6 星卡片，添加额外的上下拉伸效果
                     if (result.star >= 5) {
                         // 计算鼠标是否在卡片上方
                         const isInCard = (
-                            e.clientX >= cardRect.left && 
-                            e.clientX <= cardRect.right && 
-                            e.clientY >= cardRect.top && 
+                            e.clientX >= cardRect.left &&
+                            e.clientX <= cardRect.right &&
+                            e.clientY >= cardRect.top &&
                             e.clientY <= cardRect.bottom
                         );
-                        
+
                         // 根据鼠标位置切换拉伸类
                         if (isInCard) {
                             if (!card.classList.contains('extended')) {
@@ -648,14 +648,14 @@ function showResults(results) {
                             card.classList.remove('extended');
                         }
                     }
-                    
+
                     card.style.transform = `perspective(1000px) rotateX(${cardRotateX}deg) rotateY(${cardRotateY}deg) scale3d(${scale}, ${scale}, 1)`;
                     card.style.boxShadow = `${-cardRotateY / 2}px ${cardRotateX / 2}px 20px rgba(0, 0, 0, 0.4)`;
                     card.style.zIndex = Math.floor(scale * 100) + (result.star >= 5 ? 10 : 0);
                 }
             });
         });
-        
+
         container.addEventListener('mouseleave', () => {
             cards.forEach(({ card, result }) => {
                 if (result) {
@@ -666,7 +666,7 @@ function showResults(results) {
             });
         });
     }
-    
+
     if (results.length > 0) {
         setTimeout(() => {
             if (results.length === 1) {
@@ -687,27 +687,27 @@ function showResults(results) {
                         c.card.classList.add(`animate-star-${c.result.star}`);
                     }, i * 100);
                 });
-                
+
                 cards.filter(c => c.result.star !== maxStar).forEach((c, i) => {
                     setTimeout(() => {
                         c.card.classList.remove('gray');
                         c.card.classList.add(`animate-star-${c.result.star}`);
                     }, highestStarCards.length * 100 + i * 100);
                 });
-                
+
                 const cardsByRarity = {};
                 cards.forEach((c, i) => {
                     const star = c.result.star;
                     if (!cardsByRarity[star]) cardsByRarity[star] = [];
                     cardsByRarity[star].push({ ...c, originalIndex: i });
                 });
-                
+
                 const sortedCards = [];
                 Object.keys(cardsByRarity).sort((a, b) => parseInt(a) - parseInt(b)).forEach(rarity => {
                     cardsByRarity[rarity].sort((a, b) => a.originalIndex - b.originalIndex);
                     sortedCards.push(...cardsByRarity[rarity]);
                 });
-                
+
                 sortedCards.forEach((c, i) => {
                     setTimeout(() => {
                         c.cardContent.style.opacity = '1';
@@ -717,7 +717,7 @@ function showResults(results) {
             }
         }, 500);
     }
-    
+
     if (window.innerWidth <= 768) {
         setTimeout(() => {
             const resultArea = document.querySelector('.result-area');
@@ -739,7 +739,7 @@ function clearResults() {
 async function updateCharsDetail(forceRefresh = false) {
     const container = document.getElementById('chars-detail-container');
     if (!container) return;
-    
+
     if (!forceRefresh) {
         const cachedData = CacheUtil.get(CACHE_CONFIG.CHARS_DETAIL.key);
         if (cachedData) {
@@ -747,12 +747,12 @@ async function updateCharsDetail(forceRefresh = false) {
             return;
         }
     }
-    
+
     try {
         const response = await fetch('/api/user_data');
         const data = await response.json();
         const chars = data.collection.chars;
-        
+
         CacheUtil.set(CACHE_CONFIG.CHARS_DETAIL.key, chars, CACHE_CONFIG.CHARS_DETAIL.ttl);
         renderCharsDetail(chars, container);
     } catch (error) {
@@ -766,30 +766,30 @@ function renderCharsDetail(chars, container) {
         container.innerHTML = '<div style="color:#aaa;text-align:center;padding:20px">暂无干员数据</div>';
         return;
     }
-    
+
     const charsByStar = {};
     Object.entries(chars).forEach(([name, info]) => {
         const star = info.star;
         if (!charsByStar[star]) charsByStar[star] = [];
         charsByStar[star].push({ name, info });
     });
-    
+
     container.innerHTML = '';
     Object.keys(charsByStar).sort((a, b) => parseInt(b) - parseInt(a)).forEach(star => {
         const starSection = document.createElement('div');
         starSection.className = `star-section star-${star}`;
         starSection.innerHTML = `<h3>${star}星干员</h3>`;
-        
+
         const charGrid = document.createElement('div');
         charGrid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:15px;padding:10px;margin-bottom:20px';
-        
+
         charsByStar[star].sort((a, b) => a.name.localeCompare(b.name)).forEach(({ name, info }) => {
             const charCard = document.createElement('div');
             charCard.className = `char-card star-${info.star}`;
             charCard.innerHTML = `<div class="char-name">${name}</div><div class="char-potential">${Math.min(info.count, 5)}</div>`;
             charGrid.appendChild(charCard);
         });
-        
+
         starSection.appendChild(charGrid);
         container.appendChild(starSection);
     });
@@ -797,9 +797,9 @@ function renderCharsDetail(chars, container) {
 
 async function updatePoolUI(poolType, forceRefresh = false) {
     console.log('updatePoolUI called with poolType:', poolType);
-    
+
     clearResults();
-    
+
     const uiConfig = {
         char: {
             single: 'Headhunt×1',
@@ -816,9 +816,9 @@ async function updatePoolUI(poolType, forceRefresh = false) {
             labels: ['累计申领次数', '6 星保底计数', 'N/A', 'UP 保底计数']
         }
     };
-    
+
     const config = uiConfig[poolType];
-    
+
     document.getElementById('single-draw').textContent = config.single;
     document.getElementById('ten-draw').style.display = config.ten ? 'inline-block' : 'none';
     document.getElementById('ten-draw').style.visibility = config.ten ? 'visible' : 'hidden';
@@ -826,16 +826,16 @@ async function updatePoolUI(poolType, forceRefresh = false) {
     document.getElementById('ten-draw').style.margin = config.ten ? '0 10px' : '0';
     document.getElementById('result-title').textContent = config.resultTitle;
     document.getElementById('stats-title').textContent = config.statsTitle;
-    
+
     ['total-label', 'six-star-label', 'five-star-label', 'up-label'].forEach((id, i) => {
         document.getElementById(id).textContent = config.labels[i];
     });
-    
+
     document.getElementById('single-draw').className = `draw-btn ${poolType === 'char' ? 'single-draw' : 'weapon-draw'}`;
     document.getElementById('ten-draw').className = 'draw-btn ten-draw';
-    
+
     const cacheKey = `${CACHE_CONFIG.POOL_INFO.key}_${poolType}`;
-    
+
     if (!forceRefresh) {
         const cachedData = CacheUtil.get(cacheKey);
         if (cachedData) {
@@ -843,16 +843,16 @@ async function updatePoolUI(poolType, forceRefresh = false) {
             return;
         }
     }
-    
+
     try {
         const response = await fetch(`/api/pool_info?pool_type=${poolType}`);
         const data = await response.json();
-        
+
         if (data.error) {
             console.error('获取卡池信息失败:', data.error);
             return;
         }
-        
+
         CacheUtil.set(cacheKey, data, CACHE_CONFIG.POOL_INFO.ttl);
         updatePoolInfoUI(data, poolType);
     } catch (error) {
@@ -865,10 +865,10 @@ async function updatePoolUI(poolType, forceRefresh = false) {
 function updatePoolInfoUI(data, poolType) {
     const prefix = poolType === 'char' ? '特许寻访 ' : '武库申领 ';
     document.getElementById('pool-name').textContent = prefix + data.pool_name;
-    
+
     const boostedItems = document.getElementById('boosted-items');
     boostedItems.innerHTML = '';
-    
+
     data.boosted_items.forEach(item => {
         const itemElement = document.createElement('span');
         itemElement.className = 'boosted-item';
@@ -894,7 +894,7 @@ function setupEventListeners() {
     const mobileMenuBtn = document.getElementById('mobile-menu-btn');
     const navOverlay = document.getElementById('nav-overlay');
     const leftNav = document.querySelector('.left-nav');
-    
+
     if (mobileMenuBtn && navOverlay && leftNav) {
         const toggleNav = (show) => {
             mobileMenuBtn.classList.toggle('active', show);
@@ -902,13 +902,13 @@ function setupEventListeners() {
             navOverlay.classList.toggle('active', show);
             document.body.style.overflow = show ? 'hidden' : '';
         };
-        
+
         mobileMenuBtn.addEventListener('click', () => {
             toggleNav(!leftNav.classList.contains('active'));
         });
-        
+
         navOverlay.addEventListener('click', () => toggleNav(false));
-        
+
         leftNav.querySelectorAll('.nav-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 if (window.innerWidth <= 768) {
@@ -917,7 +917,7 @@ function setupEventListeners() {
             });
         });
     }
-    
+
     document.getElementById('char-pool-btn').addEventListener('click', async () => {
         currentPool = 'char';
         resetAllButtons();
@@ -929,7 +929,7 @@ function setupEventListeners() {
         await loadUserData();
         await updateRewards();
     });
-    
+
     document.getElementById('weapon-pool-btn').addEventListener('click', async () => {
         currentPool = 'weapon';
         resetAllButtons();
@@ -941,11 +941,11 @@ function setupEventListeners() {
         await loadUserData();
         await updateRewards();
     });
-    
+
     document.getElementById('single-draw').addEventListener('click', () => performGacha(1));
     document.getElementById('ten-draw').addEventListener('click', () => performGacha(10));
     document.getElementById('urgent-recruitment').addEventListener('click', () => performUrgentRecruitment());
-    
+
     document.getElementById('chars-tab').addEventListener('click', async () => {
         clearResults();
         currentCollection = 'chars';
@@ -954,7 +954,7 @@ function setupEventListeners() {
         document.querySelector('.gacha-area').style.display = 'none';
         document.querySelector('.stats-area').style.display = 'none';
         removeAllTempAreas();
-        
+
         const collectionArea = document.createElement('div');
         collectionArea.className = 'collection-area';
         collectionArea.id = 'temp-collection-area';
@@ -962,7 +962,7 @@ function setupEventListeners() {
         document.querySelector('.content-area').appendChild(collectionArea);
         await loadUserData();
     });
-    
+
     document.getElementById('chars-detail-tab').addEventListener('click', async () => {
         clearResults();
         resetAllButtons();
@@ -970,7 +970,7 @@ function setupEventListeners() {
         document.querySelector('.gacha-area').style.display = 'none';
         document.querySelector('.stats-area').style.display = 'none';
         removeAllTempAreas();
-        
+
         const charsDetailArea = document.createElement('div');
         charsDetailArea.className = 'collection-area';
         charsDetailArea.id = 'temp-collection-area';
@@ -979,7 +979,7 @@ function setupEventListeners() {
         await loadUserData();
         updateCharsDetail();
     });
-    
+
     document.getElementById('weapons-tab').addEventListener('click', async () => {
         clearResults();
         currentCollection = 'weapons';
@@ -988,7 +988,7 @@ function setupEventListeners() {
         document.querySelector('.gacha-area').style.display = 'none';
         document.querySelector('.stats-area').style.display = 'none';
         removeAllTempAreas();
-        
+
         const collectionArea = document.createElement('div');
         collectionArea.className = 'collection-area';
         collectionArea.id = 'temp-collection-area';
@@ -996,7 +996,7 @@ function setupEventListeners() {
         document.querySelector('.content-area').appendChild(collectionArea);
         await loadUserData();
     });
-    
+
     document.getElementById('resources-tab').addEventListener('click', async () => {
         clearResults();
         resetAllButtons();
@@ -1004,10 +1004,10 @@ function setupEventListeners() {
         document.querySelector('.gacha-area').style.display = 'none';
         document.querySelector('.stats-area').style.display = 'none';
         removeAllTempAreas();
-        
+
         const userData = await (await fetch('/api/user_data')).json();
         const firstRecharge = userData.resources.first_recharge || {};
-        
+
         const rechargeTiers = [
             { amount: 6, first: '首充特惠：获得 6 个衍质源石', normal: '获得 3 个衍质源石' },
             { amount: 30, first: '首充双倍：获得 24 个衍质源石', normal: '获得 15 个衍质源石' },
@@ -1016,7 +1016,7 @@ function setupEventListeners() {
             { amount: 328, first: '首充双倍：获得 282 个衍质源石', normal: '获得 171 个衍质源石' },
             { amount: 648, first: '首充双倍：获得 560 个衍质源石', normal: '获得 350 个衍质源石' }
         ];
-        
+
         let rechargeButtons = '';
         rechargeTiers.forEach(tier => {
             const isFirst = firstRecharge[tier.amount.toString()] !== false;
@@ -1025,7 +1025,7 @@ function setupEventListeners() {
             const oroberylCount = text ? text.match(/(\d+) 个衍质源石/)?.[1] || text.match(/(\d+) 个嵌晶玉/)?.[1] || '' : '';
             rechargeButtons += `<button class="recharge-btn first-recharge" data-amount="${tier.amount}" data-reward="${rewardText}"><div class="button-content"><div class="oroberyl-count">${oroberylCount}</div><div class="first-reward">${rewardText}</div></div><div class="price-bar">¥${tier.amount}</div></button>`;
         });
-        
+
         const resourcesArea = document.createElement('div');
         resourcesArea.className = 'resources-area';
         resourcesArea.id = 'temp-resources-area';
@@ -1057,13 +1057,13 @@ function setupEventListeners() {
         setupResourceManagementListeners();
         await loadUserData();
     });
-    
+
     document.getElementById('clear-data-btn').addEventListener('click', async () => {
         if (confirm('确定要清空所有抽卡数据吗？此操作不可恢复。')) {
             await clearUserData();
         }
     });
-    
+
     document.getElementById('char-history-btn').addEventListener('click', async () => {
         clearResults();
         resetAllButtons();
@@ -1071,7 +1071,7 @@ function setupEventListeners() {
         document.querySelector('.gacha-area').style.display = 'none';
         document.querySelector('.stats-area').style.display = 'none';
         removeAllTempAreas();
-        
+
         const historyArea = document.createElement('div');
         historyArea.className = 'history-area';
         historyArea.id = 'temp-history-area';
@@ -1079,7 +1079,7 @@ function setupEventListeners() {
         document.querySelector('.content-area').appendChild(historyArea);
         await loadHistory('char');
     });
-    
+
     document.getElementById('weapon-history-btn').addEventListener('click', async () => {
         clearResults();
         resetAllButtons();
@@ -1087,7 +1087,7 @@ function setupEventListeners() {
         document.querySelector('.gacha-area').style.display = 'none';
         document.querySelector('.stats-area').style.display = 'none';
         removeAllTempAreas();
-        
+
         const historyArea = document.createElement('div');
         historyArea.className = 'history-area';
         historyArea.id = 'temp-history-area';
@@ -1103,7 +1103,7 @@ async function clearUserData() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
         });
-        
+
         const result = await response.json();
         if (result.message) {
             alert(result.message);
@@ -1121,7 +1121,7 @@ async function clearUserData() {
 
 async function loadHistory(poolType, forceRefresh = false) {
     const cacheKey = `${CACHE_CONFIG.HISTORY.key}_${poolType}`;
-    
+
     if (!forceRefresh) {
         const cachedData = CacheUtil.get(cacheKey);
         if (cachedData) {
@@ -1129,12 +1129,12 @@ async function loadHistory(poolType, forceRefresh = false) {
             return;
         }
     }
-    
+
     try {
         const response = await fetch(`/api/history?pool_type=${poolType}`);
         const data = await response.json();
         const history = data.history || [];
-        
+
         CacheUtil.set(cacheKey, history, CACHE_CONFIG.HISTORY.ttl);
         displayHistory(history, poolType);
     } catch (error) {
@@ -1153,9 +1153,9 @@ function displayHistory(history, poolType) {
         poolType === 'char' ? 'char-history-container' : 'weapon-history-container'
     );
     if (!container) return;
-    
+
     container.innerHTML = '';
-    
+
     if (history.length === 0) {
         const emptyMessage = document.createElement('div');
         emptyMessage.style.cssText = 'color:#aaa;text-align:center;padding:20px;font-size:16px';
@@ -1167,24 +1167,24 @@ function displayHistory(history, poolType) {
         for (let i = 0; i < reversedHistory.length; i += 10) {
             groups.push(reversedHistory.slice(i, i + 10));
         }
-        
+
         groups.forEach((group, groupIndex) => {
             const groupDiv = document.createElement('div');
             groupDiv.className = 'history-group';
             groupDiv.style.cssText = 'margin-bottom:20px;padding:15px;background:rgba(255,255,255,0.05);border-radius:8px;border:1px solid rgba(255,255,255,0.1)';
-            
+
             const startNumber = reversedHistory.length - groupIndex * 10;
             const endNumber = Math.max(0, reversedHistory.length - (groupIndex + 1) * 10);
-            
+
             const groupTitle = document.createElement('div');
             groupTitle.className = 'history-group-title';
             groupTitle.style.cssText = 'color:#aaa;font-size:14px;margin-bottom:10px';
             groupTitle.textContent = endNumber === startNumber - 1 ? `第 ${startNumber} 次` : `第 ${startNumber} ~ ${endNumber + 1} 次`;
             groupDiv.appendChild(groupTitle);
-            
+
             const resultsDiv = document.createElement('div');
             resultsDiv.style.cssText = 'display:flex;flex-wrap:wrap;gap:10px';
-            
+
             group.forEach(item => {
                 const resultCard = document.createElement('div');
                 resultCard.className = `history-result-card star-${item.star}`;
@@ -1192,7 +1192,7 @@ function displayHistory(history, poolType) {
                 resultCard.textContent = item.name + (item.is_up_g || item.is_6_g || item.is_5_g ? ' *' : '');
                 resultsDiv.appendChild(resultCard);
             });
-            
+
             groupDiv.appendChild(resultsDiv);
             container.appendChild(groupDiv);
         });
@@ -1225,7 +1225,7 @@ function setupResourceManagementListeners() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ amount })
             });
-            
+
             const result = await response.json();
             if (result.message) {
                 alert(result.message);
@@ -1243,7 +1243,7 @@ function setupResourceManagementListeners() {
             alert('充值失败，请重试');
         }
     };
-    
+
     const handleExchange = async (from, to, amount) => {
         try {
             const response = await fetch('/api/exchange', {
@@ -1251,7 +1251,7 @@ function setupResourceManagementListeners() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ from, to, amount })
             });
-            
+
             const result = await response.json();
             if (result.message) {
                 alert(result.message);
@@ -1268,11 +1268,11 @@ function setupResourceManagementListeners() {
             alert('兑换失败，请重试');
         }
     };
-    
+
     document.querySelectorAll('.recharge-btn').forEach(btn => {
         btn.addEventListener('click', () => handleRecharge(parseInt(btn.dataset.amount)));
     });
-    
+
     const exchangeOroberylBtn = document.getElementById('exchange-origeometry-oroberyl');
     if (exchangeOroberylBtn) {
         exchangeOroberylBtn.addEventListener('click', () => {
@@ -1280,7 +1280,7 @@ function setupResourceManagementListeners() {
             handleExchange('origeometry', 'oroberyl', amount);
         });
     }
-    
+
     const exchangeArsenalBtn = document.getElementById('exchange-origeometry-arsenal');
     if (exchangeArsenalBtn) {
         exchangeArsenalBtn.addEventListener('click', () => {
@@ -1288,7 +1288,7 @@ function setupResourceManagementListeners() {
             handleExchange('origeometry', 'arsenal_tickets', amount);
         });
     }
-    
+
     const exchangeAllOroberylBtn = document.getElementById('exchange-all-oroberyl');
     if (exchangeAllOroberylBtn) {
         exchangeAllOroberylBtn.addEventListener('click', async () => {
@@ -1301,7 +1301,7 @@ function setupResourceManagementListeners() {
             handleExchange('origeometry', 'oroberyl', amount);
         });
     }
-    
+
     const exchangeAllArsenalBtn = document.getElementById('exchange-all-arsenal');
     if (exchangeAllArsenalBtn) {
         exchangeAllArsenalBtn.addEventListener('click', async () => {
