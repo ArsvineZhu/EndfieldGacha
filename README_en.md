@@ -301,9 +301,19 @@ This project is developed as a hobby. My technical ability is limited—please f
 
 #### 2026‑02‑09 Version 1.0.0 Stable release
 
+#### 2026-02-24 Version 1.1.0 Gacha Core Tweaks
+
+- Optimize the **random number generation** mechanism and enable the **reproducibility** of gacha draw outcomes.
+- Added statistics in `demo.py`: "The number of pulls required for the current UP 6-star character to reach **max potential** (number of drawn characters + number of tokens = 6)"
+- Added **probability verification** in `distribution.py`
+
+#### 2026-03-01 Version 2.0.0 Web Client Release
+
+- Run `python app.py` to start the server, then access the local port `5000`.
+
 ### Future Plans
 
-#### Console Client Realism Update
+#### ~~Console~~ Web Client Update
 
 - Support reading historical gacha records (Headhunting/Arsenal Issue)
 - Support importing owned Operators
