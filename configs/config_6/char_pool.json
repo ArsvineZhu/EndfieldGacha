@@ -1,19 +1,19 @@
 {
     "6": [
         {
-            "name": "洁尔佩塔",
-            "remove_after": 3,
-            "up_prob": 0.50
-        },
-        {
-            "name": "莱万汀",
+            "name": "洛茜",
             "remove_after": 2,
             "up_prob": 0.0
         },
         {
-            "name": "伊冯",
-            "remove_after": 4,
+            "name": "汤汤",
+            "remove_after": 1,
             "up_prob": 0.0
+        },
+        {
+            "name": "庄方宜",
+            "remove_after": 3,
+            "up_prob": 0.50
         },
         {
             "name": "余烬",

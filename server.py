@@ -2,10 +2,13 @@ from flask import Flask, render_template, request, jsonify, session
 import json
 import os
 import hashlib
-from core import CharGacha, WeaponGacha
+from core import CharGacha, WeaponGacha, GlobalConfigLoader
 
 app = Flask(__name__, template_folder="app/templates", static_folder="app/static")
 app.secret_key = "endfield_gacha_secret_key_Arsvine_20260228"
+
+# 全局配置实例
+DEFAULT_CONFIG = GlobalConfigLoader("configs/config_1")
 
 # 用户数据存储文件夹路径
 USER_DATA_FOLDER = os.path.join(os.path.dirname(__file__), "users")
@@ -17,12 +20,13 @@ os.makedirs(USER_DATA_FOLDER, exist_ok=True)
 # 获取用户 IP 地址
 def get_user_ip():
     """获取用户的真实 IP 地址"""
-    if request.headers.get("X-Forwarded-For"):
-        return request.headers.get("X-Forwarded-For").split(",")[0].strip()
-    elif request.headers.get("X-Real-IP"):
-        return request.headers.get("X-Real-IP")
-    else:
-        return request.remote_addr
+    x_forwarded_for = request.headers.get("X-Forwarded-For")
+    if x_forwarded_for:
+        return x_forwarded_for.split(",")[0].strip()
+    x_real_ip = request.headers.get("X-Real-IP")
+    if x_real_ip:
+        return x_real_ip
+    return request.remote_addr
 
 
 # 生成用户唯一标识
@@ -64,19 +68,18 @@ def create_new_user(user_id):
         "created_at": __import__("datetime").datetime.now().isoformat(),
         "last_visit": __import__("datetime").datetime.now().isoformat(),
         "char_gacha": {
-            "total_draws": 0,
-            "no_6star_draw": 0,
-            "no_5star_plus_draw": 0,
-            "no_up_draw": 0,
-            "up_guarantee_used": False,
+            "total": 0,
+            "no_6star": 0,
+            "no_5star_plus": 0,
+            "no_up": 0,
+            "guarantee_used": False,
             "history": [],
         },
         "weapon_gacha": {
-            "total_draws": 0,
-            "total_apply": 0,
-            "no_6star_apply": 0,
-            "no_up_apply": 0,
-            "up_guarantee_used": False,
+            "total": 0,
+            "no_6star": 0,
+            "no_up": 0,
+            "guarantee_used": False,
             "history": [],
         },
         "collection": {"chars": {}, "weapons": {}},
@@ -189,17 +192,17 @@ def gacha():
 
     if pool_type == "char":
         # 初始化角色卡池实例
-        char_gacha = CharGacha()
+        char_gacha = CharGacha(DEFAULT_CONFIG)
         # 恢复计数器状态
-        char_gacha.total_draws = user_info["char_gacha"]["total_draws"]
-        char_gacha.no_6star_draw = user_info["char_gacha"]["no_6star_draw"]
-        char_gacha.no_5star_plus_draw = user_info["char_gacha"]["no_5star_plus_draw"]
-        char_gacha.no_up_draw = user_info["char_gacha"]["no_up_draw"]
-        char_gacha.up_guarantee_used = user_info["char_gacha"]["up_guarantee_used"]
+        char_gacha.counters.total = user_info["char_gacha"]["total"]
+        char_gacha.counters.no_6star = user_info["char_gacha"]["no_6star"]
+        char_gacha.counters.no_5star_plus = user_info["char_gacha"]["no_5star_plus"]
+        char_gacha.counters.no_up = user_info["char_gacha"]["no_up"]
+        char_gacha.counters.guarantee_used = user_info["char_gacha"]["guarantee_used"]
 
         results = []
         for _ in range(count):
-            result = char_gacha.draw_once()
+            result = char_gacha.attempt()
             results.append(
                 {
                     "name": result.name,
@@ -225,33 +228,32 @@ def gacha():
             )
 
         # 保存计数器状态
-        user_info["char_gacha"]["total_draws"] = char_gacha.total_draws
-        user_info["char_gacha"]["no_6star_draw"] = char_gacha.no_6star_draw
-        user_info["char_gacha"]["no_5star_plus_draw"] = char_gacha.no_5star_plus_draw
-        user_info["char_gacha"]["no_up_draw"] = char_gacha.no_up_draw
-        user_info["char_gacha"]["up_guarantee_used"] = char_gacha.up_guarantee_used
+        user_info["char_gacha"]["total"] = char_gacha.counters.total
+        user_info["char_gacha"]["no_6star"] = char_gacha.counters.no_6star
+        user_info["char_gacha"]["no_5star_plus"] = char_gacha.counters.no_5star_plus
+        user_info["char_gacha"]["no_up"] = char_gacha.counters.no_up
+        user_info["char_gacha"]["guarantee_used"] = char_gacha.counters.guarantee_used
 
         # 记录历史
         user_info["char_gacha"]["history"].extend(results)
 
         # 检查累计奖励：加急招募
-        if char_gacha.total_draws >= 30 and not user_info["resources"]["urgent_used"]:
+        if char_gacha.counters.total >= 30 and not user_info["resources"]["urgent_used"]:
             user_info["resources"]["urgent_recruitment"] += 1
             user_info["resources"]["urgent_used"] = True
 
     else:  # weapon
         # 初始化武器卡池实例
-        weapon_gacha = WeaponGacha()
+        weapon_gacha = WeaponGacha(DEFAULT_CONFIG)
         # 恢复计数器状态
-        weapon_gacha.total_draws = user_info["weapon_gacha"]["total_draws"]
-        weapon_gacha.total_apply = user_info["weapon_gacha"]["total_apply"]
-        weapon_gacha.no_6star_apply = user_info["weapon_gacha"]["no_6star_apply"]
-        weapon_gacha.no_up_apply = user_info["weapon_gacha"]["no_up_apply"]
-        weapon_gacha.up_guarantee_used = user_info["weapon_gacha"]["up_guarantee_used"]
+        weapon_gacha.counters.total = user_info["weapon_gacha"]["total"]
+        weapon_gacha.counters.no_6star = user_info["weapon_gacha"]["no_6star"]
+        weapon_gacha.counters.no_up = user_info["weapon_gacha"]["no_up"]
+        weapon_gacha.counters.guarantee_used = user_info["weapon_gacha"]["guarantee_used"]
 
         results = []
         for _ in range(count):
-            apply_results = weapon_gacha.apply_once()
+            apply_results = weapon_gacha.attempt()
             for result in apply_results:
                 results.append(
                     {
@@ -273,11 +275,10 @@ def gacha():
                 user_info["collection"]["weapons"][result.name]["count"] += 1
 
         # 保存计数器状态
-        user_info["weapon_gacha"]["total_draws"] = weapon_gacha.total_draws
-        user_info["weapon_gacha"]["total_apply"] = weapon_gacha.total_apply
-        user_info["weapon_gacha"]["no_6star_apply"] = weapon_gacha.no_6star_apply
-        user_info["weapon_gacha"]["no_up_apply"] = weapon_gacha.no_up_apply
-        user_info["weapon_gacha"]["up_guarantee_used"] = weapon_gacha.up_guarantee_used
+        user_info["weapon_gacha"]["total"] = weapon_gacha.counters.total
+        user_info["weapon_gacha"]["no_6star"] = weapon_gacha.counters.no_6star
+        user_info["weapon_gacha"]["no_up"] = weapon_gacha.counters.no_up
+        user_info["weapon_gacha"]["guarantee_used"] = weapon_gacha.counters.guarantee_used
 
         # 记录历史
         user_info["weapon_gacha"]["history"].extend(results)
@@ -305,12 +306,12 @@ def urgent_recruitment():
     user_info["resources"]["urgent_recruitment"] -= 1
 
     # 创建新的 CharGacha 实例（不计入先前卡池的保底计数）
-    urgent_gacha = CharGacha()
+    urgent_gacha = CharGacha(DEFAULT_CONFIG)
 
     # 执行 10 连抽
     results = []
     for _ in range(10):
-        result = urgent_gacha.draw_once()
+        result = urgent_gacha.attempt(disable_guarantee=True)
         results.append(
             {
                 "name": result.name,
@@ -358,8 +359,8 @@ def get_rewards():
 
     if pool_type == "char":
         # 使用 core.py 中的 get_accumulated_reward 方法获取角色池奖励
-        char_gacha = CharGacha()
-        char_gacha.total_draws = user_info["char_gacha"]["total_draws"]
+        char_gacha = CharGacha(DEFAULT_CONFIG)
+        char_gacha.counters.total = user_info["char_gacha"]["total"]
         reward_tuples = char_gacha.get_accumulated_reward()
 
         # 转换为前端需要的格式
@@ -382,8 +383,8 @@ def get_rewards():
                     }
     else:  # weapon
         # 使用 core.py 中的 get_accumulated_reward 方法获取武器池奖励
-        weapon_gacha = WeaponGacha()
-        weapon_gacha.total_apply = user_info["weapon_gacha"]["total_apply"]
+        weapon_gacha = WeaponGacha(DEFAULT_CONFIG)
+        weapon_gacha.counters.total = user_info["weapon_gacha"]["total"]
         reward_tuples = weapon_gacha.get_accumulated_reward()
 
         # 转换为前端需要的格式
@@ -421,19 +422,18 @@ def clear_data():
         ),
         "last_visit": __import__("datetime").datetime.now().isoformat(),
         "char_gacha": {
-            "total_draws": 0,
-            "no_6star_draw": 0,
-            "no_5star_plus_draw": 0,
-            "no_up_draw": 0,
-            "up_guarantee_used": False,
+            "total": 0,
+            "no_6star": 0,
+            "no_5star_plus": 0,
+            "no_up": 0,
+            "guarantee_used": False,
             "history": [],
         },
         "weapon_gacha": {
-            "total_draws": 0,
-            "total_apply": 0,
-            "no_6star_apply": 0,
-            "no_up_apply": 0,
-            "up_guarantee_used": False,
+            "total": 0,
+            "no_6star": 0,
+            "no_up": 0,
+            "guarantee_used": False,
             "history": [],
         },
         "collection": {"chars": {}, "weapons": {}},
@@ -632,23 +632,12 @@ def get_pool_info():
     # 获取卡池类型参数，默认为角色卡池
     pool_type = request.args.get("pool_type", "char")
 
-    # 构建卡池配置文件路径
-    pool_config_path = os.path.join(
-        os.path.dirname(__file__), "config", f"{pool_type}_pool.json"
-    )
-
-    # 构建常量配置文件路径
-    constants_path = os.path.join(os.path.dirname(__file__), "config", "constants.json")
-
     try:
-        with open(pool_config_path, "r", encoding="utf-8") as f:
-            pool_data = json.load(f)
-
-        with open(constants_path, "r", encoding="utf-8") as f:
-            constants = json.load(f)
+        pool_data = DEFAULT_CONFIG.get_pool_data(pool_type)
+        constants = DEFAULT_CONFIG.constants
     except FileNotFoundError as e:
         return jsonify({"error": f"配置文件不存在: {str(e)}"}), 404
-    except json.JSONDecodeError as e:
+    except (KeyError, json.JSONDecodeError) as e:
         return jsonify({"error": f"配置文件格式错误: {str(e)}"}), 500
 
     # 提取概率提升的物品（up_prob > 0 的物品）

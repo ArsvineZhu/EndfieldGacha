@@ -49,7 +49,7 @@ class GachaTestTool:
         print(
             f"\n{title.center(self.width['draw_num']+self.width['star']+self.width['quota']+20, '-')}"
         )
-        gacha = CharGacha()
+        gacha = CharGacha(self.config)
         # 表头（列序：抽数 → 星级 → 配额 → 名称）
         header = (
             f"{'{0}'.format(self.text['draw']+'数'):<{self.width['draw_num']}} | "
@@ -62,7 +62,7 @@ class GachaTestTool:
         # 逐次抽卡输出（仅触发保底时标色，6星红优先）
         quota_sum = 0
         for i in range(draw_times):
-            result = gacha.draw_once()
+            result = gacha.attempt()
             name = result.name
             star = result.star
             quota = result.quota
@@ -117,11 +117,11 @@ class GachaTestTool:
             f"\n{title.center(self.width['draw_num']+self.width['star']+self.width['quota']+40, '-')}"
         )
 
-        gacha = WeaponGacha()
+        gacha = WeaponGacha(self.config)
         quota_sum = 0
         for apply_idx in range(apply_times):
             print(f"\n【第{apply_idx+1}次{self.text['apply']}】")
-            apply_result = gacha.apply_once()  # 接收保底标记
+            apply_result = gacha.attempt()  # 接收保底标记
             # 表头（列序：抽数 → 星级 → 配额 → 名称）
             header = (
                 f"{'{0}'.format(self.text['weapon_draw']+'数'):<{self.width['draw_num']}} | "
@@ -186,10 +186,10 @@ class GachaTestTool:
         quota_list = []  # 记录每次120抽的配额值
         total_quota = 0
         for _ in trange(draw_times):
-            gacha = CharGacha()
+            gacha = CharGacha(self.config)
             round_quota = 0
             for _ in range(120):
-                result = gacha.draw_once()
+                result = gacha.attempt()
                 round_quota += result.quota
             quota_list.append(round_quota)
             total_quota += round_quota
@@ -281,10 +281,10 @@ class GachaTestTool:
         quota_list = []  # 记录每次8次申领的配额值
         total_quota = 0
         for _ in trange(draw_times):
-            gacha = WeaponGacha()
+            gacha = WeaponGacha(self.config)
             round_quota = 0
             for _ in range(8):
-                apply_result = gacha.apply_once()
+                apply_result = gacha.attempt()
                 # 累加本次申领中所有抽卡的配额
                 for result in apply_result:
                     round_quota += result.quota
@@ -380,10 +380,10 @@ class GachaTestTool:
         star_counts = {4: 0, 5: 0, 6: 0}  # 记录不同星级角色的总数量
 
         for _ in trange(draw_times):
-            gacha = CharGacha()
+            gacha = CharGacha(self.config)
             round_six_stars = 0
             for _ in range(120):
-                result = gacha.draw_once()
+                result = gacha.attempt()
                 star_counts[result.star] += 1  # 统计星级分布
                 if result.star == 6:
                     round_six_stars += 1  # 统计6星角色数量
@@ -494,10 +494,10 @@ class GachaTestTool:
         star_counts = {4: 0, 5: 0, 6: 0}  # 记录不同星级武器的总数量
 
         for _ in trange(draw_times):
-            gacha = WeaponGacha()
+            gacha = WeaponGacha(self.config)
             round_six_stars = 0
             for _ in range(8):
-                apply_result = gacha.apply_once()
+                apply_result = gacha.attempt()
                 for result in apply_result:
                     star_counts[result.star] += 1  # 统计星级分布
                     if result.star == 6:
@@ -611,13 +611,13 @@ class GachaTestTool:
         up_draw_counts = []  # 记录每次抽中UP角色所需的抽数
 
         for _ in trange(test_times):
-            gacha = CharGacha()
+            gacha = CharGacha(self.config)
             draw_count = 0
             # 获取6星UP角色列表
             up_char_names = gacha.star_up_prob[6][0]
             while True:
                 draw_count += 1
-                result = gacha.draw_once()
+                result = gacha.attempt()
                 # 检查是否抽中6星UP角色
                 if result.star == 6 and result.name in up_char_names:
                     up_draw_counts.append(draw_count)
@@ -719,12 +719,12 @@ class GachaTestTool:
         up_draw_counts = []  # 记录每次抽中UP武器所需的抽数
 
         for _ in trange(test_times):
-            gacha = WeaponGacha()
+            gacha = WeaponGacha(self.config)
             draw_count = 0
             # 获取6星UP武器列表
             up_weapon_names = gacha.star_up_prob[6][0]
             while True:
-                apply_result = gacha.apply_once()
+                apply_result = gacha.attempt()
                 # 累加本次申领中的抽数（每次申领包含10抽）
                 draw_count += len(apply_result)
                 # 检查本次申领中是否有6星UP武器
@@ -815,11 +815,11 @@ class GachaTestTool:
         total_quota = 0
         for _ in trange(draw_times):
             # 创建新的CharGacha实例（不计入先前卡池的保底计数）
-            urgent_gacha = CharGacha()
+            urgent_gacha = CharGacha(self.config)
             round_quota = 0
             # 执行10连抽
             for _ in range(10):
-                result = urgent_gacha.draw_once()
+                result = urgent_gacha.attempt()
                 round_quota += result.quota
             quota_list.append(round_quota)
             total_quota += round_quota
@@ -891,8 +891,8 @@ class GachaTestTool:
 
         for _ in trange(draw_times):
             # 一次模拟抽卡
-            gacha = CharGacha()
-            urgent_gacha = CharGacha()  # 用于模拟加急招募抽卡，独立于主抽卡计数
+            gacha = CharGacha(self.config)
+            urgent_gacha = CharGacha(self.config)  # 用于模拟加急招募抽卡，独立于主抽卡计数
             urgent_used = False  # 标记是否已使用加急招募抽卡机会
             draw_count = 0
             char_count = 0  # 抽中角色的数量
@@ -906,7 +906,7 @@ class GachaTestTool:
 
                 # 单抽
                 draw_count += 1
-                result = gacha.draw_once()
+                result = gacha.attempt()
                 if result.star == 6 and result.name in up_char_names:
                     char_count += 1
 
@@ -917,7 +917,7 @@ class GachaTestTool:
                     if reward[0].startswith("寻访情报书") and not urgent_used:
                         urgent_used = True
                         for _ in range(10):
-                            result = urgent_gacha.draw_once()
+                            result = urgent_gacha.attempt()
                             if result.star == 6 and result.name in up_char_names:
                                 char_count += 1
 

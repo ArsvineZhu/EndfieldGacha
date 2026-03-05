@@ -210,6 +210,9 @@ __marimo__/
 # Trae
 .trae/
 
+# Vscode
+.vscode/
+
 # History
 *_history_*
 
@@ -221,6 +224,12 @@ users/
 
 # PyCharm
 .idea/
+
+# Discarded files
+discarded/
+
+# Logs
+logs/
 
 # minified static files
 app/static/css/style.*.css

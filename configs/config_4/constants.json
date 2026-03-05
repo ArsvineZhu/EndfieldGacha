@@ -1,12 +1,12 @@
 {
   "dir_names": {
-    "config_dir": "config"
+    "config_dir": "configs/config_4"
   },
   "text_constants": {
     "char_quota_name": "武库配额",
     "weapon_quota_name": "集成配额",
-    "char_pool_name": "「轻飘飘的信使」",
-    "weapon_pool_name": "「迅行申领」",
+    "char_pool_name": "「河流的女儿」",
+    "weapon_pool_name": "「新芽申领」",
     "draw_text": "寻访",
     "apply_text": "申领",
     "weapon_draw_text": "抽",

@@ -323,8 +323,6 @@ function updateResources(resources) {
     const tenDrawBtn = document.getElementById('ten-draw');
     const urgentRecruitmentBtn = document.getElementById('urgent-recruitment');
 
-    console.log('updateResources called with currentPool:', currentPool, 'urgentCount:', urgentCount);
-
     if (currentPool === 'weapon') {
         singleDrawBtn.style.display = 'inline-block';
         tenDrawBtn.style.display = 'none';
@@ -358,8 +356,8 @@ function updateStats(data) {
 
     const statIds = ['total-draws', 'no-6star', 'no-5star', 'no-up'];
     const statKeys = currentPool === 'char'
-        ? ['total_draws', 'no_6star_draw', 'no_5star_plus_draw', 'no_up_draw']
-        : ['total_apply', 'no_6star_apply', null, 'no_up_apply'];
+        ? ['total', 'no_6star', 'no_5star_plus', 'no_up']
+        : ['total', 'no_6star', null, 'no_up'];
 
     statIds.forEach((id, index) => {
         const el = document.getElementById(id);
@@ -796,8 +794,6 @@ function renderCharsDetail(chars, container) {
 }
 
 async function updatePoolUI(poolType, forceRefresh = false) {
-    console.log('updatePoolUI called with poolType:', poolType);
-
     clearResults();
 
     const uiConfig = {

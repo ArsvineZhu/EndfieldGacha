@@ -1,7 +1,9 @@
 from typing import List, Dict
 from tqdm import trange
-from core import WeaponGacha, CharGacha
+from core import WeaponGacha, CharGacha, GlobalConfigLoader
 from demo import Color
+
+DEFAULT_CONFIG = GlobalConfigLoader("configs/config_4")
 
 
 def color(star: int = 0) -> str:
@@ -19,9 +21,9 @@ def distribute(
     gacha_type: str = "char", scale: int = 5, disable_guarantee: bool = True
 ) -> None:
     if gacha_type == "char":
-        gacha = CharGacha(size=10240)
+        gacha = CharGacha(DEFAULT_CONFIG, size=10240)
     elif gacha_type == "weapon":
-        gacha = WeaponGacha(size=10240)
+        gacha = WeaponGacha(DEFAULT_CONFIG, size=10240)
     else:
         raise ValueError("Invalid gacha type")
 
@@ -36,14 +38,14 @@ def distribute(
     counter: Dict[str, List[float]] = {}  # name -> [count, star]
     for _ in trange(scale):
         if gacha_type == "char":
-            result = gacha.draw_once(disable_guarantee=disable_guarantee)
-            counter[result.name] = [
-                counter.get(result.name, [0, result.star])[0] + 1,
-                result.star,
+            result = gacha.attempt(disable_guarantee=disable_guarantee)
+            counter[result.name] = [ # type: ignore
+                counter.get(result.name, [0, result.star])[0] + 1, # type: ignore
+                result.star, # type: ignore
             ]
         elif gacha_type == "weapon":
-            results = gacha.apply_once(disable_guarantee=disable_guarantee)
-            for result in results:
+            results = gacha.attempt(disable_guarantee=disable_guarantee)
+            for result in results: # type: ignore
                 counter[result.name] = [
                     counter.get(result.name, [0, result.star])[0] + 0.1,
                     result.star,
@@ -67,7 +69,7 @@ def distribute(
 
     # Print individual character / weapon distribution
     for name, count in counter.items():
-        print(f"{color(count[1])}{name}{color()}: {round(count[0]) / scale * 100:.2f}%")
+        print(f"{color(int(count[1]))}{name}{color()}: {round(count[0]) / scale * 100:.2f}%")
 
 
 def main():
