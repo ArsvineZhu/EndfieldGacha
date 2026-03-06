@@ -30,12 +30,54 @@ console = Console()
 
 
 class GachaStrategy:
-    """
-    基于魔数的抽卡策略预编译执行系统（改进版）
+    """基于魔数编码的抽卡终止策略编译与执行系统。
 
-    设计意图适配：
-    1. 终止目标默认值与前置条件参数完全隔离，无互相覆盖风险；
-    2. 终止目标默认值作为兜底，用户未指定参数时自动生效。
+    本类将一组使用 32 位整数编码的抽卡条件与终止目标（如急单、保底、
+    目标干员等）编译为可执行的判定逻辑，在抽卡循环中通过
+    :meth:`terminate` 进行统一判定。
+
+    设计要点
+    -------
+    - 终止目标默认值与条件参数完全隔离，互不覆盖；
+    - 终止目标的默认参数作为兜底，在用户未指定数值时自动生效；
+    - 支持旧版「一维列表」与新版「分组列表」两种策略格式；
+    - 支持条件 + 终止目标的二元组形式，便于表达复杂策略。
+
+    Parameters
+    ----------
+    strategy : list
+        策略描述列表。支持以下几种形式：
+
+        - ``[int, int, ...]``：旧版一维魔数列表，每个元素表示一个条件或终止目标；
+        - ``[[...], [...], ...]``：新版分组列表，每一子列表视为一组「与」关系，
+          不同分组之间为「或」关系；
+        - ``[(cond_magic, stop_magic), ...]``：条件与终止目标成对出现的二元组形式，
+          用于更精细的控制。
+
+        其中魔数的高位用于标记终止类型（如 ``URGENT``、``DOSSIER`` 等），
+        中间若干位用于条件运算符（``GT``、``LT``、``GE``、``LE``），低 16 位为参数。
+
+    Notes
+    -----
+    - 本类本身不关心抽卡结果，只根据「抽数」与「状态字典」进行判定；
+    - 状态字典的键约定见 :func:`initialize_banner_state` 与
+      :func:`process_gacha_result`；
+    - 所有内部回调在异常（如类型错误）时会安全返回 ``False``，避免中断模拟。
+
+    Examples
+    --------
+    只根据抽卡总次数终止::
+
+        strategy = GachaStrategy([90])
+        while not strategy.terminate(draw_cnt, state):
+            ...
+
+    组合条件与终止目标::
+
+        strategy = GachaStrategy([
+            [DOSSIER, UP_OPRT],              # 抽到 60 抽或达成 UP 干员
+            [URGENT, LE ^ 43, UP_OPRT],      # 或在急单池 43 抽内获取 UP
+        ])
     """
 
     URGENT = (-1 << 31) | (0b0000001 << 24)
@@ -92,11 +134,28 @@ class GachaStrategy:
     }
 
     def __init__(self, strategy: list):
+        """初始化策略实例。
+
+        Parameters
+        ----------
+        strategy : list
+            原始策略描述列表。具体支持的格式与语义见类文档。
+        """
         self._raw_strategy = strategy
         self._compiled_groups = []
         self._compile()
 
     def _compile(self):
+        """将原始策略编译为可执行的判定函数列表。
+
+        Notes
+        -----
+        编译结果保存在 ``self._compiled_groups`` 中，其结构为::
+
+            List[Callable[[int, dict], bool]]
+
+        每个 group 表示一个「与」关系的规则组，不同 group 之间为「或」关系。
+        """
         strategy = self._raw_strategy
         compiled_groups = []
 
@@ -189,6 +248,20 @@ class GachaStrategy:
         self._compiled_groups = compiled_groups
 
     def _parse_cond_magic(self, magic: int) -> Tuple[Callable | None, int]:
+        """解析条件魔数。
+
+        Parameters
+        ----------
+        magic : int
+            含有条件运算符与参数的 32 位整数。
+
+        Returns
+        -------
+        cond_func : Callable or None
+            对应的比较函数（如 ``operator.gt`` 风格的函数），如果无法识别则为 ``None``。
+        cond_param : int
+            与抽卡计数比较的阈值参数。
+        """
         if not isinstance(magic, int):
             return None, 0
         magic_32 = magic & 0xFFFFFFFF
@@ -198,6 +271,20 @@ class GachaStrategy:
         return cond_func, cond_param
 
     def _parse_stop_magic(self, magic: int) -> Tuple[str | None, int]:
+        """解析终止魔数。
+
+        Parameters
+        ----------
+        magic : int
+            含有终止类型与参数的 32 位整数。
+
+        Returns
+        -------
+        stop_target : str or None
+            终止目标名称，如 ``\"URGENT\"``、``\"DOSSIER\"`` 等；解析失败时为 ``None``。
+        stop_param : int
+            终止阈值。若魔数未携带自定义参数，则使用对应目标的默认值。
+        """
         if not isinstance(magic, int):
             return None, 0
         magic_32 = magic & 0xFFFFFFFF
@@ -212,6 +299,23 @@ class GachaStrategy:
         return stop_target, stop_param
 
     def terminate(self, draw_cnt: int, state: dict = {}) -> bool:
+        """判断是否应当终止当前抽卡轮次。
+
+        Parameters
+        ----------
+        draw_cnt : int
+            当前已进行的抽卡次数（同一 banner 内计数）。
+        state : dict, optional
+            抽卡状态字典。约定键包括 ``\"urgent\"``、``\"dossier\"``、
+            ``\"soft_pity\"``、``\"up_oprt\"``、``\"potential\"``、
+            ``\"oprt\"`` 等，具体更新逻辑见 :func:`process_gacha_result`。
+
+        Returns
+        -------
+        bool
+            若任意一组编译规则满足，则返回 ``True`` 表示应终止；若策略非法或
+            计数异常也会保护性返回 ``True``。
+        """
         if not isinstance(draw_cnt, int) or draw_cnt < 0:
             return True
         if not isinstance(state, dict):
@@ -223,14 +327,40 @@ class GachaStrategy:
         )
 
     def update_strategy(self, new_strategy: list):
+        """更新原始策略并重新编译。
+
+        Parameters
+        ----------
+        new_strategy : list
+            新的策略描述列表，语义同 ``strategy`` 初始化参数。
+        """
         self._raw_strategy = new_strategy
         self._compile()
 
     def get_raw_strategy(self) -> list:
+        """返回当前保存的原始策略描述。
+
+        Returns
+        -------
+        list
+            用于构造本实例的原始策略列表（浅拷贝语义，由调用方自行约束修改）。
+        """
         return self._raw_strategy
 
     @staticmethod
     def decode_magic(magic) -> str:
+        """将单个魔数或带分隔符的字符串解码为可读说明。
+
+        Parameters
+        ----------
+        magic : int or str
+            魔数整数，或形如 ``\"A ^ B\"`` 的字符串表达式。
+
+        Returns
+        -------
+        str
+            可读的条件/终止目标说明字符串；无法识别时以十六进制原始形式返回。
+        """
         if not isinstance(magic, (int, str)):
             return str(magic)
 
@@ -270,6 +400,18 @@ class GachaStrategy:
 
     @staticmethod
     def decode_strategy(strategy: list) -> list:
+        """将一整套策略解码为可读形式。
+
+        Parameters
+        ----------
+        strategy : list
+            与 :class:`GachaStrategy` 初始化参数相同的策略描述列表。
+
+        Returns
+        -------
+        list
+            解码后的列表结构，内部元素为字符串或字符串列表，便于展示和日志记录。
+        """
         result = []
         for item in strategy:
             if isinstance(item, list):
@@ -301,6 +443,21 @@ LE = GachaStrategy.LE
 
 @dataclass
 class Resource:
+    """抽卡所需资源的归一化描述。
+
+    所有字段都可以通过简单换算统一为「等效单抽次数」，用于统计与评分。
+
+    Parameters
+    ----------
+    chartered_permits : int, optional
+        合约证数量，每 1 个可进行 1 次抽卡。
+    oroberyl : int, optional
+        黄票数量。按照游戏内汇率，每 500 单位视为 1 次抽卡。
+    arsenal_tickets : int, optional
+        其他可能影响资源策略的票券数量，本模块中仅用于统计展示。
+    origeometry : int, optional
+        源石数量。通常在 ``use_origeometry=True`` 时按 75 黄票/个进行折算。
+    """
     chartered_permits: int = 0
     oroberyl: int = 0
     arsenal_tickets: int = 0
@@ -308,25 +465,29 @@ class Resource:
 
 
 class ScoringSystem:
-    """
-    科学的抽卡评分系统（0-100分百分制）
+    """抽卡结果综合评分系统（0–100 分百分制）。
 
-    评分维度：
-    1. 运气评估（0-60分）：评估抽卡运气（权重最高）
-    2. 资源效率（0-25分）：评估资源利用效率
-    3. 目标达成（0-15分）：评估目标完成情况
+    该系统从「运气评估」「资源效率」「目标达成」三个维度对一次完整的
+    抽卡规划进行量化打分，并根据总分给出等级评价。
 
-    核心设计：
-    - UP干员得分是普通6星的2倍
-    - 运气权重最高，体现抽卡游戏的核心体验
+    评分维度
+    --------
+    1. 运气评估（0–60 分）
+       依据 6 星与 UP 干员的实际获取率相对于期望值的偏差，权重最高；
+       其中 UP 的权重是普通 6 星的 2 倍。
+    2. 资源效率（0–20 分）
+       在是否完成目标的前提下，根据资源消耗比例进行加减分。
+    3. 目标达成（0–20 分）
+       是否完成预定目标、UP/6 星数量等因素的奖励得分。
 
-    等级划分：
-    S级（90-100）：极佳运气，资源高效利用
-    A级（80-89）：优秀表现，超出预期
-    B级（70-79）：良好表现，符合预期
-    C级（60-69）：一般表现，略有不足
-    D级（50-59）：较差表现，需要改进
-    E级（0-49）：失败，资源严重不足或运气极差
+    等级划分
+    --------
+    - S（约 90–100）：极佳运气，资源高效利用；
+    - A（约 80–89）：优秀表现，明显超出预期；
+    - B（约 70–79）：良好表现，大体符合预期；
+    - C（约 60–69）：一般表现，略有不足；
+    - D（约 50–59）：较差表现，需要改进；
+    - E（0–49）：失败，资源严重不足或运气极差。
     """
 
     GRADE_THRESHOLDS = {
@@ -352,19 +513,36 @@ class ScoringSystem:
         complete: bool,
         banners_count: int = 5,
     ) -> Dict[str, Any]:
-        """
-        计算综合评分
+        """计算一次完整抽卡规划的综合评分。
 
-        Args:
-            total_draws: 总抽卡次数
-            six_stars: 获得的6星干员数量
-            up_chars: 获得的UP干员数量
-            resource_left: 剩余资源（等效抽卡次数）
-            complete: 是否完成所有目标
-            banners_count: 卡池数量
+        Parameters
+        ----------
+        total_draws : int
+            实际进行的总抽卡次数。
+        six_stars : int
+            获得的 6 星干员数量（含 UP 与常驻）。
+        up_chars : int
+            获得的 UP 干员数量。
+        resource_left : int
+            剩余资源折算后的「等效抽卡次数」，通常为
+            ``券 + (黄票 + 源石换算) // 500``。
+        complete : bool
+            是否完成了预设的全部抽卡目标。
+        banners_count : int, optional
+            本轮规划涉及的卡池数量，仅用于部分评分维度的归一化。
 
-        Returns:
-            包含详细评分信息的字典
+        Returns
+        -------
+        dict
+            包含以下键的字典：
+
+            - ``\"total_score\"``：综合评分（0–100）；
+            - ``\"luck_score\"``：运气维度得分（0–60）；
+            - ``\"efficiency_score\"``：资源效率得分（0–20）；
+            - ``\"achievement_score\"``：目标达成得分（0–20）；
+            - ``\"grade\"``：等级字母（S/A/B/C/D/E）；
+            - ``\"grade_name\"``：等级中文描述；
+            - ``\"grade_style\"``：适用于 Rich 的风格字符串。
         """
         luck_score = ScoringSystem._calculate_luck_score(
             total_draws + resource_left, six_stars, up_chars
@@ -393,15 +571,14 @@ class ScoringSystem:
 
     @staticmethod
     def _calculate_luck_score(total_draws: int, six_stars: int, up_chars: int) -> float:
-        """
-        运气评估评分（0-60分）
+        """计算运气评估得分（0–60 分）。
 
-        评分设计：
-        - 基准60%：36分
-        - 恰好达到期望：54分
-        - 未达期望：按比例递减，最低0分
-        - 超出期望：最多60分
-        - UP权重是普通6星的2倍
+        评分设计
+        --------
+        - 恰好达到期望出率时约为 54 分；
+        - 明显低于期望时按比例递减，最低 0 分；
+        - 高于期望时递增至上限 60 分；
+        - UP 的权重为普通 6 星的 2 倍。
         """
         MAX = ScoringSystem.LUCK_MAX
         if total_draws == 0:
@@ -430,13 +607,13 @@ class ScoringSystem:
     def _calculate_efficiency_score(
         total_draws: int, resource_left: int, complete: bool
     ) -> float:
-        """
-        资源保有率评分（0-20分）
+        """计算资源效率得分（0–20 分）。
 
-        评估标准：
-        - 基础分：20分
-        - 资源保有率：剩余资源越多消耗率越高（最高-10分）
-        - 未完成惩罚：-10 分
+        评估标准
+        --------
+        - 基础分：完成目标时为 20 分，未完成为 10 分；
+        - 资源消耗率：抽卡越多（在同等总资源下），扣分越高，最多 -10 分；
+        - 若从未抽卡（``total_draws == 0``），视作资源未利用，给予最大扣分。
         """
         base_score = 20 if complete else 10
 
@@ -452,13 +629,13 @@ class ScoringSystem:
     def _calculate_achievement_score(
         six_stars: int, up_chars: int, complete: bool, banners_count: int
     ) -> float:
-        """
-        目标达成评分（0-20分）
+        """计算目标达成得分（0–20 分）。
 
-        评估标准：
-        - 完成所有目标：+8分
-        - UP干员获取：每个+4分（最高+8分）
-        - 6星干员获取：每个+2分（最高+4分）
+        评估标准
+        --------
+        - 完成所有目标：+8 分；
+        - UP 干员：每个 +4 分，最高 +8 分；
+        - 6 星干员：每个 +2 分，最高 +4 分。
         """
         score = 0.0
 
@@ -475,7 +652,22 @@ class ScoringSystem:
 
     @staticmethod
     def get_grade(score: float) -> Tuple[str, str, str]:
-        """获取评分等级"""
+        """根据总分获取评分等级。
+
+        Parameters
+        ----------
+        score : float
+            经过裁剪的综合得分（通常在 0–100 之间）。
+
+        Returns
+        -------
+        grade : str
+            等级字母（S/A/B/C/D/E）。
+        name : str
+            等级中文名称。
+        style : str
+            适合 Rich 控制台输出的风格字符串。
+        """
         for (low, high), (grade, name, style) in ScoringSystem.GRADE_THRESHOLDS.items():
             if low <= score <= high:
                 return grade, name, style
@@ -489,6 +681,25 @@ class Scheduler:
         arrange: str = "arrangement",
         resource: Resource | None = None,
     ):
+        """调度并评估多卡池抽卡策略的总控类。
+
+        该类负责：
+
+        - 从配置目录加载各个卡池配置；
+        - 组织多段抽卡计划（schedule）及其初始计数、资源增量；
+        - 提供单次可视化模拟 (:meth:`simulate`) 与大规模评估
+          (:meth:`evaluate`) 两种模式。
+
+        Parameters
+        ----------
+        config_dir : str, optional
+            抽卡配置文件所在目录路径，通常为 ``\"configs\"``。
+        arrange : str, optional
+            用于描述卡池顺序的文件名。文件按行存放各个配置文件名，
+            每一行对应一个 banner。
+        resource : Resource, optional
+            初始资源对象；若为 ``None``，则使用零资源初始化。
+        """
         self.config_dir = config_dir
 
         self.arrangement = []
@@ -503,10 +714,35 @@ class Scheduler:
 
     @property
     def schedules(self):
+        """当前已登记的抽卡计划列表。
+
+        Returns
+        -------
+        list of tuple
+            每个元素为 ``(rules, counters, check_in, use_origeometry, resource_inc)``：
+
+            - ``rules``：传入 :class:`GachaStrategy` 的策略描述列表；
+            - ``counters``：起始计数器 :class:`Counters`；
+            - ``check_in``：是否视为当日已签到（影响合约证获取）；
+            - ``use_origeometry``：是否允许消耗源石换算为抽卡；
+            - ``resource_inc``：在本计划开始前额外发放的资源。
+        """
         return self.__schedules
 
     @schedules.setter
     def schedules(self, value):
+        """设置抽卡计划集合。
+
+        Parameters
+        ----------
+        value : list
+            由若干五元组组成的列表，结构同只读属性 ``schedules``。
+
+        Raises
+        ------
+        ValueError
+            当传入的值不是列表时抛出。
+        """
         if not isinstance(value, list):
             raise ValueError("Schedules must be a list")
         else:
@@ -520,6 +756,31 @@ class Scheduler:
         check_in: bool = True,
         use_origeometry: bool = False,
     ):
+        """追加一段抽卡计划。
+
+        每次调用会在内部 ``schedules`` 列表末尾添加一个计划。在一次
+        :meth:`evaluate` 调用中，这些计划会按顺序依次执行。
+
+        Parameters
+        ----------
+        rules : list
+            策略描述，将直接传入 :class:`GachaStrategy` 构造函数。
+        resource_increment : Resource, optional
+            在本计划开始前额外增加的资源。若为 ``None``，
+            则使用一个包含少量每日收益的默认值。
+        init_counters : Counters, optional
+            初始计数器。对于第一个计划，可用于承接已有进度；
+            之后的计划若为 ``None``，则自动继承上一计划结果中的部分计数。
+        check_in : bool, optional
+            是否视为完成签到任务，影响增加的合约证数量。
+        use_origeometry : bool, optional
+            是否允许在券与黄票不足时继续消耗源石进行换算抽卡。
+
+        Notes
+        -----
+        - 建议在调用 :meth:`evaluate` 之前先连续调用本方法，构造完整抽卡流程；
+        - 本方法不进行任何模拟，仅记录配置。
+        """
         self.schedules.append(
             (
                 rules,
@@ -540,6 +801,21 @@ class Scheduler:
         )
 
     def simulate(self, change: bool = True, display: bool = True):
+        """按当前计划执行一次顺序模拟，并可选地打印详细过程。
+
+        Parameters
+        ----------
+        change : bool, optional
+            是否在不同计划之间切换至对应的卡池配置；若为 ``False``，
+            则所有计划都使用第一个配置文件。
+        display : bool, optional
+            是否在标准输出中打印每步抽卡过程与结果。
+
+        Returns
+        -------
+        None
+            本方法主要用于调试与验证策略，不返回统计结果。
+        """
         scores: List[float] = []
         counters: Counters = Counters()
         outputs: List[List[Tuple[str, int, bool]]] = []
@@ -632,13 +908,29 @@ class Scheduler:
     def evaluate(
         self, scale: int = 20000, change: bool = True, workers: int | None = None
     ):
-        """
-        进行大量模拟并给出统计信息
+        """进行大规模多进程模拟并输出详细统计报告。
 
-        性能优化说明：
-        - 默认进程数为 max(1, int(cpu_count() * 0.75))，避免过度占用CPU
-        - 使用 imap 实现流式处理，减少内存占用
-        - 批量处理结果，减少进度更新频率
+        Parameters
+        ----------
+        scale : int, optional
+            模拟次数（样本数量），即 worker 被调用的总次数。
+        change : bool, optional
+            是否在各计划间切换卡池配置。与 :meth:`simulate` 中参数含义一致。
+        workers : int or None, optional
+            进程数。如果为 ``None``，则自动设为
+            ``max(1, min(int(cpu_count() * 0.75), 4))``；
+            若指定值大于 ``cpu_count()``，则会被裁剪到 CPU 核心数。
+
+        Returns
+        -------
+        None
+            计算结果通过 Rich 表格与面板直接输出到终端，不以返回值形式提供。
+
+        Notes
+        -----
+        - 使用 :func:`multiprocessing.Pool` 与 ``imap`` 进行流式处理，
+          在较大样本规模下仍保持较低内存占用；
+        - 统计汇总与评分计算由 :meth:`_print_statistics` 完成。
         """
         if workers is None:
             workers = max(1, min(int(cpu_count() * 0.75), 4))
@@ -731,7 +1023,19 @@ class Scheduler:
     def _print_header(
         self, scale: int, workers: int, change: bool, schedules_data: list
     ):
-        """打印报告头部"""
+        """打印评估任务的配置概览。
+
+        Parameters
+        ----------
+        scale : int
+            模拟次数。
+        workers : int
+            实际使用的进程数。
+        change : bool
+            是否开启卡池切换。
+        schedules_data : list of dict
+            序列化后的计划配置数据。
+        """
         console.clear()
 
         header = Panel(
@@ -768,7 +1072,18 @@ class Scheduler:
     def _print_statistics(
         self, results: List[Dict[str, Any]], elapsed_time: float, workers: int
     ):
-        """打印专业统计报告"""
+        """根据 worker 返回结果打印统计与评分报告。
+
+        Parameters
+        ----------
+        results : list of dict
+            每个 worker 返回的统计记录，字段包括分数、抽数、获得 6 星、
+            UP 数量与剩余资源等。
+        elapsed_time : float
+            本次评估总耗时（秒）。
+        workers : int
+            使用的进程数，用于性能分析展示。
+        """
         total = len(results)
         if total == 0:
             return
@@ -1066,6 +1381,20 @@ class Scheduler:
         console.print(footer)
 
     def _percentile(self, data: List, p: float) -> float:
+        """计算列表数据的近似分位数。
+
+        Parameters
+        ----------
+        data : list
+            数值列表。
+        p : float
+            分位数百分比（0–100）。
+
+        Returns
+        -------
+        float
+            对应分位上的数据值（使用简单下标截取方式近似）。
+        """
         sorted_data = sorted(data)
         idx = int(len(data) * p / 100)
         if idx >= len(sorted_data):
@@ -1074,6 +1403,18 @@ class Scheduler:
 
 
 def get_token(gacha: CharGacha) -> int:
+    """统计当前累计奖励中「信物」的数量。
+
+    Parameters
+    ----------
+    gacha : CharGacha
+        抽卡对象实例。
+
+    Returns
+    -------
+    int
+        名称以 ``\"的信物\"`` 结尾的奖励条目数量。
+    """
     rewards = gacha.get_accumulated_reward()
     count = 0
     for i in rewards:
@@ -1083,6 +1424,28 @@ def get_token(gacha: CharGacha) -> int:
 
 
 def consume_resource(resource: Resource, use_origeometry: bool) -> bool:
+    """按既定优先级消耗一次抽卡所需资源。
+
+    资源消耗顺序为：
+
+    1. 优先消耗合约证；
+    2. 若不足，则尝试消耗黄票；
+    3. 若开启 ``use_origeometry``，在黄票不足时可用源石按 75 黄票/个
+       的比例补足。
+
+    Parameters
+    ----------
+    resource : Resource
+        当前资源状态，会在函数内部就地更新。
+    use_origeometry : bool
+        是否允许使用源石进行折算补足。
+
+    Returns
+    -------
+    bool
+        若成功支付一次抽卡费用则为 ``True``，否则表示资源不足返回
+        ``False``。
+    """
     if resource.chartered_permits >= 1:
         resource.chartered_permits -= 1
         return True
@@ -1102,6 +1465,31 @@ def consume_resource(resource: Resource, use_origeometry: bool) -> bool:
 def process_gacha_result(
     result, gacha: CharGacha, state: dict, potential: int, score: int
 ) -> Tuple[dict, int, int]:
+    """根据单次抽卡结果更新状态与评分。
+
+    Parameters
+    ----------
+    result
+        本次抽卡返回的角色/结果对象，需至少包含 ``name`` 与 ``star`` 属性。
+    gacha : CharGacha
+        抽卡对象，用于查询 UP 名单与计数器。
+    state : dict
+        抽卡状态字典，会被就地更新。约定键包括
+        ``\"oprt\"``、``\"up_oprt\"``、``\"soft_pity\"``、``\"potential\"`` 等。
+    potential : int
+        当前累计的潜能计数（不含信物）。
+    score : int
+        当前累计得分。
+
+    Returns
+    -------
+    state : dict
+        更新后的状态字典。
+    potential : int
+        更新后的潜能计数。
+    score : int
+        更新后的得分。
+    """
     up_names = gacha.star_up_prob.get(6, ([], []))[0]
     is_up = result.name in up_names if up_names else False
 
@@ -1121,6 +1509,37 @@ def process_gacha_result(
 def handle_urgent_gacha(
     config, gacha: CharGacha, cnts: Counters, state: dict, potential: int, score: int
 ) -> Tuple[dict, int, int, List[Any]]:
+    """执行一次「急单」十连并更新相关状态。
+
+    本函数会在单独的急单卡池上执行固定次数（10 次）抽卡，
+    并将结果反馈到主计数与评分体系中。
+
+    Parameters
+    ----------
+    config
+        用于构造急单池 :class:`CharGacha` 的配置对象。
+    gacha : CharGacha
+        主卡池的抽卡对象，用于获取 UP 名单与共享计数逻辑。
+    cnts : Counters
+        主计数器对象，其中 ``urgent_used`` 标志会在本函数中被置为 ``True``。
+    state : dict
+        当前抽卡状态字典，会被就地更新。
+    potential : int
+        当前潜能计数。
+    score : int
+        当前得分。
+
+    Returns
+    -------
+    state : dict
+        更新后的状态字典。
+    potential : int
+        更新后的潜能计数。
+    score : int
+        更新后的得分。
+    results : list
+        本次急单十连的所有抽卡结果列表。
+    """
     cnts.urgent_used = True
     urgent = CharGacha(config)
     results = []
@@ -1138,6 +1557,19 @@ def handle_urgent_gacha(
 
 
 def initialize_banner_state(cnts: Counters) -> dict:
+    """根据计数器初始化单个 banner 的状态字典。
+
+    Parameters
+    ----------
+    cnts : Counters
+        当前 banner 开始前的计数器状态。
+
+    Returns
+    -------
+    dict
+        状态字典，包含键 ``\"urgent\"``、``\"up_oprt\"``、``\"oprt\"``、
+        ``\"soft_pity\"``、``\"potential\"`` 等。
+    """
     return {
         "urgent": cnts.urgent_used,
         "up_oprt": False,
@@ -1148,6 +1580,7 @@ def initialize_banner_state(cnts: Counters) -> dict:
 
 
 def _worker_wrapper(args):
+    """多进程 worker 的薄封装，便于 ``imap`` 传参。"""
     return _run_simulation_worker(*args)
 
 
@@ -1159,6 +1592,30 @@ def _run_simulation_worker(
     seed: int,
     init_resource: Dict[str, int],
 ) -> Dict[str, Any]:
+    """在子进程中执行一次完整的抽卡规划模拟。
+
+    Parameters
+    ----------
+    config_dir : str
+        抽卡配置目录。
+    arrangement : list of str
+        卡池配置文件名列表。
+    schedules : list of dict
+        经过序列化的计划配置列表，仅包含基础类型与字典。
+    change : bool
+        是否在计划之间切换卡池配置。
+    seed : int
+        随机数种子，用于保证不同 worker 之间的独立性与可复现性。
+    init_resource : dict
+        初始资源字典，将用于构造 :class:`Resource` 实例。
+
+    Returns
+    -------
+    dict
+        单次规划的统计结果字典，包含键 ``\"score\"``、``\"total_draws\"``、
+        ``\"six_stars\"``、``\"up_chars\"``、``\"resource_left\"`` 与
+        ``\"complete\"`` 等。
+    """
     random.seed(seed)
 
     resource = Resource(**init_resource)
@@ -1289,6 +1746,13 @@ __all__ = [
 
 
 def main():
+    """模块自测与示例入口。
+
+    Notes
+    -----
+    - 使用硬编码的示例配置与资源，构造若干策略并执行评估；
+    - 在作为库被导入时通常不需要调用本函数。
+    """
     scheduler = Scheduler(
         config_dir="configs",
         arrange="arrange1",

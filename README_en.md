@@ -24,10 +24,12 @@ A gacha system for *Arknights: Endfield*, including but not limited to statistic
 
 - **Python** 3.10+ (developed with 3.14.2)
 
-- Dependency Libraries:
-      - matplotlib 3.10.8 (for statistical plotting)
-      - rich 14.3.2 (for terminal styling)
-      - tqdm 4.67.3 (for progress display)
+- Dependency Libraries (see requirements.txt for complete list):
+      - Flask, Flask-Cors, waitress (Web service)
+      - numpy (core computation)
+      - rich (terminal styling and progress display)
+      - matplotlib, pillow, scipy (statistical plotting and analysis)
+      - tqdm (progress display)
 
 ### 2. Installation Steps
 
@@ -48,18 +50,29 @@ pip install -r requirements.txt
 
 ```plaintext
 EndfieldGacha/
-├── config/                   # Configuration file directory
-│   ├── char_pool.json        # Operator gacha pool configuration
-│   ├── constants.json        # Constant value configuration
-│   ├── gacha_rules.json      # Gacha rules configuration
-│   └── weapon_pool.json      # Weapon gacha pool configuration
-├── pic/                      # Image storage directory
-│   ├── char.png              # Original image of Chartered Headhunting rules
-│   ├── weapon.png            # Original image of Arsenal Issue rules
-│   └── stats/                # Statistical result image storage directory
-├── client.py                 # Console Client
-├── core.py                   # Gacha System Core
-└── demo.py                   # Demo and Statistics
+├── configs/                  # Configuration file directory (multiple config sets)
+│   ├── config_1/            # Configuration set 1
+│   │   ├── char_pool.json   # Operator gacha pool configuration
+│   │   ├── weapon_pool.json # Weapon gacha pool configuration
+│   │   ├── gacha_rules.json # Gacha rules configuration
+│   │   └── constants.json   # Global constant configuration
+│   ├── config_2/ ... config_7/ # Other configuration sets
+│   ├── arrangement          # Default configuration order
+│   └── arrange1             # Scheduler-specific configuration order
+├── app/                     # Web application directory
+│   ├── templates/          # HTML template files
+│   ├── static/             # Compressed static resources
+│   └── utils/compress.py   # Resource compression tool
+├── core.py                 # Core gacha logic
+├── server.py               # Web service
+├── scheduler.py            # Strategy scheduling system
+├── demo.py                 # Demo and statistics tools
+├── evaluation.py           # Strategy evaluation scripts
+├── examination.py          # Probability distribution verification
+├── start.ps1               # Windows startup script
+├── users/                  # User data storage
+├── pic/                    # Image resource directory
+└── doc/                    # Documentation directory
 ```
 
 ---
@@ -293,31 +306,59 @@ Probability distribution:
 
 ---
 
-## Updates & Plans
+## Changelog
 
-This project is developed as a hobby. My technical ability is limited—please feel free to point out errors.
+### 2026‑02‑09 Version 1.0.0 Stable release
 
-### Changelog
+- Initial version release with basic gacha functionality
+- Character and Weapon pool simulation support
+- Console client interface
 
-#### 2026‑02‑09 Version 1.0.0 Stable release
-
-#### 2026-02-24 Version 1.1.0 Gacha Core Tweaks
+### 2026-02-24 Version 1.1.0 Gacha Core Tweaks
 
 - Optimize the **random number generation** mechanism and enable the **reproducibility** of gacha draw outcomes.
 - Added statistics in `demo.py`: "The number of pulls required for the current UP 6-star character to reach **max potential** (number of drawn characters + number of tokens = 6)"
-- Added **probability verification** in `distribution.py`
+- Added **probability verification** in `examination.py`
 
-#### 2026-03-01 Version 2.0.0 Web Client Release
+### 2026-03-01 Version 2.0.0 Web Client Release
 
-- Run `python app.py` to start the server, then access the local port `5000`.
+- Flask Web server implementation with complete user management system
+- Web interface accessible at <http://localhost:5000>
+- User data persistence storage (`users/` directory)
+- Full functionality including character/weapon gacha, recharge, exchange, and history records
 
-### Future Plans
+### 2026-03-05 Version 2.1.0 Documentation System & Architecture Optimization
 
-#### ~~Console~~ Web Client Update
+- **Documentation System Overhaul**:
+  - Rewrote AGENTS.md as an AI assistant-specific document with structured project indexing
+  - Enhanced README.md with technical architecture details, quick start guide, and developer guide
+  - Established a complete document reference system for AI assistants and developers
+- **System Architecture Optimization**:
+  - Clarified that no new gacha pool types will be added (only Character and Weapon pools)
+  - Improved documentation for the strategy scheduling system (`scheduler.py`)
+  - Optimized configuration file structure documentation
+- **Code Quality Improvements**:
+  - Unified document version identification (2.0.0 → 2.1.0)
+  - Enhanced troubleshooting and important notes
+  - Updated contribution guidelines and development standards
 
-- Support reading historical gacha records (Headhunting/Arsenal Issue)
+### Future Development Directions
+
+#### Web Client Enhancement
+
+- Support reading historical gacha records
 - Support importing owned Operators
 - Support Tokens from duplicate Operators, exchangeable for **Bond Quota** or **Endpoint Quota**
+
+#### Statistical Analysis Expansion
+
+- Integrate more data visualization options
+- Add data export functionality (CSV, Excel formats)
+
+#### Performance Optimization
+
+- Optimize large-scale batch simulation performance
+- Consider database support to improve user data access efficiency
 
 ---
 
