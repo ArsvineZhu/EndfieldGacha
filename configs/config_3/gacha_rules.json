@@ -2,8 +2,8 @@
   "pool_info": {
     "char_pool_name": "「热烈色彩」",
     "weapon_pool_name": "「绘涂申领」",
-    "open_time": "2025-01-01 00:00:00",
-    "close_time": "2025-12-31 23:59:59"
+    "open_time": "2026-02-24 12:00:00 (UTC+8)",
+    "close_time": "2026-03-12 06:00:00 (UTC+8)"
   },
   "default_precision": 6,
   "char": {

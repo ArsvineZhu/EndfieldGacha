@@ -63,13 +63,13 @@ Every 10 pulls guarantees at least 1 5★ or higher operator:
 - When probability increases, 4★ probability is reduced first, 5★ probability remains 8% unchanged
 - Pity counter is inherited across all Chartered Headhunting banners
 
-#### 3. 6★ Hard Pity (Cross-banner inherited)
+#### 3. 6★ Pity (Cross-banner inherited)
 
 - Maximum 80 pulls guarantee a 6★ operator
 - 6★ probability increases to 100% at pull 80
 - Pity counter is inherited across all Chartered Headhunting banners
 
-#### 4. Rate-up Operator Pity (Current banner only)
+#### 4. Rate-up Operator Pity (Hard Pity, Current banner only)
 
 - First 120 pulls guarantee the featured 6★ rate-up operator
 - This rule only applies once per banner, counter resets when the banner ends, not inherited to other banners

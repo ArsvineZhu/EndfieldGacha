@@ -1,9 +1,9 @@
 {
   "pool_info": {
-    "char_pool_name": "「PLACEHOLDER」",
-    "weapon_pool_name": "「PLACEHOLDER」",
-    "open_time": "2025-01-01 00:00:00",
-    "close_time": "2025-12-31 23:59:59"
+    "char_pool_name": "「?弭弗? CHAR_BANNER」",
+    "weapon_pool_name": "「?弭弗? WEAPON_BANNER」",
+    "open_time": "2026-05-02 12:00:00 (UTC+8)",
+    "close_time": "2026-05-19 06:00:00 (UTC+8)"
   },
   "default_precision": 6,
   "char": {
