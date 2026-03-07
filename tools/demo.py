@@ -1,3 +1,14 @@
+# -*- coding: utf-8 -*-
+"""抽卡演示与统计工具"""
+import os
+import sys
+
+# 添加项目根目录到路径，确保可以直接运行
+if __name__ == "__main__":
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+
 from dataclasses import dataclass
 from core import CharGacha, WeaponGacha, GlobalConfigLoader
 
@@ -19,21 +30,6 @@ def colorprint(text: str, color: str = Color.WHITE) -> None:
 class GachaTestTool:
     def __init__(self):
         self.config = GlobalConfigLoader()
-        self.text = {
-            "char_pool": self.config.get_text("char_pool_name"),
-            "weapon_pool": self.config.get_text("weapon_pool_name"),
-            "draw": self.config.get_text("draw_text"),
-            "apply": self.config.get_text("apply_text"),
-            "weapon_draw": self.config.get_text("weapon_draw_text"),
-            "star": self.config.get_text("star_text"),
-            "up": self.config.get_text("up_text"),
-            "rate": self.config.get_text("rate_text"),
-            "time": self.config.get_text("time_text"),
-            "total_time": self.config.get_text("total_time_text"),
-            "per_second": self.config.get_text("per_second_text"),
-            "char_quota_name": self.config.get_text("char_quota_name"),
-            "weapon_quota_name": self.config.get_text("weapon_quota_name"),
-        }
         # 格式化配置：适配中文，名称移至最后
         self.width = {
             "draw_num": 10,  # 抽数/申领次数宽度
@@ -45,16 +41,16 @@ class GachaTestTool:
 
     def demo_char_draw(self, draw_times: int = 5):
         """角色卡池抽卡示例"""
-        title = f"{self.text['char_pool']}{self.text['draw']}示例"
+        title = f"「熔火灼痕」寻访示例"
         print(
             f"\n{title.center(self.width['draw_num']+self.width['star']+self.width['quota']+20, '-')}"
         )
         gacha = CharGacha(self.config)
         # 表头（列序：抽数 → 星级 → 配额 → 名称）
         header = (
-            f"{'{0}'.format(self.text['draw']+'数'):<{self.width['draw_num']}} | "
-            f"{'{0}'.format(self.text['star']+'级'):<{self.width['star']}} | "
-            f"{'{0}'.format(self.text['char_quota_name']):<{self.width['quota']}}  | "
+            f"{'{0}'.format('寻访数'):<{self.width['draw_num']}} | "
+            f"{'{0}'.format('星级'):<{self.width['star']}} | "
+            f"{'{0}'.format('武库配额'):<{self.width['quota']}}  | "
             f"名称"
         )
         print(header)
@@ -68,9 +64,9 @@ class GachaTestTool:
             quota = result.quota
             quota_sum += quota
 
-            draw_num = f"第{i+1}{self.text['draw']}"
-            star_text = f"{star}{self.text['star']}"
-            quota_text = f"{self.text['char_quota_name']}：{quota}"
+            draw_num = f"第{i+1}寻访"
+            star_text = f"{star}星"
+            quota_text = f"武库配额：{quota}"
 
             # 核心标色逻辑：6星红（优先）→ 5星黄 → 4星紫 → 默认色
             line = (
@@ -102,8 +98,8 @@ class GachaTestTool:
         )
         colorprint(
             "\n{}累计奖励：\n{}数量：{}\n{}".format(
-                self.text["char_pool"],
-                self.text["char_quota_name"],
+                "「熔火灼痕」",
+                "武库配额",
                 quota_sum,
                 rewards_str,
             ),
@@ -112,7 +108,7 @@ class GachaTestTool:
 
     def demo_weapon_apply(self, apply_times: int = 1):
         """武器卡池申领示例"""
-        title = f"{self.text['weapon_pool']}{self.text['apply']}示例"
+        title = f"「熔铸申领」申领示例"
         print(
             f"\n{title.center(self.width['draw_num']+self.width['star']+self.width['quota']+40, '-')}"
         )
@@ -120,13 +116,13 @@ class GachaTestTool:
         gacha = WeaponGacha(self.config)
         quota_sum = 0
         for apply_idx in range(apply_times):
-            print(f"\n【第{apply_idx+1}次{self.text['apply']}】")
+            print(f"\n【第{apply_idx+1}次申领】")
             apply_result = gacha.attempt()  # 接收保底标记
             # 表头（列序：抽数 → 星级 → 配额 → 名称）
             header = (
-                f"{'{0}'.format(self.text['weapon_draw']+'数'):<{self.width['draw_num']}} | "
-                f"{'{0}'.format(self.text['star']+'级'):<{self.width['star']}} | "
-                f"{'{0}'.format(self.text['weapon_quota_name']):<{self.width['quota']}}  | "
+                f"{'{0}'.format('抽数'):<{self.width['draw_num']}} | "
+            f"{'{0}'.format('星级'):<{self.width['star']}} | "
+                f"{'{0}'.format('集成配额'):<{self.width['quota']}}  | "
                 f"名称"
             )
             print(header)
@@ -138,9 +134,9 @@ class GachaTestTool:
                 quota = result.quota
                 quota_sum += quota
 
-                draw_num = f"第{idx+1}{self.text['weapon_draw']}"
-                star_text = f"{star}{self.text['star']}"
-                quota_text = f"{self.text['weapon_quota_name']}：{quota}"
+                draw_num = f"第{idx+1}抽"
+                star_text = f"{star}星"
+                quota_text = f"集成配额：{quota}"
 
                 # 核心标色逻辑：6星红（优先）→ 5星黄 → 默认色
                 line = (
@@ -169,8 +165,8 @@ class GachaTestTool:
         )
         colorprint(
             "\n{}累计奖励：\n{}数量：{}\n{}".format(
-                self.text["weapon_pool"],
-                self.text["weapon_quota_name"],
+                "「熔铸申领」",
+                "集成配额",
                 quota_sum,
                 rewards_str,
             ),

@@ -8,8 +8,8 @@ import random
 
 from core import CharGacha, Counters, GlobalConfigLoader
 
-from .scoring import Resource
-from .strategy import GachaStrategy
+from scheduler.scoring import Resource
+from scheduler.strategy import GachaStrategy
 
 
 def get_token(gacha: CharGacha) -> int:

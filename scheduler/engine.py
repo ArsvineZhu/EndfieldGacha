@@ -10,6 +10,13 @@
 - 策略性能评分系统
 """
 import os
+import sys
+
+# 添加项目根目录到路径，确保可以直接运行
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
 from hashlib import md5
 from multiprocessing import Pool, cpu_count
 from pprint import pformat
@@ -32,8 +39,10 @@ from rich.columns import Columns
 from rich import box
 
 from core import CharGacha, Counters, GlobalConfigLoader
-from .scoring import Resource, ScoringSystem
-from .strategy import (
+
+# Use absolute imports for consistency
+from scheduler.scoring import Resource, ScoringSystem
+from scheduler.strategy import (
     GachaStrategy,
     URGENT,
     DOSSIER,
@@ -47,7 +56,7 @@ from .strategy import (
     GE,
     LE,
 )
-from .workers import (
+from scheduler.workers import (
     get_token,
     consume_resource,
     process_gacha_result,
@@ -288,7 +297,7 @@ class Scheduler:
             if display:
                 print(
                     idx + 1,
-                    gacha.config.get_text("char_pool_name"),
+                    gacha.config.get_pool_info("char")["name"],
                     gacha._get_up_char()[0],
                 )
                 print(gacha.counters)

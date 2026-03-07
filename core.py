@@ -242,10 +242,10 @@ class GlobalConfigLoader:
         self._current_path = path
         self._cache: Dict[str, Any] = {}
         self.constants = self._load_constants(path)
-        getcontext().prec = self.constants["default_values"]["default_precision"]
+        getcontext().prec = self.constants.get("default_precision", 6)
 
     def _load_constants(self, path: str) -> Dict[str, Any]:
-        """加载全局常量配置
+        """加载全局常量配置（从gacha_rules.json读取）
 
         Returns
         -------
@@ -255,21 +255,19 @@ class GlobalConfigLoader:
         Raises
         ------
         FileNotFoundError
-            当全局常量配置文件不存在时
+            当gacha_rules.json配置文件不存在时
         ValueError
-            当全局常量配置文件格式错误时
+            当gacha_rules.json配置文件格式错误时
         """
-        # 硬编码常量文件路径，避免循环依赖
-        constants_path = os.path.join(
-            os.path.dirname(__file__), path, "constants.json"
-        )
+        # 从gacha_rules.json加载配置
+        rules_path = os.path.join(os.path.dirname(__file__), path, "gacha_rules.json")
         try:
-            with open(constants_path, "r", encoding="utf-8") as f:
+            with open(rules_path, "r", encoding="utf-8") as f:
                 return json.load(f)
         except FileNotFoundError:
-            raise FileNotFoundError(f"全局常量配置文件 `{constants_path}` 不存在")
+            raise FileNotFoundError(f"配置文件 `{rules_path}` 不存在")
         except json.JSONDecodeError:
-            raise ValueError("全局常量配置文件格式错误")
+            raise ValueError("配置文件 gacha_rules.json 格式错误")
 
     def _get_config_path(self, file_name: str) -> str:
         """获取配置文件路径
@@ -284,8 +282,7 @@ class GlobalConfigLoader:
         str
             配置文件的完整路径
         """
-        config_dir = self.constants["dir_names"]["config_dir"]
-        return os.path.join(os.path.dirname(__file__), config_dir, file_name)
+        return os.path.join(os.path.dirname(__file__), self._current_path, file_name)
 
     def load_config(self, file_name: str) -> Dict[str, Any]:
         """加载指定配置文件
@@ -358,7 +355,9 @@ class GlobalConfigLoader:
         return rules
 
     def get_text(self, key: str) -> str:
-        """获取文本常量
+        """获取文本常量(基本废弃)
+
+        注意：text_constants字段已从配置文件中移除，现在返回硬编码值
 
         Parameters
         ----------
@@ -370,10 +369,38 @@ class GlobalConfigLoader:
         str
             对应的文本常量值
         """
-        return self.constants["text_constants"][key]
+        # 硬编码的文本常量值（原text_constants字段内容）
+        text_constants = {
+            "char_quota_name": "武库配额",
+            "weapon_quota_name": "集成配额",
+            "draw_text": "寻访",
+            "apply_text": "申领",
+            "weapon_draw_text": "抽",
+            "star_text": "星",
+            "up_text": "概率提升",
+            "rate_text": "出率",
+            "time_text": "秒",
+            "total_time_text": "总耗时",
+            "per_second_text": "每秒",
+        }
+
+        # 特殊处理：卡池名称从pool_info获取
+        if key == "char_pool_name":
+            pool_info = self.constants.get("pool_info", {})
+            return pool_info.get("char_pool_name", "「熔火灼痕」")
+        elif key == "weapon_pool_name":
+            pool_info = self.constants.get("pool_info", {})
+            return pool_info.get("weapon_pool_name", "「熔铸申领」")
+
+        # 返回硬编码的文本常量
+        if key in text_constants:
+            return text_constants[key]
+
+        # 如果键不存在，返回空字符串
+        return ""
 
     def get_default(self, key: str) -> Any:
-        """获取默认值
+        """获取默认值（已弃用，使用get_default_precision代替）
 
         Parameters
         ----------
@@ -385,7 +412,47 @@ class GlobalConfigLoader:
         Any
             对应的默认值
         """
-        return self.constants["default_values"][key]
+        # 兼容旧代码，default_precision现在直接在根层级
+        if key == "default_precision":
+            return self.constants.get("default_precision", 6)
+        return None
+
+    def get_default_precision(self) -> int:
+        """获取默认精度
+
+        Returns
+        -------
+        int
+            默认精度值
+        """
+        return self.constants.get("default_precision", 6)
+
+    def get_pool_info(self, pool_type: str) -> Dict[str, Any]:
+        """获取卡池信息（开放时间、结束时间等）
+
+        Parameters
+        ----------
+        pool_type : str
+            卡池类型，如 "char"或 "weapon"
+
+        Returns
+        -------
+        Dict[str, Any]
+            卡池信息，包含开放时间、结束时间等
+        """
+        pool_info = self.constants.get("pool_info", {})
+        if pool_type == "char":
+            return {
+                "name": pool_info.get("char_pool_name", ""),
+                "open_time": pool_info.get("open_time", ""),
+                "close_time": pool_info.get("close_time", ""),
+            }
+        else:  # weapon
+            return {
+                "name": pool_info.get("weapon_pool_name", ""),
+                "open_time": pool_info.get("open_time", ""),
+                "close_time": pool_info.get("close_time", ""),
+            }
 
 
 # ===================== 角色卡池类（CharGacha）=====================
@@ -408,7 +475,9 @@ class CharGacha:
     >>> print(f"累计奖励：{rewards}")
     """
 
-    def __init__(self, config: GlobalConfigLoader | None = None, seed: int = -1, size: int = 1024):
+    def __init__(
+        self, config: GlobalConfigLoader | None = None, seed: int = -1, size: int = 1024
+    ):
         """初始化角色卡池
 
         加载配置文件，预缓存数据，并初始化计数器。
@@ -733,7 +802,9 @@ class WeaponGacha:
     >>> print(f"累计奖励：{rewards}")
     """
 
-    def __init__(self, config: GlobalConfigLoader | None = None, seed: int = -1, size: int = 1024):
+    def __init__(
+        self, config: GlobalConfigLoader | None = None, seed: int = -1, size: int = 1024
+    ):
         """初始化武器卡池
 
         加载配置文件，预缓存数据，并初始化计数器。
@@ -965,7 +1036,7 @@ class WeaponGacha:
             # noinspection PyUnboundLocalVariable
             results[-1] = GachaResult(
                 name=replace_weapon,
-                star=star, # type: ignore
+                star=star,  # type: ignore
                 quota=replace_quota,
                 is_up_g=is_up_guarantee,
                 is_6_g=is_6_guarantee,

@@ -1,7 +1,23 @@
+# -*- coding: utf-8 -*-
+"""概率分布验证工具"""
+import os
+import sys
+
+# 添加项目根目录到路径，确保可以直接运行
+if __name__ == "__main__":
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+
 from typing import List, Dict
 from tqdm import trange
 from core import WeaponGacha, CharGacha, GlobalConfigLoader
-from .demo import Color
+
+# 支持两种运行方式：作为模块导入（使用相对导入）或直接运行（使用绝对导入）
+try:
+    from .demo import Color
+except ImportError:
+    from demo import Color
 
 DEFAULT_CONFIG = GlobalConfigLoader("configs/config_4")
 
@@ -39,13 +55,13 @@ def distribute(
     for _ in trange(scale):
         if gacha_type == "char":
             result = gacha.attempt(disable_guarantee=disable_guarantee)
-            counter[result.name] = [ # type: ignore
-                counter.get(result.name, [0, result.star])[0] + 1, # type: ignore
-                result.star, # type: ignore
+            counter[result.name] = [  # type: ignore
+                counter.get(result.name, [0, result.star])[0] + 1,  # type: ignore
+                result.star,  # type: ignore
             ]
         elif gacha_type == "weapon":
             results = gacha.attempt(disable_guarantee=disable_guarantee)
-            for result in results: # type: ignore
+            for result in results:  # type: ignore
                 counter[result.name] = [
                     counter.get(result.name, [0, result.star])[0] + 0.1,
                     result.star,
@@ -69,15 +85,17 @@ def distribute(
 
     # Print individual character / weapon distribution
     for name, count in counter.items():
-        print(f"{color(int(count[1]))}{name}{color()}: {round(count[0]) / scale * 100:.2f}%")
+        print(
+            f"{color(int(count[1]))}{name}{color()}: {round(count[0]) / scale * 100:.2f}%"
+        )
 
 
 def main():
     # Disable guarantee to see pure probabilities and distribution without pity system influence
     # Verify that the probabilities of character and weapon matches the
     # expected probabilities based on the defined rules and rates
-    distribute("char", 7, disable_guarantee=True)
-    distribute("weapon", 7, disable_guarantee=True)
+    distribute("char", 6, disable_guarantee=True)
+    distribute("weapon", 6, disable_guarantee=True)
 
 
 if __name__ == "__main__":

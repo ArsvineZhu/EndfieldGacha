@@ -216,6 +216,9 @@ __marimo__/
 # History
 *_history_*
 
+# Opencode
+.sisyphus/
+
 # Tests
 test_*
 
