@@ -1,6 +1,6 @@
 # 终末地卡池机制官方介绍 | Endfield Gacha Mechanisms Official Introduction
 
-**文 / A**：[**中文**](mechanisms.md "中文版卡池机制文档") | [**English**](mechanisms_en.md "English version gacha mechanisms document")
+**文 / A**：[**中文**](mechanics.md "中文版卡池机制文档") | [**English**](mechanics_en.md "English version gacha mechanisms document")
 
 ---
 
@@ -64,6 +64,7 @@
 - 保底计数可继承到其他「特许寻访」
 
 #### 3. 6星硬保底（跨池继承）
+
 - 最多80次寻访必定获得6星角色
 - 第80抽时6星概率提升至100%
 - 保底计数可继承到其他「特许寻访」

@@ -22,7 +22,7 @@
 
 - [开发者指南](#开发者指南 "开发者指南")
 
-- [更新计划](#更新计划 "更新计划")
+- [更新日志](#更新日志 "更新日志")
 
 - [致谢](#致谢 "致谢")
 
@@ -60,30 +60,35 @@ pip install -r requirements.txt
 
 ```plaintext
 EndfieldGacha/
-├── configs/                  # 配置文件目录（多配置集）
-│   ├── config_1/            # 配置集1
-│   │   ├── char_pool.json   # 角色卡池配置
-│   │   ├── weapon_pool.json # 武器卡池配置
-│   │   ├── gacha_rules.json # 卡池规则配置
-│   │   └── constants.json   # 全局常量配置
-│   ├── config_2/ ... config_7/ # 其他配置集
-│   ├── arrangement          # 默认配置顺序
-│   └── arrange1             # 调度器专用配置顺序
-├── app/                     # Web应用目录
-│   ├── templates/          # HTML模板文件
-│   ├── static/             # 压缩后的静态资源
-│   └── utils/compress.py   # 资源压缩工具
-├── core.py                 # 核心抽卡逻辑
-├── server.py               # Web服务
-├── scheduler.py            # 策略调度系统
-├── demo.py                 # 演示与统计工具
-├── evaluation.py           # 策略评估脚本
-├── examination.py          # 概率分布验证
-├── start.ps1               # Windows启动脚本
-├── users/                  # 用户数据存储
-├── pic/                    # 图片资源目录
-└── doc/                    # 文档目录
+├── run.py                   # 统一入口（推荐）
+├── core.py                  # 核心抽卡逻辑
+├── server.py                # Web 服务
+├── scheduler/               # 策略调度包
+│   ├── engine.py           # 调度器主逻辑
+│   ├── strategy.py         # 魔数编码策略
+│   ├── scoring.py          # 资源与评分系统
+│   └── workers.py          # 多进程 worker
+├── tools/                   # 可运行工具
+│   ├── demo.py             # 抽卡演示与统计
+│   ├── evaluation.py       # 策略评估
+│   └── examination.py      # 概率分布验证
+├── configs/                 # 配置文件目录
+├── app/                     # Web 应用
+├── test/                    # 测试用例
+├── doc/                     # 文档
+├── pic/                     # 图片资源
+├── start.ps1                # Windows 启动脚本
+├── AGENTS.md                # AI 助手索引
+└── ref.md                   # 开发者参考
 ```
+
+**快速运行**：
+
+- `python run.py` — 显示帮助
+- `python run.py demo` — 抽卡演示
+- `python run.py eval` — 策略评估
+- `python run.py exam` — 概率验证
+- `python run.py server` — 启动 Web 服务
 
 ---
 
@@ -107,13 +112,13 @@ EndfieldGacha 采用模块化分层架构设计，各层职责清晰，便于维
 - 基于IP和User-Agent生成唯一用户ID，数据存储在`users/`目录
 - 支持角色/武器抽卡、充值、兑换、历史记录等完整功能
 
-#### 策略层 (`scheduler.py`)
+#### 策略层 (`scheduler/` 包)
 
 - **GachaStrategy**: 魔数编码策略系统（32位整数编码条件）
 - **ScoringSystem**: 科学评分系统（三维评分：运气0-60、效率0-20、目标0-20）
 - **Scheduler**: 策略调度器，支持多卡池连续模拟和批量并行评估
 
-#### 工具层
+#### 工具层 (`tools/` 包)
 
 - **`demo.py`**: 抽卡演示与统计工具（提供丰富的统计分析功能）
 - **`evaluation.py`**: 策略评估脚本（预置多种抽卡策略对比）
@@ -136,7 +141,7 @@ EndfieldGacha 采用模块化分层架构设计，各层职责清晰，便于维
 
 ```plaintext
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   server.py     │    │  scheduler.py   │    │   demo.py       │
+│   server.py     │    │  scheduler/     │    │   tools/        │
 │   (Web服务)     │◄──►│  (策略调度)     │◄──►│   (演示工具)    │
 └────────┬────────┘    └────────┬────────┘    └────────┬────────┘
          │                      │                      │
@@ -160,7 +165,10 @@ EndfieldGacha 采用模块化分层架构设计，各层职责清晰，便于维
 ### 1. 启动Web服务（推荐）
 
 ```bash
-# 使用启动脚本（Windows）
+# 使用统一入口（推荐）
+python run.py server
+
+# 或使用启动脚本（Windows）
 .\start.ps1
 
 # 或直接运行
@@ -172,7 +180,9 @@ python server.py
 ### 2. 使用演示工具进行统计分析
 
 ```bash
-python demo.py
+python run.py demo
+# 或
+python -m tools.demo
 ```
 
 演示工具提供以下主要功能：
@@ -185,7 +195,9 @@ python demo.py
 ### 3. 执行策略评估
 
 ```bash
-python evaluation.py
+python run.py evaluation
+# 或
+python -m tools.evaluation
 ```
 
 策略评估脚本预置了多种抽卡策略，可对比不同策略的效率和评分。

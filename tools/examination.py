@@ -1,7 +1,7 @@
 from typing import List, Dict
 from tqdm import trange
 from core import WeaponGacha, CharGacha, GlobalConfigLoader
-from demo import Color
+from .demo import Color
 
 DEFAULT_CONFIG = GlobalConfigLoader("configs/config_4")
 

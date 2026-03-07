@@ -13,7 +13,7 @@ A gacha system for *Arknights: Endfield*, including but not limited to statistic
 - [Project Introduction](#project-introduction)
 - [Notes](#notes)
 - [Statistical Conclusions](#statistical-conclusions)
-- [Updates & Plans](#updates--plans)
+- [Changelog](#changelog)
 - [Acknowledgements](#acknowledgements)
 
 ---
@@ -50,30 +50,29 @@ pip install -r requirements.txt
 
 ```plaintext
 EndfieldGacha/
-├── configs/                  # Configuration file directory (multiple config sets)
-│   ├── config_1/            # Configuration set 1
-│   │   ├── char_pool.json   # Operator gacha pool configuration
-│   │   ├── weapon_pool.json # Weapon gacha pool configuration
-│   │   ├── gacha_rules.json # Gacha rules configuration
-│   │   └── constants.json   # Global constant configuration
-│   ├── config_2/ ... config_7/ # Other configuration sets
-│   ├── arrangement          # Default configuration order
-│   └── arrange1             # Scheduler-specific configuration order
-├── app/                     # Web application directory
-│   ├── templates/          # HTML template files
-│   ├── static/             # Compressed static resources
-│   └── utils/compress.py   # Resource compression tool
-├── core.py                 # Core gacha logic
-├── server.py               # Web service
-├── scheduler.py            # Strategy scheduling system
-├── demo.py                 # Demo and statistics tools
-├── evaluation.py           # Strategy evaluation scripts
-├── examination.py          # Probability distribution verification
-├── start.ps1               # Windows startup script
-├── users/                  # User data storage
-├── pic/                    # Image resource directory
-└── doc/                    # Documentation directory
+├── run.py                   # Unified entry point (recommended)
+├── core.py                  # Core gacha logic
+├── server.py                # Web service
+├── scheduler/               # Strategy scheduling package
+│   ├── engine.py           # Scheduler main logic
+│   ├── strategy.py         # Magic-number strategy encoding
+│   ├── scoring.py          # Resource and scoring system
+│   └── workers.py          # Multiprocess workers
+├── tools/                   # Runnable tools
+│   ├── demo.py             # Gacha demo and statistics
+│   ├── evaluation.py       # Strategy evaluation
+│   └── examination.py      # Probability verification
+├── configs/                 # Configuration directory
+├── app/                     # Web application
+├── test/                    # Test cases
+├── doc/                     # Documentation
+├── pic/                     # Image resources
+├── start.ps1                # Windows startup script
+├── AGENTS.md                # AI assistant index
+└── ref.md                   # Developer reference
 ```
+
+**Quick run**: `python run.py [demo|evaluation|examination|server]`
 
 ---
 

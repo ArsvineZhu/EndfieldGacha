@@ -6,7 +6,7 @@
       "4": 0.912
     },
     "guarantee_5star_plus_draw": 10,
-    "guarantee_6star_draw": 85,
+    "guarantee_6star_draw": 80,
     "6star_prob_increase_start": 65,
     "prob_increase": 0.05,
     "prob_upper_limit": 1.0,
