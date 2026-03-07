@@ -62,34 +62,53 @@ function Test-VenvValid {
 }
 
 $venvPath = Join-Path $PSScriptRoot ".venv"
+$useGlobalPython = $false
+
 if (Test-Path $venvPath) {
     if (-not (Test-VenvValid $venvPath)) {
         Write-ColorOutput "[警告] 虚拟环境已损坏，正在删除并重建..." "Yellow"
-        Remove-Item -Path $venvPath -Recurse -Force
-        $venvPath = $null
+        try {
+            Remove-Item -Path $venvPath -Recurse -Force -ErrorAction Stop
+        } catch {
+            Write-ColorOutput "[警告] 无法删除旧虚拟环境，将使用全局 Python" "Yellow"
+            $useGlobalPython = $true
+        }
     }
 }
 
-if ($venvPath -and (Test-Path (Join-Path $venvPath "Scripts\pip.exe"))) {
+if ($useGlobalPython -or (-not (Test-Path $venvPath))) {
+    if (-not $useGlobalPython) {
+        Write-ColorOutput "[信息] 正在创建虚拟环境..." "Cyan"
+        python -m venv $PSScriptRoot\.venv
+        if ($LASTEXITCODE -ne 0) {
+            Write-ColorOutput "[警告] 创建虚拟环境失败，将使用全局 Python" "Yellow"
+            $useGlobalPython = $true
+        }
+    }
+    
+    if ($useGlobalPython) {
+        $pythonExec = "python"
+        $pipExec = "pip"
+    } else {
+        $pythonExec = Join-Path $PSScriptRoot ".venv\Scripts\python.exe"
+        $pipExec = Join-Path $PSScriptRoot ".venv\Scripts\pip.exe"
+        Write-ColorOutput "      虚拟环境创建完成" "Green"
+    }
+} else {
     $pythonExec = Join-Path $venvPath "Scripts\python.exe"
     $pipExec = Join-Path $venvPath "Scripts\pip.exe"
-} else {
-    Write-ColorOutput "[信息] 正在创建虚拟环境..." "Cyan"
-    python -m venv $PSScriptRoot\.venv
-    $pythonExec = Join-Path $PSScriptRoot ".venv\Scripts\python.exe"
-    $pipExec = Join-Path $PSScriptRoot ".venv\Scripts\pip.exe"
-    Write-ColorOutput "      虚拟环境创建完成" "Green"
 }
 
 Write-Host ""
 Write-ColorOutput "[1/5] 检查并安装依赖..." "Yellow"
 if (Test-Path "requirements.txt") {
-    & $pipExec install -r requirements.txt -q 2>$null
+    Write-ColorOutput "      正在安装依赖..." "Cyan"
+    & $pipExec install -r requirements.txt 2>&1 | Out-Null
     if ($LASTEXITCODE -ne 0) {
-        Write-ColorOutput "[错误] 依赖安装失败" "Red"
-        exit 1
+        Write-ColorOutput "[警告] 依赖安装失败，将尝试使用现有环境" "Yellow"
+    } else {
+        Write-ColorOutput "      依赖安装完成" "Green"
     }
-    Write-ColorOutput "      依赖安装完成" "Green"
 } else {
     Write-ColorOutput "[警告] 未找到 requirements.txt" "Yellow"
 }
@@ -111,12 +130,7 @@ if (Test-Port $port) {
 
 Write-Host ""
 Write-ColorOutput "[3/5] 压缩静态文件..." "Yellow"
-try {
-    & $pythonExec -c "from app.utils.compress import main; main()" 2>$null
-    Write-ColorOutput "      静态文件压缩完成" "Green"
-} catch {
-    Write-ColorOutput "[警告] 静态文件压缩失败: $_" "Yellow"
-}
+Write-ColorOutput "      将在启动服务器时自动压缩" "Green"
 
 Write-Host ""
 Write-ColorOutput "[4/5] 初始化日志..." "Yellow"
@@ -136,7 +150,8 @@ Write-Host ""
 
 $startInfo = New-Object System.Diagnostics.ProcessStartInfo
 $startInfo.FileName = $pythonExec
-$startInfo.Arguments = "-c `"from server import app; from waitress import serve; serve(app, host='127.0.0.1', port=$port, threads=4)`""
+$startInfo.Arguments = "server.py --waitress"
+$startInfo.WorkingDirectory = $PSScriptRoot
 $startInfo.RedirectStandardOutput = $false
 $startInfo.RedirectStandardError = $false
 $startInfo.UseShellExecute = $false

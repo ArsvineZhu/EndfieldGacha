@@ -51,10 +51,10 @@ def main():
             run_name="__main__",
         )
     elif cmd == "server":
-        from server import compress_static_files
-        from server import app
+        from server import compress_static_files, create_app
 
         compress_static_files()
+        app = create_app()
         app.run(debug=False, port=5000)
     else:
         print(f"未知命令: {cmd}")
