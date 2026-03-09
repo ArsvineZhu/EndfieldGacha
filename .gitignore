@@ -235,6 +235,6 @@ discarded/
 logs/
 
 # minified static files
-app/static/css/style.*.css
-app/static/js/main.*.js
+app/static/css/*.*.css
+app/static/js/*.*.js
 app/static/manifest.json

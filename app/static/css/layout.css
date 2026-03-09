@@ -1,0 +1,209 @@
+.app-container {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+/* 顶部导航栏 */
+.top-nav {
+    background-color: #0a0a0a;
+    padding: 15px 20px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #333;
+    flex-wrap: wrap;
+    gap: 10px;
+    position: relative;
+    z-index: 1000;
+}
+
+.top-nav h1 {
+    margin: 0;
+    font-size: 24px;
+    color: #ffffff;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+    letter-spacing: 2px;
+    flex-shrink: 0;
+}
+
+/* 移动端菜单按钮 */
+.mobile-menu-btn {
+    display: none !important;
+    justify-content: center;
+    align-items: center;
+    width: 40px;
+    height: 40px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    z-index: 1001;
+    -webkit-tap-highlight-color: transparent;
+    position: relative;
+    visibility: visible;
+    opacity: 1;
+}
+
+.mobile-menu-btn i {
+    font-size: 20px;
+    color: #ffffff;
+    transition: all 0.3s ease;
+}
+
+.mobile-menu-btn.active i {
+    color: #3498db;
+}
+
+.mobile-menu-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 5px;
+}
+
+.top-resources {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.top-resources .resource-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+}
+
+.top-resources .resource-label {
+    color: #aaa;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.top-resources .resource-value {
+    color: #ffffff;
+    font-weight: bold;
+    font-size: 12px;
+    min-width: 40px;
+    text-align: right;
+}
+
+/* 主内容区域 */
+.main-content {
+    display: flex;
+    flex: 1;
+    padding: 20px;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+/* 左侧导航栏 */
+.left-nav {
+    width: 200px;
+    background-color: #0a0a0a;
+    border: 1px solid #333;
+    border-radius: 5px;
+    padding: 20px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    flex-shrink: 0;
+    transition: transform 0.3s ease;
+}
+
+.left-nav::-webkit-scrollbar {
+    width: 6px;
+}
+
+.left-nav::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.left-nav::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+}
+
+.left-nav::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+/* 移动端导航遮罩层 */
+.nav-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 998;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.nav-overlay.active {
+    display: block;
+    opacity: 1;
+}
+
+.nav-section {
+    margin-bottom: 30px;
+}
+
+.nav-section h3 {
+    color: #cccccc;
+    margin-bottom: 10px;
+    font-size: 16px;
+    border-bottom: 1px solid #333;
+    padding-bottom: 5px;
+}
+
+.nav-btn {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #333;
+    background-color: #0a0a0a;
+    color: #e0e0e0;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    text-align: left;
+    font-family: Arial, sans-serif;
+    letter-spacing: 1px;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.nav-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+}
+
+.nav-btn.active {
+    background-color: rgba(52, 152, 219, 0.2);
+    color: #3498db;
+    border-color: #3498db;
+    box-shadow: 0 0 15px rgba(52, 152, 219, 0.3);
+}
+
+.nav-btn.danger {
+    background-color: rgba(231, 76, 60, 0.2);
+    color: #ff4444;
+    border-color: #ff4444;
+}
+
+.nav-btn.danger:hover {
+    background-color: rgba(231, 76, 60, 0.3);
+    box-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
+}
+
+/* 内容区域 */
+.content-area {
+    flex: 1;
+    min-width: 0;
+}

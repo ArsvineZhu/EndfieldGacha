@@ -13,13 +13,14 @@ from flask import Flask
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-def create_app():
+def create_app(dev_mode=False):
     """创建并配置 Flask 应用"""
     template_folder = os.path.join(PROJECT_ROOT, "app", "templates")
     static_folder = os.path.join(PROJECT_ROOT, "app", "static")
     
     app = Flask(__name__, template_folder=template_folder, static_folder=static_folder)
     app.secret_key = "endfield_gacha_secret_key_Arsvine_20260228"
+    app.config["DEV_MODE"] = dev_mode
 
     # 注册路由
     from .routes import create_routes

@@ -1,0 +1,379 @@
+/* 抽卡区域 */
+.gacha-area {
+    background-color: #0a0a0a;
+    border: 1px solid #333;
+    border-radius: 5px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+/* 卡池信息区域 */
+.pool-info {
+    margin-bottom: 20px;
+    padding: 15px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.pool-info-content {
+    flex: 1;
+    margin-right: 20px;
+}
+
+.pool-info h3 {
+    color: #e0e0e0;
+    margin-bottom: 10px;
+    font-family: Arial, sans-serif;
+    letter-spacing: 1px;
+}
+
+.pool-info .pool-name {
+    font-size: 18px;
+    font-weight: bold;
+    color: #ffffff;
+    margin-bottom: 10px;
+    text-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
+}
+
+.pool-info .boosted-items {
+    margin-top: 10px;
+}
+
+.pool-info .boosted-item {
+    display: inline-block;
+    padding: 5px 10px;
+    margin-right: 10px;
+    margin-bottom: 10px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+    font-size: 14px;
+    color: #e0e0e0;
+}
+
+.gacha-controls {
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    align-items: center;
+}
+
+.gacha-controls .draw-btn {
+    margin: 0;
+    width: auto;
+    white-space: nowrap;
+}
+
+.draw-btn {
+    padding: 15px 30px;
+    margin: 0 10px;
+    border: 1px solid #333;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 18px;
+    transition: all 0.3s ease;
+    font-family: Arial, sans-serif;
+    letter-spacing: 1px;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+}
+
+/* 角色池单抽按钮 - 白色 */
+.draw-btn.single-draw {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+    border-color: #ffffff;
+}
+
+.draw-btn.single-draw:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+    transform: translateY(-2px);
+}
+
+/* 角色池十连按钮 - 亮黄色 */
+.draw-btn.ten-draw {
+    background-color: rgba(255, 255, 0, 0.1);
+    color: #ffff00;
+    border-color: #ffff00;
+}
+
+.draw-btn.ten-draw:hover {
+    background-color: rgba(255, 255, 0, 0.2);
+    box-shadow: 0 0 15px rgba(255, 255, 0, 0.5);
+    transform: translateY(-2px);
+}
+
+/* 武器池申领按钮 - 亮黄色 */
+.draw-btn.weapon-draw {
+    background-color: rgba(255, 255, 0, 0.1);
+    color: #ffff00;
+    border-color: #ffff00;
+}
+
+.draw-btn.weapon-draw:hover {
+    background-color: rgba(255, 255, 0, 0.2);
+    box-shadow: 0 0 15px rgba(255, 255, 0, 0.5);
+    transform: translateY(-2px);
+}
+
+/* 加急招募按钮 */
+.draw-btn.urgent-draw {
+    background-color: rgba(39, 174, 96, 0.2);
+    color: #27ae60;
+    border-color: #27ae60;
+}
+
+.draw-btn.urgent-draw:hover {
+    background-color: rgba(39, 174, 96, 0.3);
+    box-shadow: 0 0 15px rgba(39, 174, 96, 0.5);
+    transform: translateY(-2px);
+}
+
+.result-area {
+    margin-top: 20px;
+}
+
+.result-area h2 {
+    margin: 0 0 15px;
+    color: #e0e0e0;
+    font-family: Arial, sans-serif;
+    letter-spacing: 1px;
+    text-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
+}
+
+.results-container {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    padding: 10px 0;
+    justify-content: center;
+    flex-wrap: nowrap;
+}
+
+.results-container::-webkit-scrollbar {
+    height: 6px;
+}
+
+.results-container::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 3px;
+}
+
+.results-container::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+}
+
+.results-container::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+.result-card {
+    padding: 25px 10px;
+    border-radius: 3px;
+    font-size: 14px;
+    text-align: center;
+    width: 80px;
+    height: 160px;
+    font-family: Arial, sans-serif;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    flex-shrink: 0;
+    transform-style: preserve-3d;
+    transform: perspective(1000px) rotateX(0deg) rotateY(0deg);
+    transition: transform 0.1s ease-out;
+    position: relative;
+    overflow: visible;
+}
+
+.result-card:hover {
+    z-index: 100;
+}
+
+/* 5、6 星卡片拉伸效果的伪元素背景 */
+.result-card.star-5::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: inherit;
+    border-radius: inherit;
+    z-index: -1;
+    opacity: 0;
+    transform: scaleY(1);
+    transform-origin: center center;
+    filter: blur(0px);
+    transition: all 0.2s ease-out;
+}
+
+.result-card.star-5.extended::after {
+    transform: scaleY(1.35);
+    opacity: 0.65;
+    filter: blur(10px);
+    background: radial-gradient(ellipse at center,
+            rgba(243, 156, 18, 0.6) 0%,
+            rgba(243, 156, 18, 0.3) 50%,
+            transparent 65%);
+    mask-image: linear-gradient(to bottom,
+            transparent 0%,
+            rgba(0, 0, 0, 0.25) 8%,
+            rgba(0, 0, 0, 0.7) 18%,
+            rgba(0, 0, 0, 1) 28%,
+            rgba(0, 0, 0, 1) 72%,
+            rgba(0, 0, 0, 0.7) 82%,
+            rgba(0, 0, 0, 0.25) 92%,
+            transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom,
+            transparent 0%,
+            rgba(0, 0, 0, 0.25) 8%,
+            rgba(0, 0, 0, 0.7) 18%,
+            rgba(0, 0, 0, 1) 28%,
+            rgba(0, 0, 0, 1) 72%,
+            rgba(0, 0, 0, 0.7) 82%,
+            rgba(0, 0, 0, 0.25) 92%,
+            transparent 100%);
+    box-shadow:
+        0 0 20px rgba(243, 156, 18, 0.5),
+        0 0 40px rgba(243, 156, 18, 0.3);
+}
+
+/* 6 星卡片拉伸效果元素 */
+.result-card.star-6 .stretch-effect {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: inherit;
+    border-radius: inherit;
+    z-index: -1;
+    opacity: 0;
+    transform: scaleY(1);
+    transform-origin: center center;
+    pointer-events: none;
+    filter: blur(0px);
+    transition: all 0.25s ease-out;
+}
+
+.result-card.star-6.extended .stretch-effect {
+    transform: scaleY(1.5);
+    opacity: 0.8;
+    filter: blur(12px);
+    background: radial-gradient(ellipse at center,
+            rgba(231, 76, 60, 0.8) 0%,
+            rgba(231, 76, 60, 0.4) 50%,
+            transparent 70%);
+    mask-image: linear-gradient(to bottom,
+            transparent 0%,
+            rgba(0, 0, 0, 0.2) 5%,
+            rgba(0, 0, 0, 0.6) 15%,
+            rgba(0, 0, 0, 1) 25%,
+            rgba(0, 0, 0, 1) 75%,
+            rgba(0, 0, 0, 0.6) 85%,
+            rgba(0, 0, 0, 0.2) 95%,
+            transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom,
+            transparent 0%,
+            rgba(0, 0, 0, 0.2) 5%,
+            rgba(0, 0, 0, 0.6) 15%,
+            rgba(0, 0, 0, 1) 25%,
+            rgba(0, 0, 0, 1) 75%,
+            rgba(0, 0, 0, 0.6) 85%,
+            rgba(0, 0, 0, 0.2) 95%,
+            transparent 100%);
+    box-shadow:
+        0 0 30px rgba(231, 76, 60, 0.6),
+        0 0 60px rgba(231, 76, 60, 0.4),
+        0 0 90px rgba(231, 76, 60, 0.2);
+}
+
+/* 5、6 星卡片拉伸时的光晕效果 */
+.result-card.star-5.extended,
+.result-card.star-6.extended {
+    filter: drop-shadow(0 0 15px currentColor);
+}
+
+.result-card.empty {
+    background-color: rgba(255, 255, 255, 0.05);
+    color: #aaa;
+    border: 1px dashed rgba(255, 255, 255, 0.2);
+}
+
+.result-card.gray {
+    background-color: rgba(100, 100, 100, 0.2) !important;
+    color: #aaa !important;
+    border-color: rgba(100, 100, 100, 0.5) !important;
+    box-shadow: none !important;
+}
+
+.result-card .card-content {
+    opacity: 0;
+    animation: fadeIn 0.5s ease-in-out forwards;
+    animation-delay: 0.8s;
+    transform: translateZ(20px);
+    backface-visibility: visible;
+}
+
+.result-card.star-6 {
+    background-color: rgba(231, 76, 60, 0.2);
+    color: #ff4444;
+    border-color: #ff4444;
+    position: relative;
+    overflow: visible;
+}
+
+.result-card.star-6::before,
+.result-card.star-6::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 50px;
+    background-image: url('/static/img/item-6.png');
+    background-size: auto 100%;
+    background-repeat: repeat-x;
+}
+
+.result-card.star-6::before {
+    top: 0;
+    left: 0;
+    transform: rotate(180deg);
+    animation: scrollBackground 10s linear infinite;
+}
+
+.result-card.star-6::after {
+    bottom: 0;
+    left: 0;
+    animation: scrollBackground 10s linear infinite;
+}
+
+.result-card.star-5 {
+    background-color: rgba(243, 156, 18, 0.2);
+    color: #f39c12;
+    border-color: #f39c12;
+}
+
+.result-card.star-4 {
+    background-color: rgba(155, 89, 182, 0.2);
+    color: #9b59b6;
+    box-shadow: 0 0 10px rgba(155, 89, 182, 0.5);
+    border-color: #9b59b6;
+}
+
+.result-card.star-3 {
+    background-color: rgba(52, 152, 219, 0.2);
+    color: #3498db;
+    box-shadow: 0 0 10px rgba(52, 152, 219, 0.5);
+    border-color: #3498db;
+}

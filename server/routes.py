@@ -78,7 +78,9 @@ def create_routes(app):
             char_gacha.counters.no_6star = user_info["char_gacha"]["no_6star"]
             char_gacha.counters.no_5star_plus = user_info["char_gacha"]["no_5star_plus"]
             char_gacha.counters.no_up = user_info["char_gacha"]["no_up"]
-            char_gacha.counters.guarantee_used = user_info["char_gacha"]["guarantee_used"]
+            char_gacha.counters.guarantee_used = user_info["char_gacha"][
+                "guarantee_used"
+            ]
 
             results = []
             for _ in range(count):
@@ -112,13 +114,18 @@ def create_routes(app):
             user_info["char_gacha"]["no_6star"] = char_gacha.counters.no_6star
             user_info["char_gacha"]["no_5star_plus"] = char_gacha.counters.no_5star_plus
             user_info["char_gacha"]["no_up"] = char_gacha.counters.no_up
-            user_info["char_gacha"]["guarantee_used"] = char_gacha.counters.guarantee_used
+            user_info["char_gacha"][
+                "guarantee_used"
+            ] = char_gacha.counters.guarantee_used
 
             # 记录历史
             user_info["char_gacha"]["history"].extend(results)
 
             # 检查累计奖励：加急招募
-            if char_gacha.counters.total >= 30 and not user_info["resources"]["urgent_used"]:
+            if (
+                char_gacha.counters.total >= 30
+                and not user_info["resources"]["urgent_used"]
+            ):
                 user_info["resources"]["urgent_recruitment"] += 1
                 user_info["resources"]["urgent_used"] = True
 
@@ -129,7 +136,9 @@ def create_routes(app):
             weapon_gacha.counters.total = user_info["weapon_gacha"]["total"]
             weapon_gacha.counters.no_6star = user_info["weapon_gacha"]["no_6star"]
             weapon_gacha.counters.no_up = user_info["weapon_gacha"]["no_up"]
-            weapon_gacha.counters.guarantee_used = user_info["weapon_gacha"]["guarantee_used"]
+            weapon_gacha.counters.guarantee_used = user_info["weapon_gacha"][
+                "guarantee_used"
+            ]
 
             results = []
             for _ in range(count):
@@ -158,7 +167,9 @@ def create_routes(app):
             user_info["weapon_gacha"]["total"] = weapon_gacha.counters.total
             user_info["weapon_gacha"]["no_6star"] = weapon_gacha.counters.no_6star
             user_info["weapon_gacha"]["no_up"] = weapon_gacha.counters.no_up
-            user_info["weapon_gacha"]["guarantee_used"] = weapon_gacha.counters.guarantee_used
+            user_info["weapon_gacha"][
+                "guarantee_used"
+            ] = weapon_gacha.counters.guarantee_used
 
             # 记录历史
             user_info["weapon_gacha"]["history"].extend(results)
@@ -308,7 +319,9 @@ def create_routes(app):
         user_id, user_info = get_or_create_current_user(request)
 
         # 处理充值
-        success, message, origeometry_amount, is_first = process_recharge(user_info, amount)
+        success, message, origeometry_amount, is_first = process_recharge(
+            user_info, amount
+        )
 
         if not success:
             return jsonify({"error": message}), 400
@@ -336,7 +349,9 @@ def create_routes(app):
         user_id, user_info = get_or_create_current_user(request)
 
         # 处理兑换
-        success, message = process_exchange(user_info, from_resource, to_resource, amount)
+        success, message = process_exchange(
+            user_info, from_resource, to_resource, amount
+        )
 
         if not success:
             return jsonify({"error": message}), 400
@@ -376,7 +391,8 @@ def create_routes(app):
 
         try:
             pool_data = DEFAULT_CONFIG.get_pool_data(pool_type)
-            constants = DEFAULT_CONFIG.constants
+            # GlobalConfigLoader的constants属性就是gacha_rules.json的内容
+            gacha_rules = DEFAULT_CONFIG.constants
         except FileNotFoundError as e:
             return jsonify({"error": f"配置文件不存在: {str(e)}"}), 404
         except (KeyError, json.JSONDecodeError) as e:
@@ -395,15 +411,12 @@ def create_routes(app):
                         }
                     )
 
-        # 从常量配置文件中获取卡池名称
+        # 从gacha_rules配置中读取卡池名称
+        pool_info = gacha_rules.get("pool_info", {})
         if pool_type == "char":
-            pool_name = constants.get("text_constants", {}).get(
-                "char_pool_name", "特许寻访"
-            )
+            pool_name = pool_info.get("char_pool_name", "特许寻访")
         else:
-            pool_name = constants.get("text_constants", {}).get(
-                "weapon_pool_name", "武库申领"
-            )
+            pool_name = pool_info.get("weapon_pool_name", "武库申领")
 
         return jsonify({"pool_name": pool_name, "boosted_items": boosted_items})
 
@@ -411,7 +424,10 @@ def create_routes(app):
     @app.context_processor
     def inject_static_url():
         def get_static_url(filename):
-            """根据原始文件名获取哈希化后的URL"""
+            """根据原始文件名获取哈希化后的URL，开发模式直接返回原始文件名"""
+            if app.config.get("DEV_MODE", False):
+                # 开发模式直接返回原始文件名
+                return filename
             try:
                 from app.utils.compress import load_manifest
 

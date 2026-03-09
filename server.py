@@ -7,6 +7,7 @@ Web 服务器入口
 
 import os
 import sys
+import argparse
 from server import create_app, compress_static_files
 
 
@@ -17,16 +18,24 @@ def is_reloader_process():
 
 
 if __name__ == "__main__":
-    # 只在主进程（非 reloader 子进程）时压缩静态文件
-    if not is_reloader_process():
+    parser = argparse.ArgumentParser(description='终末地抽卡模拟器服务器')
+    parser.add_argument('--dev', action='store_true', help='开发模式：不压缩静态资源，使用源文件调试')
+    parser.add_argument('--waitress', action='store_true', help='使用Waitress生产服务器')
+    parser.add_argument('--port', type=int, default=5000, help='服务端口，默认5000')
+    args = parser.parse_args()
+
+    # 非开发模式且不是reloader子进程时压缩静态文件
+    if not args.dev and not is_reloader_process():
         compress_static_files()
 
-    app = create_app()
-    
-    # 检查是否使用 waitress
-    if len(sys.argv) > 1 and sys.argv[1] == "--waitress":
+    # 创建应用，传入开发模式参数
+    app = create_app(dev_mode=args.dev)
+
+    if args.waitress:
         from waitress import serve
-        print("使用 Waitress 生产服务器启动...")
-        serve(app, host="127.0.0.1", port=5000, threads=4)
+        print(f"使用 Waitress 生产服务器启动，端口：{args.port}")
+        serve(app, host="0.0.0.0", port=args.port, threads=4)
     else:
-        app.run(debug=True, port=5000)
+        if args.dev:
+            print(f"开发模式启动，端口：{args.port}，静态资源不压缩，便于调试")
+        app.run(debug=True, host="0.0.0.0", port=args.port)

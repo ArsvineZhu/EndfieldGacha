@@ -1,0 +1,565 @@
+/* 响应式布局 - 平板设备 */
+@media screen and (max-width: 1024px) {
+    .main-content {
+        padding: 15px;
+        gap: 15px;
+    }
+
+    .left-nav {
+        width: 180px;
+        padding: 15px;
+    }
+
+    .nav-section h3 {
+        font-size: 14px;
+    }
+
+    .nav-btn {
+        font-size: 13px;
+        padding: 8px;
+    }
+
+    .content-area {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .top-nav h1 {
+        font-size: 20px;
+    }
+
+    .top-resources {
+        gap: 10px;
+    }
+
+    .top-resources .resource-label {
+        font-size: 11px;
+    }
+
+    .top-resources .resource-value {
+        font-size: 11px;
+    }
+
+    .pool-info {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .pool-info-content {
+        margin-right: 0;
+        margin-bottom: 15px;
+    }
+
+    .gacha-controls {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .draw-btn {
+        padding: 12px 20px;
+        font-size: 16px;
+    }
+
+    .stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+    }
+
+    .stat-value {
+        font-size: 20px;
+    }
+
+    .results-container {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .result-card {
+        min-width: 70px;
+        width: 70px;
+        height: 140px;
+        font-size: 12px;
+        padding: 20px 8px;
+    }
+
+    .recharge-options {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .recharge-btn.first-recharge {
+        width: 80%;
+        height: 200px;
+    }
+
+    .oroberyl-count {
+        font-size: 28px;
+        font-family: Impact, Arial, sans-serif;
+    }
+
+    .first-reward {
+        font-size: 12px;
+    }
+
+    .price-bar {
+        font-size: 16px;
+        height: 35px;
+    }
+}
+
+/* 响应式布局 - 移动设备 */
+@media screen and (max-width: 768px) {
+    .mobile-menu-btn {
+        display: flex !important;
+        order: 0;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+
+    .mobile-menu-btn span {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        background-color: #ffffff !important;
+    }
+
+    .app-title {
+        display: none !important;
+    }
+
+    .top-nav {
+        padding: 8px 15px;
+        flex-direction: row;
+        align-items: center;
+        gap: 10px;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        justify-content: flex-start;
+        min-height: 50px;
+    }
+
+    .top-nav h1 {
+        display: none;
+    }
+
+    .top-resources {
+        order: 2;
+        margin-left: auto;
+        width: auto;
+        justify-content: flex-end;
+        gap: 5px;
+    }
+
+    /* 主内容区域添加顶部边距，避免被固定导航栏遮挡 */
+    .main-content {
+        margin-top: 60px;
+    }
+
+    .top-resources .resource-item {
+        flex-direction: column;
+        align-items: flex-end;
+        min-width: 60px;
+        text-align: right;
+    }
+
+    .top-resources .resource-label {
+        font-size: 9px;
+    }
+
+    .top-resources .resource-value {
+        font-size: 11px;
+        min-width: auto;
+    }
+
+    .main-content {
+        padding: 10px;
+        gap: 10px;
+        flex-direction: column;
+    }
+
+    .left-nav {
+        width: 250px;
+        padding: 15px;
+        padding-top: 60px;
+        position: fixed;
+        top: 50px !important;
+        left: 0;
+        height: calc(100% - 50px);
+        z-index: 999;
+        transform: translateX(-100%);
+        overflow-y: auto;
+    }
+
+    .left-nav.active {
+        transform: translateX(0);
+    }
+
+    .nav-section {
+        margin-bottom: 20px;
+    }
+
+    .nav-section:last-child {
+        margin-bottom: 0;
+    }
+
+    .nav-section h3 {
+        font-size: 14px;
+        margin-bottom: 8px;
+    }
+
+    .nav-btn {
+        font-size: 14px;
+        padding: 10px;
+        margin-bottom: 8px;
+    }
+
+    .content-area {
+        width: 100%;
+    }
+
+    .gacha-area,
+    .stats-area,
+    .collection-area,
+    .resources-area,
+    .history-area {
+        padding: 15px;
+        margin-bottom: 10px;
+    }
+
+    .pool-info {
+        padding: 12px;
+    }
+
+    .pool-name {
+        font-size: 16px !important;
+    }
+
+    .boosted-item {
+        font-size: 12px;
+        padding: 4px 8px;
+    }
+
+    .gacha-controls {
+        flex-direction: row;
+        gap: 10px;
+        width: 100%;
+        justify-content: center;
+    }
+
+    .draw-btn {
+        flex: 1;
+        max-width: 200px;
+        padding: 12px;
+        font-size: 16px;
+        margin: 0;
+    }
+
+    .result-area h2,
+    .stats-area h2,
+    .collection-area h2,
+    .resources-area h2,
+    .history-area h2 {
+        font-size: 18px;
+        margin-bottom: 12px;
+    }
+
+    .results-container {
+        gap: 5px;
+        padding: 30px 0;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+        max-width: 100%;
+        margin-left: 0;
+        margin-right: 0;
+        overflow-x: visible;
+        overflow-y: visible;
+    }
+
+    .result-card {
+        width: calc(20% - 4px);
+        min-width: calc(20% - 4px);
+        height: 200px;
+        font-size: 11px;
+        padding: 15px 2px;
+        flex: 0 0 calc(20% - 4px);
+        transform: perspective(800px) rotateX(0deg) rotateY(0deg);
+    }
+
+    .result-card .card-content {
+        font-size: 11px;
+    }
+
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    .stat-item {
+        padding: 12px 8px;
+    }
+
+    .stat-label {
+        font-size: 12px;
+        margin-bottom: 8px;
+    }
+
+    .stat-value {
+        font-size: 18px;
+    }
+
+    .rewards-area {
+        padding: 12px;
+    }
+
+    .rewards-area h3 {
+        font-size: 16px;
+    }
+
+    .reward-item {
+        font-size: 12px;
+        padding: 6px 10px;
+    }
+
+    .collection-container {
+        gap: 8px;
+    }
+
+    .collection-item {
+        min-width: 80px;
+        font-size: 13px;
+        padding: 8px;
+    }
+
+    .char-card {
+        min-height: 150px;
+        padding: 15px;
+    }
+
+    .char-card .char-name {
+        font-size: 20px;
+        margin-top: 40px;
+    }
+
+    .char-card .char-potential {
+        font-size: 280px;
+    }
+
+    .recharge-options {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+        max-width: 600px;
+    }
+
+    .recharge-btn.first-recharge {
+        width: 100%;
+        height: 160px;
+    }
+
+    .oroberyl-count {
+        font-size: 24px;
+        font-family: Impact, Arial, sans-serif;
+    }
+
+    .first-reward {
+        font-size: 12px;
+    }
+
+    .price-bar {
+        font-size: 14px;
+        height: 30px;
+    }
+
+    .resource-card {
+        padding: 15px;
+    }
+
+    .resource-card h3 {
+        font-size: 16px;
+    }
+
+    .exchange-options {
+        gap: 12px;
+    }
+
+    .exchange-item {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .exchange-item input {
+        width: 100% !important;
+        margin-right: 0 !important;
+    }
+
+    .exchange-btn {
+        width: 100%;
+        padding: 10px;
+    }
+
+    .exchange-btn.all-btn {
+        margin-left: 0;
+        margin-top: 5px;
+    }
+
+    .history-group {
+        padding: 12px;
+    }
+
+    .history-group-title {
+        font-size: 13px;
+    }
+
+    .history-result-card {
+        min-width: 100px;
+        font-size: 12px;
+        padding: 8px 10px;
+    }
+
+    .results-container {
+        justify-content: flex-start;
+    }
+
+    #temp-resources-area.resources-area {
+        padding: 15px;
+        margin-top: 0;
+    }
+
+    .star-section h3 {
+        font-size: 16px;
+    }
+
+    .char-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 20px !important;
+    }
+}
+
+/* 响应式布局 - 小屏移动设备 */
+@media screen and (max-width: 480px) {
+    .top-nav {
+        padding: 8px 10px;
+        min-height: 70px;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-content: center;
+    }
+
+    .mobile-menu-btn {
+        order: 1;
+    }
+
+    .top-resources {
+        order: 2;
+        gap: 8px;
+        width: 100%;
+        justify-content: flex-end;
+        margin-top: 5px;
+    }
+
+    .top-resources .resource-item {
+        min-width: 50px;
+        flex-direction: column !important;
+        align-items: flex-end !important;
+    }
+
+    .top-resources .resource-label {
+        font-size: 8px;
+        display: block !important;
+        color: #aaa !important;
+    }
+
+    .top-resources .resource-value {
+        font-size: 10px;
+        color: #fff !important;
+        font-weight: bold !important;
+    }
+
+    .main-content {
+        margin-top: 80px !important;
+    }
+
+    /* 小屏设备干员卡片强制两列，限制最大宽度 */
+    .char-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 15px !important;
+    }
+
+    .char-card {
+        min-height: 120px !important;
+        max-width: 100% !important;
+        aspect-ratio: 1 !important;
+    }
+
+    .char-card .char-name {
+        font-size: 16px !important;
+        margin-top: 30px !important;
+    }
+
+    .char-card .char-potential {
+        font-size: 120px !important;
+    }
+}
+
+/* 超小屏移动设备适配（<390px） */
+@media screen and (max-width: 390px) {
+    .top-nav {
+        padding: 6px 8px;
+        min-height: 70px;
+        gap: 5px;
+    }
+
+    .mobile-menu-btn {
+        width: 35px !important;
+        height: 35px !important;
+    }
+
+    .top-resources {
+        gap: 5px;
+    }
+
+    .top-resources .resource-item {
+        min-width: 45px;
+    }
+
+    .top-resources .resource-label {
+        font-size: 7px;
+    }
+
+    .top-resources .resource-value {
+        font-size: 9px;
+    }
+
+    .main-content {
+        margin-top: 80px !important;
+    }
+}
+
+/* 横屏移动设备优化 */
+@media screen and (max-width: 768px) and (orientation: landscape) {
+    .result-card {
+        height: 100px;
+        width: 55px;
+        min-width: 55px;
+    }
+
+    .stats-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+
+    .char-card {
+        min-height: 120px;
+    }
+
+    .char-card .char-name {
+        margin-top: 30px;
+    }
+
+    .char-card .char-potential {
+        font-size: 200px;
+    }
+}
