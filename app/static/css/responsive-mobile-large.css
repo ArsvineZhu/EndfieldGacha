@@ -1,0 +1,45 @@
+/* 响应式布局 - 大屏移动设备 (560px-768px) - 三列 */
+@media screen and (max-width: 768px) and (min-width: 560px) {
+    .mobile-menu-btn {
+        display: flex !important;
+        order: 0;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+
+    .mobile-menu-btn i {
+        font-size: 20px;
+        color: #ffffff;
+        transition: all 0.3s ease;
+    }
+
+    .mobile-menu-btn.active i {
+        color: #3498db;
+    }
+
+    .char-grid {
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 15px !important;
+    }
+
+    .char-card {
+        min-height: 140px;
+        padding: 12px;
+    }
+
+    .char-card .char-name {
+        font-size: 18px;
+        margin-top: 10px;
+        margin-bottom: 8px;
+    }
+
+    .potential-bar {
+        gap: 4px;
+    }
+
+    .potential-indicator {
+        width: 16px;
+        height: 7px;
+        border-width: 1px;
+    }
+}

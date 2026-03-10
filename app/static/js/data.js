@@ -109,7 +109,7 @@
         if (!forceRefresh) {
             const cachedData = CacheUtil.get(cacheKey);
             if (cachedData) {
-                displayHistory(cachedData, poolType);
+                displayHistory([], poolType, cachedData.operations);
                 return;
             }
         }
@@ -117,10 +117,10 @@
         try {
             const response = await fetch(`/api/history?pool_type=${poolType}`);
             const data = await response.json();
-            const history = data.history || [];
+            const operations = data.operations || [];
 
-            CacheUtil.set(cacheKey, history, CACHE_CONFIG.HISTORY.ttl);
-            displayHistory(history, poolType);
+            CacheUtil.set(cacheKey, { operations }, CACHE_CONFIG.HISTORY.ttl);
+            displayHistory([], poolType, operations);
         } catch (error) {
             console.error('加载历史记录失败:', error);
             const container = document.getElementById(

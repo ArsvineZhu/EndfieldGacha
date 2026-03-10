@@ -2,23 +2,37 @@
 <html lang="zh-CN">
 
 <head>
+    <!-- 基础设置 -->
     <meta charset="UTF-8">
-    <meta name="viewport"
-        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <!-- 响应式视口设置 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <!-- PWA/Web App 设置 -->
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <!-- 其他设置 -->
     <meta name="format-detection" content="telephone=no">
     <meta name="theme-color" content="#121212">
     <link rel="icon" type="image/x-icon"
         href="{{ url_for('static', filename=get_static_url('img/favicons/favicon.ico')) }}">
     <title>终末地抽卡模拟器</title>
+    <!-- Font Awesome 图标库 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename=get_static_url('css/base.css')) }}">
     <link rel="stylesheet" href="{{ url_for('static', filename=get_static_url('css/layout.css')) }}">
     <link rel="stylesheet" href="{{ url_for('static', filename=get_static_url('css/gacha.css')) }}">
     <link rel="stylesheet" href="{{ url_for('static', filename=get_static_url('css/animations.css')) }}">
     <link rel="stylesheet" href="{{ url_for('static', filename=get_static_url('css/components.css')) }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename=get_static_url('css/responsive.css')) }}">
+    <!-- 响应式CSS模块 - 按设备尺寸分类 -->
+    <link rel="stylesheet" href="{{ url_for('static', filename=get_static_url('css/responsive-tablet.css')) }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename=get_static_url('css/responsive-mobile-general.css')) }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename=get_static_url('css/responsive-mobile-large.css')) }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename=get_static_url('css/responsive-mobile-medium.css')) }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename=get_static_url('css/responsive-mobile-small.css')) }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename=get_static_url('css/responsive-mobile-landscape.css')) }}">
 </head>
 
 <body>

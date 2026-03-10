@@ -210,8 +210,44 @@
             const collectionArea = document.createElement('div');
             collectionArea.className = 'collection-area';
             collectionArea.id = 'temp-collection-area';
-            collectionArea.innerHTML = '<h2>贵重品库/武器</h2><div id="collection-container" class="collection-container"></div>';
+            collectionArea.innerHTML = `
+                <h2>贵重品库/武器</h2>
+                <div class="filter-container" style="margin-bottom:20px;padding:15px;background:rgba(255,255,255,0.05);border-radius:8px;">
+                    <div style="display:flex;flex-wrap:wrap;gap:20px;align-items:center;">
+                        <div>
+                            <label style="color:#aaa;margin-right:10px;">稀有度:</label>
+                            <select id="star-filter" style="padding:5px 10px;background:#333;color:white;border:1px solid #555;border-radius:4px;">
+                                <option value="">全部</option>
+                                <option value="6">6星</option>
+                                <option value="5">5星</option>
+                                <option value="4">4星</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="color:#aaa;margin-right:10px;">类型:</label>
+                            <select id="type-filter" style="padding:5px 10px;background:#333;color:white;border:1px solid #555;border-radius:4px;">
+                                <option value="">全部</option>
+                                <option value="单手剑">单手剑</option>
+                                <option value="施术单元">施术单元</option>
+                                <option value="铳械">铳械</option>
+                                <option value="双手剑">双手剑</option>
+                                <option value="长柄武器">长柄武器</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div id="collection-container" class="collection-container"></div>
+            `;
             contentArea.appendChild(collectionArea);
+            
+            // 添加筛选器事件监听
+            const starFilter = document.getElementById('star-filter');
+            const typeFilter = document.getElementById('type-filter');
+            if (starFilter && typeFilter) {
+                starFilter.addEventListener('change', () => loadUserData());
+                typeFilter.addEventListener('change', () => loadUserData());
+            }
+            
             await loadUserData();
         });
 

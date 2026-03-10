@@ -13,7 +13,7 @@
     justify-content: space-between;
     align-items: center;
     border-bottom: 1px solid #333;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 10px;
     position: relative;
     z-index: 1000;
@@ -36,7 +36,8 @@
     width: 40px;
     height: 40px;
     background: transparent;
-    border: none;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 5px;
     cursor: pointer;
     padding: 0;
     z-index: 1001;
@@ -44,6 +45,7 @@
     position: relative;
     visibility: visible;
     opacity: 1;
+    transition: all 0.3s ease;
 }
 
 .mobile-menu-btn i {
@@ -56,17 +58,23 @@
     color: #3498db;
 }
 
+.mobile-menu-btn.active {
+    border-color: #3498db;
+}
+
 .mobile-menu-btn:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-    border-radius: 5px;
+    border-color: rgba(255, 255, 255, 0.6);
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
 }
 
 .top-resources {
     display: flex;
     gap: 15px;
     align-items: center;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     justify-content: flex-end;
+    flex-shrink: 1;
+    min-width: 0;
 }
 
 .top-resources .resource-item {

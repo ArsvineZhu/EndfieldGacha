@@ -1,0 +1,35 @@
+/* 横屏移动设备优化 */
+@media screen and (max-width: 768px) and (orientation: landscape) {
+    .result-card {
+        height: 100px;
+        width: 55px;
+        min-width: 55px;
+    }
+
+    .stats-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+
+    .char-card {
+        min-height: 120px;
+    }
+
+    .char-card .char-name {
+        margin-top: 15px;
+        margin-bottom: 10px;
+    }
+
+    .char-card .char-potential {
+        font-size: 200px;
+    }
+
+    .potential-bar {
+        gap: 5px;
+    }
+
+    .potential-indicator {
+        width: 18px;
+        height: 7px;
+        border-width: 1px;
+    }
+}

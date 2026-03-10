@@ -62,11 +62,11 @@ def create_routes(app):
 
         # 检查并消耗资源
         if pool_type == "char":
-            success, error_msg = consume_char_gacha_resources(user_info, count)
+            success, error_msg, _ = consume_char_gacha_resources(user_info, count)
             if not success:
                 return jsonify({"error": error_msg}), 400
         else:  # weapon
-            success, error_msg = consume_weapon_gacha_resources(user_info)
+            success, error_msg, _ = consume_weapon_gacha_resources(user_info)
             if not success:
                 return jsonify({"error": error_msg}), 400
 
@@ -81,6 +81,20 @@ def create_routes(app):
             char_gacha.counters.guarantee_used = user_info["char_gacha"][
                 "guarantee_used"
             ]
+
+            # 确定操作类型
+            operation_type = "GET_ONE" if count == 1 else "GET_TEN"
+
+            # 记录操作前的资源
+            operation_resources_before = {
+                "chartered_permits": user_info["resources"].get("chartered_permits", 0),
+                "oroberyl": user_info["resources"].get("oroberyl", 0),
+                "arsenal_tickets": user_info["resources"].get("arsenal_tickets", 0),
+                "origeometry": user_info["resources"].get("origeometry", 0),
+                "urgent_recruitment": user_info["resources"].get(
+                    "urgent_recruitment", 0
+                ),
+            }
 
             results = []
             for _ in range(count):
@@ -114,12 +128,45 @@ def create_routes(app):
             user_info["char_gacha"]["no_6star"] = char_gacha.counters.no_6star
             user_info["char_gacha"]["no_5star_plus"] = char_gacha.counters.no_5star_plus
             user_info["char_gacha"]["no_up"] = char_gacha.counters.no_up
-            user_info["char_gacha"][
-                "guarantee_used"
-            ] = char_gacha.counters.guarantee_used
+            user_info["char_gacha"]["guarantee_used"] = (
+                char_gacha.counters.guarantee_used
+            )
 
-            # 记录历史
-            user_info["char_gacha"]["history"].extend(results)
+            # 记录操作后的资源
+            operation_resources_after = {
+                "chartered_permits": user_info["resources"].get("chartered_permits", 0),
+                "oroberyl": user_info["resources"].get("oroberyl", 0),
+                "arsenal_tickets": user_info["resources"].get("arsenal_tickets", 0),
+                "origeometry": user_info["resources"].get("origeometry", 0),
+                "urgent_recruitment": user_info["resources"].get(
+                    "urgent_recruitment", 0
+                ),
+            }
+
+            # 计算消耗的资源
+            consumed_resources = {
+                "chartered_permits": operation_resources_before["chartered_permits"]
+                - operation_resources_after["chartered_permits"],
+                "oroberyl": operation_resources_before["oroberyl"]
+                - operation_resources_after["oroberyl"],
+                "arsenal_tickets": operation_resources_before["arsenal_tickets"]
+                - operation_resources_after["arsenal_tickets"],
+                "origeometry": operation_resources_before["origeometry"]
+                - operation_resources_after["origeometry"],
+                "urgent_recruitment": operation_resources_before["urgent_recruitment"]
+                - operation_resources_after["urgent_recruitment"],
+            }
+
+            # 创建操作记录
+            operation_record = {
+                "type": operation_type,
+                "time": datetime.now().isoformat(),
+                "consumed_resources": consumed_resources,
+                "results": results,
+            }
+
+            # 记录操作历史
+            user_info["char_gacha"]["operations"].append(operation_record)
 
             # 检查累计奖励：加急招募
             if (
@@ -140,6 +187,20 @@ def create_routes(app):
                 "guarantee_used"
             ]
 
+            # 确定操作类型
+            operation_type = "ISSUE"
+
+            # 记录操作前的资源
+            operation_resources_before = {
+                "chartered_permits": user_info["resources"].get("chartered_permits", 0),
+                "oroberyl": user_info["resources"].get("oroberyl", 0),
+                "arsenal_tickets": user_info["resources"].get("arsenal_tickets", 0),
+                "origeometry": user_info["resources"].get("origeometry", 0),
+                "urgent_recruitment": user_info["resources"].get(
+                    "urgent_recruitment", 0
+                ),
+            }
+
             results = []
             for _ in range(count):
                 apply_results = weapon_gacha.attempt()
@@ -157,8 +218,23 @@ def create_routes(app):
 
                     # 更新收藏
                     if result.name not in user_info["collection"]["weapons"]:
+                        # 从武器池中获取武器类型
+                        weapon_type = ""
+                        try:
+                            weapon_pool_data = DEFAULT_CONFIG.get_pool_data("weapon")
+                            for star in weapon_pool_data:
+                                for item in weapon_pool_data[star]:
+                                    if item["name"] == result.name:
+                                        weapon_type = item.get("type", "")
+                                        break
+                                if weapon_type:
+                                    break
+                        except:
+                            pass
+
                         user_info["collection"]["weapons"][result.name] = {
                             "star": result.star,
+                            "type": weapon_type,
                             "count": 0,
                         }
                     user_info["collection"]["weapons"][result.name]["count"] += 1
@@ -167,12 +243,45 @@ def create_routes(app):
             user_info["weapon_gacha"]["total"] = weapon_gacha.counters.total
             user_info["weapon_gacha"]["no_6star"] = weapon_gacha.counters.no_6star
             user_info["weapon_gacha"]["no_up"] = weapon_gacha.counters.no_up
-            user_info["weapon_gacha"][
-                "guarantee_used"
-            ] = weapon_gacha.counters.guarantee_used
+            user_info["weapon_gacha"]["guarantee_used"] = (
+                weapon_gacha.counters.guarantee_used
+            )
 
-            # 记录历史
-            user_info["weapon_gacha"]["history"].extend(results)
+            # 记录操作后的资源
+            operation_resources_after = {
+                "chartered_permits": user_info["resources"].get("chartered_permits", 0),
+                "oroberyl": user_info["resources"].get("oroberyl", 0),
+                "arsenal_tickets": user_info["resources"].get("arsenal_tickets", 0),
+                "origeometry": user_info["resources"].get("origeometry", 0),
+                "urgent_recruitment": user_info["resources"].get(
+                    "urgent_recruitment", 0
+                ),
+            }
+
+            # 计算消耗的资源
+            consumed_resources = {
+                "chartered_permits": operation_resources_before["chartered_permits"]
+                - operation_resources_after["chartered_permits"],
+                "oroberyl": operation_resources_before["oroberyl"]
+                - operation_resources_after["oroberyl"],
+                "arsenal_tickets": operation_resources_before["arsenal_tickets"]
+                - operation_resources_after["arsenal_tickets"],
+                "origeometry": operation_resources_before["origeometry"]
+                - operation_resources_after["origeometry"],
+                "urgent_recruitment": operation_resources_before["urgent_recruitment"]
+                - operation_resources_after["urgent_recruitment"],
+            }
+
+            # 创建操作记录
+            operation_record = {
+                "type": operation_type,
+                "time": datetime.now().isoformat(),
+                "consumed_resources": consumed_resources,
+                "results": results,
+            }
+
+            # 记录操作历史
+            user_info["weapon_gacha"]["operations"].append(operation_record)
 
         # 更新最后访问时间
         user_info["last_visit"] = datetime.now().isoformat()
@@ -191,6 +300,18 @@ def create_routes(app):
         # 检查是否有加急招募次数
         if user_info["resources"]["urgent_recruitment"] < 1:
             return jsonify({"error": "加急招募次数不足"}), 400
+
+        # 确定操作类型
+        operation_type = "URGENT"
+
+        # 记录操作前的资源
+        operation_resources_before = {
+            "chartered_permits": user_info["resources"].get("chartered_permits", 0),
+            "oroberyl": user_info["resources"].get("oroberyl", 0),
+            "arsenal_tickets": user_info["resources"].get("arsenal_tickets", 0),
+            "origeometry": user_info["resources"].get("origeometry", 0),
+            "urgent_recruitment": user_info["resources"].get("urgent_recruitment", 0),
+        }
 
         # 消耗 1 个加急招募次数
         user_info["resources"]["urgent_recruitment"] -= 1
@@ -226,8 +347,39 @@ def create_routes(app):
                 user_info["resources"].get("arsenal_tickets", 0) + result.quota
             )
 
-        # 记录历史
-        user_info["char_gacha"]["history"].extend(results)
+        # 记录操作后的资源
+        operation_resources_after = {
+            "chartered_permits": user_info["resources"].get("chartered_permits", 0),
+            "oroberyl": user_info["resources"].get("oroberyl", 0),
+            "arsenal_tickets": user_info["resources"].get("arsenal_tickets", 0),
+            "origeometry": user_info["resources"].get("origeometry", 0),
+            "urgent_recruitment": user_info["resources"].get("urgent_recruitment", 0),
+        }
+
+        # 计算消耗的资源
+        consumed_resources = {
+            "chartered_permits": operation_resources_before["chartered_permits"]
+            - operation_resources_after["chartered_permits"],
+            "oroberyl": operation_resources_before["oroberyl"]
+            - operation_resources_after["oroberyl"],
+            "arsenal_tickets": operation_resources_before["arsenal_tickets"]
+            - operation_resources_after["arsenal_tickets"],
+            "origeometry": operation_resources_before["origeometry"]
+            - operation_resources_after["origeometry"],
+            "urgent_recruitment": operation_resources_before["urgent_recruitment"]
+            - operation_resources_after["urgent_recruitment"],
+        }
+
+        # 创建操作记录
+        operation_record = {
+            "type": operation_type,
+            "time": datetime.now().isoformat(),
+            "consumed_resources": consumed_resources,
+            "results": results,
+        }
+
+        # 记录操作历史
+        user_info["char_gacha"]["operations"].append(operation_record)
 
         # 更新最后访问时间
         user_info["last_visit"] = datetime.now().isoformat()
@@ -375,11 +527,11 @@ def create_routes(app):
 
         # 获取对应的历史记录
         if pool_type == "char":
-            history = user_info["char_gacha"].get("history", [])
+            operations = user_info["char_gacha"].get("operations", [])
         else:
-            history = user_info["weapon_gacha"].get("history", [])
+            operations = user_info["weapon_gacha"].get("operations", [])
 
-        return jsonify({"history": history})
+        return jsonify({"operations": operations})
 
     # 获取卡池信息 API
     @app.route("/api/pool_info", methods=["GET"])
@@ -432,7 +584,10 @@ def create_routes(app):
                 from app.utils.compress import load_manifest
 
                 manifest = load_manifest()
-                return manifest.get(filename, filename)
+                entry = manifest.get(filename, filename)
+                if isinstance(entry, dict):
+                    return entry["path"]
+                return entry
             except:
                 # 如果无法加载manifest，返回原始文件名
                 return filename

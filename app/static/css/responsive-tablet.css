@@ -1,0 +1,108 @@
+/* 响应式布局 - 平板设备 (max-width: 1024px) */
+@media screen and (max-width: 1024px) {
+    .main-content {
+        padding: 15px;
+        gap: 15px;
+    }
+
+    .left-nav {
+        width: 180px;
+        padding: 15px;
+    }
+
+    .nav-section h3 {
+        font-size: 14px;
+    }
+
+    .nav-btn {
+        font-size: 13px;
+        padding: 8px;
+    }
+
+    .content-area {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .top-nav h1 {
+        font-size: 20px;
+    }
+
+    .top-resources {
+        gap: 10px;
+    }
+
+    .top-resources .resource-label {
+        font-size: 11px;
+    }
+
+    .top-resources .resource-value {
+        font-size: 11px;
+    }
+
+    .pool-info {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .pool-info-content {
+        margin-right: 0;
+        margin-bottom: 15px;
+    }
+
+    .gacha-controls {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .draw-btn {
+        padding: 12px 20px;
+        font-size: 16px;
+    }
+
+    .stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+    }
+
+    .stat-value {
+        font-size: 20px;
+    }
+
+    .results-container {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .result-card {
+        min-width: 70px;
+        width: 70px;
+        height: 140px;
+        font-size: 12px;
+        padding: 20px 8px;
+    }
+
+    .recharge-options {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .recharge-btn.first-recharge {
+        width: 80%;
+        height: 200px;
+    }
+
+    .oroberyl-count {
+        font-size: 28px;
+        font-family: Impact, Arial, sans-serif;
+    }
+
+    .first-reward {
+        font-size: 12px;
+    }
+
+    .price-bar {
+        font-size: 16px;
+        height: 35px;
+    }
+}

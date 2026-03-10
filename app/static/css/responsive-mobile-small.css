@@ -1,0 +1,122 @@
+/* 响应式布局 - 小屏移动设备 (<425px) */
+@media screen and (max-width: 424px) {
+    .char-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 20px !important;
+    }
+
+    .top-nav {
+        padding: 8px 10px;
+        min-height: 50px;
+        flex-wrap: nowrap;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .mobile-menu-btn {
+        order: 1;
+        flex-shrink: 0;
+    }
+
+    .top-resources {
+        order: 2;
+        gap: 5px;
+        width: auto;
+        justify-content: flex-end;
+        margin-top: 0;
+        flex-shrink: 1;
+        min-width: 0;
+    }
+
+    .top-resources .resource-item {
+        min-width: 50px;
+        flex-direction: column !important;
+        align-items: flex-end !important;
+    }
+
+    .top-resources .resource-label {
+        font-size: 8px;
+        display: block !important;
+        color: #aaa !important;
+    }
+
+    .top-resources .resource-value {
+        font-size: 10px;
+        color: #fff !important;
+        font-weight: bold !important;
+    }
+
+    .main-content {
+        margin-top: 80px !important;
+    }
+
+    /* 小屏设备干员卡片强制两列，限制最大宽度 */
+    .char-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 15px !important;
+    }
+
+    .char-card {
+        min-height: 120px !important;
+        max-width: 100% !important;
+        aspect-ratio: 1 !important;
+    }
+
+    .char-card .char-name {
+        font-size: 16px !important;
+        margin-top: 15px !important;
+        margin-bottom: 8px !important;
+    }
+
+    .char-card .char-potential {
+        font-size: 120px !important;
+    }
+
+    .potential-bar {
+        gap: 3px;
+    }
+
+    .potential-indicator {
+        width: 12px;
+        height: 5px;
+        border-width: 1px;
+    }
+}
+
+/* 超小屏移动设备适配 (<390px) */
+@media screen and (max-width: 390px) {
+    .top-nav {
+        padding: 6px 8px;
+        min-height: 50px;
+        gap: 5px;
+        flex-wrap: nowrap;
+    }
+
+    .mobile-menu-btn {
+        width: 35px !important;
+        height: 35px !important;
+        flex-shrink: 0;
+    }
+
+    .top-resources {
+        gap: 5px;
+        flex-shrink: 1;
+        min-width: 0;
+    }
+
+    .top-resources .resource-item {
+        min-width: 45px;
+    }
+
+    .top-resources .resource-label {
+        font-size: 7px;
+    }
+
+    .top-resources .resource-value {
+        font-size: 9px;
+    }
+
+    .main-content {
+        margin-top: 80px !important;
+    }
+}

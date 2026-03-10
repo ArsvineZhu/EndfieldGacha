@@ -24,11 +24,11 @@ RECHARGE_TIERS = {
 def process_recharge(user_info, amount):
     """
     处理充值操作
-    
+
     Args:
         user_info: 用户数据字典
         amount: 充值金额
-    
+
     Returns:
         tuple: (success: bool, message: str, origeometry_amount: int, is_first: bool)
     """
@@ -79,7 +79,9 @@ def process_recharge(user_info, amount):
 
     # 构建返回消息
     if is_first_recharge:
-        message = f"成功充值 {amount} 元，获得 {origeometry_amount} 个衍质源石（首充双倍）"
+        message = (
+            f"成功充值 {amount} 元，获得 {origeometry_amount} 个衍质源石（首充双倍）"
+        )
     else:
         message = f"成功充值 {amount} 元，获得 {origeometry_amount} 个衍质源石"
 
@@ -89,13 +91,13 @@ def process_recharge(user_info, amount):
 def process_exchange(user_info, from_resource, to_resource, amount):
     """
     处理资源兑换操作
-    
+
     Args:
         user_info: 用户数据字典
         from_resource: 源资源类型
         to_resource: 目标资源类型
         amount: 兑换数量
-    
+
     Returns:
         tuple: (success: bool, message: str)
     """
@@ -136,24 +138,35 @@ def process_exchange(user_info, from_resource, to_resource, amount):
 def consume_char_gacha_resources(user_info, count):
     """
     消耗角色卡池抽卡资源
-    
+
     Args:
         user_info: 用户数据字典
         count: 抽卡次数 (1 或 10)
-    
+
     Returns:
-        tuple: (success: bool, error_message: str or None)
+        tuple: (success: bool, error_message: str or None, consumed_resources: dict)
     """
+
+    consumed_resources = {
+        "chartered_permits": 0,
+        "oroberyl": 0,
+        "arsenal_tickets": 0,
+        "origeometry": 0,
+        "urgent_recruitment": 0,
+    }
+
     if count == 1:
         # 单抽：1 张特许寻访凭证或 500 个嵌晶玉
         if user_info["resources"]["chartered_permits"] >= 1:
             user_info["resources"]["chartered_permits"] -= 1
-            return True, None
+            consumed_resources["chartered_permits"] = 1
+            return True, None, consumed_resources
         elif user_info["resources"]["oroberyl"] >= 500:
             user_info["resources"]["oroberyl"] -= 500
-            return True, None
+            consumed_resources["oroberyl"] = 500
+            return True, None, consumed_resources
         else:
-            return False, "资源不足，无法进行单抽"
+            return False, "资源不足，无法进行单抽", consumed_resources
     elif count == 10:
         # 十连：优先使用凭证，不足部分用嵌晶玉补充
         available_permits = user_info["resources"].get("chartered_permits", 0)
@@ -167,39 +180,52 @@ def consume_char_gacha_resources(user_info, count):
         if available_permits >= required_permits:
             # 凭证足够
             user_info["resources"]["chartered_permits"] -= required_permits
+            consumed_resources["chartered_permits"] = required_permits
         else:
             # 凭证不足，用玉补充
             used_permits = available_permits
             user_info["resources"]["chartered_permits"] = 0
+            consumed_resources["chartered_permits"] = used_permits
 
             remaining_permits = required_permits - used_permits
             required_oroberyl = remaining_permits * 500
 
             if available_oroberyl >= required_oroberyl:
                 user_info["resources"]["oroberyl"] -= required_oroberyl
+                consumed_resources["oroberyl"] = required_oroberyl
             else:
-                return False, "资源不足，无法进行十连抽"
-        return True, None
+                return False, "资源不足，无法进行十连抽", consumed_resources
+        return True, None, consumed_resources
     else:
-        return False, "无效的抽卡次数"
+        return False, "无效的抽卡次数", consumed_resources
 
 
 def consume_weapon_gacha_resources(user_info):
     """
     消耗武器卡池申领资源
-    
+
     Args:
         user_info: 用户数据字典
-    
+
     Returns:
-        tuple: (success: bool, error_message: str or None)
+        tuple: (success: bool, error_message: str or None, consumed_resources: dict)
     """
+
+    consumed_resources = {
+        "chartered_permits": 0,
+        "oroberyl": 0,
+        "arsenal_tickets": 0,
+        "origeometry": 0,
+        "urgent_recruitment": 0,
+    }
+
     # 武库申领消耗：1980 个武库配额
     if user_info["resources"]["arsenal_tickets"] >= 1980:
         user_info["resources"]["arsenal_tickets"] -= 1980
-        return True, None
+        consumed_resources["arsenal_tickets"] = 1980
+        return True, None, consumed_resources
     else:
-        return False, "武库配额不足，无法进行申领"
+        return False, "武库配额不足，无法进行申领", consumed_resources
 
 
 def update_last_visit(user_info):

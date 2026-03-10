@@ -71,14 +71,14 @@ def create_new_user(user_id):
             "no_5star_plus": 0,
             "no_up": 0,
             "guarantee_used": False,
-            "history": [],
+            "operations": [],  # 操作记录
         },
         "weapon_gacha": {
             "total": 0,
             "no_6star": 0,
             "no_up": 0,
             "guarantee_used": False,
-            "history": [],
+            "operations": [],  # 操作记录
         },
         "collection": {"chars": {}, "weapons": {}},
         "resources": {
@@ -128,14 +128,14 @@ def reset_user_data(user_id, original_created_at=None):
             "no_5star_plus": 0,
             "no_up": 0,
             "guarantee_used": False,
-            "history": [],
+            "operations": [],  # 操作记录
         },
         "weapon_gacha": {
             "total": 0,
             "no_6star": 0,
             "no_up": 0,
             "guarantee_used": False,
-            "history": [],
+            "operations": [],  # 操作记录
         },
         "collection": {"chars": {}, "weapons": {}},
         "resources": {

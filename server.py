@@ -18,10 +18,14 @@ def is_reloader_process():
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='终末地抽卡模拟器服务器')
-    parser.add_argument('--dev', action='store_true', help='开发模式：不压缩静态资源，使用源文件调试')
-    parser.add_argument('--waitress', action='store_true', help='使用Waitress生产服务器')
-    parser.add_argument('--port', type=int, default=5000, help='服务端口，默认5000')
+    parser = argparse.ArgumentParser(description="终末地抽卡模拟器服务器")
+    parser.add_argument(
+        "--dev", action="store_true", help="开发模式：不压缩静态资源，使用源文件调试"
+    )
+    parser.add_argument(
+        "--waitress", action="store_true", help="使用Waitress生产服务器"
+    )
+    parser.add_argument("--port", type=int, default=5000, help="服务端口，默认5000")
     args = parser.parse_args()
 
     # 非开发模式且不是reloader子进程时压缩静态文件
@@ -33,8 +37,9 @@ if __name__ == "__main__":
 
     if args.waitress:
         from waitress import serve
+
         print(f"使用 Waitress 生产服务器启动，端口：{args.port}")
-        serve(app, host="0.0.0.0", port=args.port, threads=4)
+        serve(app, host="0.0.0.0", port=args.port, threads=16)
     else:
         if args.dev:
             print(f"开发模式启动，端口：{args.port}，静态资源不压缩，便于调试")

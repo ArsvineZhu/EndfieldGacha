@@ -9,7 +9,7 @@ MANIFEST_FILE = "app/static/manifest.json"
 
 
 def get_file_hash(content):
-    # 使用 SHA256 生成更安全的哈希值
+    """使用 SHA256 生成哈希值"""
     return hashlib.sha256(content.encode("utf-8")).hexdigest()[:6]
 
 
@@ -29,7 +29,7 @@ def obfuscate_js(input_path, output_path):
             output_path,
             "--compress",
             "--mangle",
-            "--toplevel"
+            "--toplevel",
         ]
 
         result = subprocess.run(
@@ -53,14 +53,35 @@ def obfuscate_js(input_path, output_path):
         print("提示: 请确保已安装Node.js，然后运行: npm install -g terser")
         return False
     except FileNotFoundError:
-        print(
-            "terser 未找到，请先安装Node.js，然后运行: npm install -g terser"
-        )
+        print("terser 未找到，请先安装Node.js，然后运行: npm install -g terser")
         return False
 
 
 def compress_css(content):
     return rcssmin.cssmin(content)
+
+
+def cleanup_old_files(file_dir, name, ext, current_hash):
+    """清理旧的压缩文件"""
+    for file in os.listdir(file_dir):
+        # 检查是否是同一文件的旧哈希版本
+        if file.startswith(f"{name}.") and file.endswith(ext):
+            # 提取文件名中的哈希部分
+            parts = file.split(".")
+            if len(parts) >= 3:
+                file_hash = parts[-2]
+                # 如果哈希不是当前的，且是6位十六进制，则删除
+                if (
+                    file_hash != current_hash
+                    and len(file_hash) == 6
+                    and all(c in "0123456789abcdef" for c in file_hash.lower())
+                ):
+                    old_path = os.path.join(file_dir, file)
+                    try:
+                        os.remove(old_path)
+                        print(f"删除旧文件: {old_path}")
+                    except Exception as e:
+                        print(f"删除旧文件失败 {old_path}: {e}")
 
 
 def process_js_file(file_path, manifest, existing_manifest=None):
@@ -77,28 +98,39 @@ def process_js_file(file_path, manifest, existing_manifest=None):
     output_path = os.path.join(file_dir, hashed_name)
     manifest_key = f"js/{file_name}"
 
-    # 检查是否已有相同哈希的文件存在
-    file_exists = os.path.exists(output_path)
-    
     # 检查是否已有相同哈希的文件
-    if existing_manifest and manifest_key in existing_manifest and file_exists:
-        existing_path = existing_manifest[manifest_key]
-        if current_hash in existing_path:
-            # 文件未修改且存在，直接复用
-            manifest[manifest_key] = existing_path
-            print(f"JS文件未修改，跳过: {file_path}")
-            return True
+    if existing_manifest and manifest_key in existing_manifest:
+        existing_entry = existing_manifest[manifest_key]
+        # 如果是字典格式，检查哈希值
+        if isinstance(existing_entry, dict):
+            if existing_entry.get("hash") == current_hash and os.path.exists(
+                os.path.join(STATIC_DIR, existing_entry["path"])
+            ):
+                manifest[manifest_key] = existing_entry
+                print(f"JS文件未修改，跳过: {file_path}")
+                return True
+        # 如果是字符串格式（旧版本），检查路径中是否包含哈希
+        elif isinstance(existing_entry, str):
+            if current_hash in existing_entry and os.path.exists(
+                os.path.join(STATIC_DIR, existing_entry)
+            ):
+                manifest[manifest_key] = {"hash": current_hash, "path": existing_entry}
+                print(f"JS文件未修改，跳过: {file_path}")
+                return True
+
+    # 文件已修改，先清理旧文件
+    cleanup_old_files(file_dir, name, ext, current_hash)
 
     # 文件不存在或已修改，进行处理
     if obfuscate_js(file_path, output_path):
-        manifest[manifest_key] = f"js/{hashed_name}"
+        manifest[manifest_key] = {"hash": current_hash, "path": f"js/{hashed_name}"}
         print(f"JS压缩完成: {file_path} -> {output_path}")
         return True
     else:
         # 压缩失败则直接复制原内容到哈希文件名
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(content)
-        manifest[manifest_key] = f"js/{hashed_name}"
+        manifest[manifest_key] = {"hash": current_hash, "path": f"js/{hashed_name}"}
         print(f"JS压缩失败，使用原内容: {file_path} -> {output_path}")
         return False
 
@@ -111,9 +143,9 @@ def process_css_file(file_path, manifest, existing_manifest=None):
     file_name = os.path.basename(file_path)
     name, ext = os.path.splitext(file_name)
 
-    # 计算原始内容的哈希值（用来判断是否修改）
-    original_hash = get_file_hash(content)
-    
+    # 计算原始内容的哈希值
+    current_hash = get_file_hash(content)
+
     # 压缩CSS
     minified_content = compress_css(content)
 
@@ -129,48 +161,34 @@ def process_css_file(file_path, manifest, existing_manifest=None):
 
     # 检查是否已有相同哈希的文件
     if existing_manifest and manifest_key in existing_manifest:
-        existing_path = existing_manifest[manifest_key]
-        # 检查原始文件是否修改
-        # 这里我们保存原始文件的哈希到manifest的注释中？或者直接检查输出文件是否存在
-        if os.path.exists(output_path):
-            manifest[manifest_key] = existing_path
-            print(f"CSS文件未修改，跳过: {file_path}")
-            return True
+        existing_entry = existing_manifest[manifest_key]
+        # 如果是字典格式，检查哈希值
+        if isinstance(existing_entry, dict):
+            if existing_entry.get("hash") == current_hash and os.path.exists(
+                os.path.join(STATIC_DIR, existing_entry["path"])
+            ):
+                manifest[manifest_key] = existing_entry
+                print(f"CSS文件未修改，跳过: {file_path}")
+                return True
+        # 如果是字符串格式（旧版本），检查路径中是否包含哈希
+        elif isinstance(existing_entry, str):
+            if current_hash in existing_entry and os.path.exists(
+                os.path.join(STATIC_DIR, existing_entry)
+            ):
+                manifest[manifest_key] = {"hash": current_hash, "path": existing_entry}
+                print(f"CSS文件未修改，跳过: {file_path}")
+                return True
+
+    # 文件已修改，先清理旧文件
+    cleanup_old_files(file_dir, name, ext, file_hash)
 
     # 文件已修改，写入压缩后的内容
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(minified_content)
 
-    manifest[manifest_key] = f"css/{hashed_name}"
+    manifest[manifest_key] = {"hash": current_hash, "path": f"css/{hashed_name}"}
     print(f"CSS压缩完成: {file_path} -> {output_path}")
     return True
-
-
-def clean_old_files():
-    for root, _, files in os.walk(STATIC_DIR):
-        for file in files:
-            file_path = os.path.join(root, file)
-            # 清理旧的.min.js和.min.css文件
-            if file.endswith((".min.js", ".min.css")):
-                try:
-                    os.remove(file_path)
-                    print(f"清理旧的min文件: {file_path}")
-                except OSError:
-                    pass
-            # 清理旧的哈希化文件（文件名中包含哈希值）
-            elif file.endswith((".js", ".css")):
-                if "." in file and file.count(".") >= 2:
-                    parts = file.split(".")
-                    # 哈希值通常在倒数第二个部分，长度为6
-                    potential_hash = parts[-2]
-                    if len(potential_hash) == 6 and all(
-                        c in "0123456789abcdef" for c in potential_hash.lower()
-                    ):
-                        try:
-                            os.remove(file_path)
-                            print(f"清理旧哈希文件: {file_path}")
-                        except OSError:
-                            pass
 
 
 def load_manifest():
@@ -185,16 +203,16 @@ def load_manifest():
 def get_static_url(filename):
     """根据原始文件名获取哈希化后的URL"""
     manifest = load_manifest()
-    return manifest.get(filename, filename)
+    entry = manifest.get(filename)
+    if isinstance(entry, dict):
+        return entry["path"]
+    return entry or filename
 
 
 def main():
     # 加载现有的manifest文件
     existing_manifest = load_manifest()
     manifest = {}
-
-    # 清理旧的哈希化文件
-    clean_old_files()
 
     # 处理静态文件
     for root, _, files in os.walk(STATIC_DIR):

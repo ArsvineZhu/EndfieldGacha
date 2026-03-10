@@ -1,113 +1,4 @@
-/* 响应式布局 - 平板设备 */
-@media screen and (max-width: 1024px) {
-    .main-content {
-        padding: 15px;
-        gap: 15px;
-    }
-
-    .left-nav {
-        width: 180px;
-        padding: 15px;
-    }
-
-    .nav-section h3 {
-        font-size: 14px;
-    }
-
-    .nav-btn {
-        font-size: 13px;
-        padding: 8px;
-    }
-
-    .content-area {
-        min-width: 0;
-        flex: 1;
-    }
-
-    .top-nav h1 {
-        font-size: 20px;
-    }
-
-    .top-resources {
-        gap: 10px;
-    }
-
-    .top-resources .resource-label {
-        font-size: 11px;
-    }
-
-    .top-resources .resource-value {
-        font-size: 11px;
-    }
-
-    .pool-info {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
-    .pool-info-content {
-        margin-right: 0;
-        margin-bottom: 15px;
-    }
-
-    .gacha-controls {
-        width: 100%;
-        justify-content: center;
-    }
-
-    .draw-btn {
-        padding: 12px 20px;
-        font-size: 16px;
-    }
-
-    .stats-grid {
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 15px;
-    }
-
-    .stat-value {
-        font-size: 20px;
-    }
-
-    .results-container {
-        flex-wrap: nowrap;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    .result-card {
-        min-width: 70px;
-        width: 70px;
-        height: 140px;
-        font-size: 12px;
-        padding: 20px 8px;
-    }
-
-    .recharge-options {
-        grid-template-columns: repeat(2, 1fr);
-    }
-
-    .recharge-btn.first-recharge {
-        width: 80%;
-        height: 200px;
-    }
-
-    .oroberyl-count {
-        font-size: 28px;
-        font-family: Impact, Arial, sans-serif;
-    }
-
-    .first-reward {
-        font-size: 12px;
-    }
-
-    .price-bar {
-        font-size: 16px;
-        height: 35px;
-    }
-}
-
-/* 响应式布局 - 移动设备 */
+/* 响应式布局 - 移动设备通用 (max-width: 768px) */
 @media screen and (max-width: 768px) {
     .mobile-menu-btn {
         display: flex !important;
@@ -289,7 +180,7 @@
     }
 
     .result-card .card-content {
-        font-size: 11px;
+        font-size: 16px;
     }
 
     .stats-grid {
@@ -340,11 +231,22 @@
 
     .char-card .char-name {
         font-size: 20px;
-        margin-top: 40px;
+        margin-top: 20px;
+        margin-bottom: 10px;
     }
 
     .char-card .char-potential {
         font-size: 280px;
+    }
+
+    .potential-bar {
+        gap: 4px;
+    }
+
+    .potential-indicator {
+        width: 14px;
+        height: 6px;
+        border-width: 1px;
     }
 
     .recharge-options {
@@ -431,135 +333,5 @@
 
     .star-section h3 {
         font-size: 16px;
-    }
-
-    .char-grid {
-        grid-template-columns: repeat(2, 1fr) !important;
-        gap: 20px !important;
-    }
-}
-
-/* 响应式布局 - 小屏移动设备 */
-@media screen and (max-width: 480px) {
-    .top-nav {
-        padding: 8px 10px;
-        min-height: 70px;
-        flex-wrap: wrap;
-        justify-content: space-between;
-        align-content: center;
-    }
-
-    .mobile-menu-btn {
-        order: 1;
-    }
-
-    .top-resources {
-        order: 2;
-        gap: 8px;
-        width: 100%;
-        justify-content: flex-end;
-        margin-top: 5px;
-    }
-
-    .top-resources .resource-item {
-        min-width: 50px;
-        flex-direction: column !important;
-        align-items: flex-end !important;
-    }
-
-    .top-resources .resource-label {
-        font-size: 8px;
-        display: block !important;
-        color: #aaa !important;
-    }
-
-    .top-resources .resource-value {
-        font-size: 10px;
-        color: #fff !important;
-        font-weight: bold !important;
-    }
-
-    .main-content {
-        margin-top: 80px !important;
-    }
-
-    /* 小屏设备干员卡片强制两列，限制最大宽度 */
-    .char-grid {
-        grid-template-columns: repeat(2, 1fr) !important;
-        gap: 15px !important;
-    }
-
-    .char-card {
-        min-height: 120px !important;
-        max-width: 100% !important;
-        aspect-ratio: 1 !important;
-    }
-
-    .char-card .char-name {
-        font-size: 16px !important;
-        margin-top: 30px !important;
-    }
-
-    .char-card .char-potential {
-        font-size: 120px !important;
-    }
-}
-
-/* 超小屏移动设备适配（<390px） */
-@media screen and (max-width: 390px) {
-    .top-nav {
-        padding: 6px 8px;
-        min-height: 70px;
-        gap: 5px;
-    }
-
-    .mobile-menu-btn {
-        width: 35px !important;
-        height: 35px !important;
-    }
-
-    .top-resources {
-        gap: 5px;
-    }
-
-    .top-resources .resource-item {
-        min-width: 45px;
-    }
-
-    .top-resources .resource-label {
-        font-size: 7px;
-    }
-
-    .top-resources .resource-value {
-        font-size: 9px;
-    }
-
-    .main-content {
-        margin-top: 80px !important;
-    }
-}
-
-/* 横屏移动设备优化 */
-@media screen and (max-width: 768px) and (orientation: landscape) {
-    .result-card {
-        height: 100px;
-        width: 55px;
-        min-width: 55px;
-    }
-
-    .stats-grid {
-        grid-template-columns: repeat(4, 1fr);
-    }
-
-    .char-card {
-        min-height: 120px;
-    }
-
-    .char-card .char-name {
-        margin-top: 30px;
-    }
-
-    .char-card .char-potential {
-        font-size: 200px;
     }
 }
