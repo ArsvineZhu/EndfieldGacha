@@ -102,13 +102,17 @@
     background-color: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 5px;
-    padding: 20px;
+    padding: 15px;
     text-align: center;
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
     aspect-ratio: 1;
-    min-height: 180px;
+    min-height: 140px;
+    min-width: 120px;
+    max-width: 100%;
+    max-height: 250px;
+    box-sizing: border-box;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -120,12 +124,14 @@
 }
 
 .char-card .char-name {
-    font-size: 24px;
+    font-size: 18px;
     font-weight: bold;
     margin-top: 0px;
-    margin-bottom: 15px;
+    margin-bottom: 12px;
     position: relative;
     z-index: 2;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 /* 潜能指示器容器 */
@@ -156,7 +162,7 @@
 }
 
 .char-card .char-potential {
-    font-size: 360px;
+    font-size: 200px;
     font-weight: bold;
     color: transparent;
     -webkit-text-stroke: 2px #fff;
@@ -215,9 +221,11 @@
 /* 星级分类区域 */
 .star-section {
     margin-bottom: 30px;
-    padding: 15px;
+    padding: 20px;
     background-color: rgba(255, 255, 255, 0.03);
     border-radius: 5px;
+    box-sizing: border-box;
+    overflow: hidden;
 }
 
 .star-section h3 {
@@ -232,10 +240,13 @@
 /* 干员卡片网格布局 */
 .char-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
     gap: 25px;
+    row-gap: 25px;
+    column-gap: 25px;
     padding: 10px;
     margin-bottom: 20px;
+    box-sizing: border-box;
 }
 
 /* 不同星级的分类标题 */
@@ -577,4 +588,23 @@
     min-width: 120px;
     text-align: center;
     border: 2px solid;
+}
+
+/* 筛选下拉框样式 */
+.filter-container select:hover {
+    border-color: rgba(255, 255, 255, 0.4);
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+    transform: translateY(-1px);
+}
+
+.filter-container select:focus {
+    outline: none;
+    border-color: rgba(255, 255, 255, 0.6);
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.15);
+}
+
+.filter-container select option {
+    background-color: #1a1a1a;
+    color: #fff;
+    padding: 8px 12px;
 }

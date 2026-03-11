@@ -225,18 +225,19 @@
     }
 
     .char-card {
-        min-height: 150px;
-        padding: 15px;
+        min-height: 135px;
+        max-height: 220px;
+        padding: 12px;
     }
 
     .char-card .char-name {
-        font-size: 20px;
-        margin-top: 20px;
-        margin-bottom: 10px;
+        font-size: 16px;
+        margin-top: 15px;
+        margin-bottom: 8px;
     }
 
     .char-card .char-potential {
-        font-size: 280px;
+        font-size: 150px;
     }
 
     .potential-bar {

@@ -1,4 +1,28 @@
 (() => {
+    // 抽卡动画进行中标志
+    let isAnimationPlaying = false;
+
+    // 更新抽卡按钮状态
+    function updateDrawButtonsState(disabled) {
+        const singleDrawBtn = document.getElementById('single-draw');
+        const tenDrawBtn = document.getElementById('ten-draw');
+        const urgentRecruitmentBtn = document.getElementById('urgent-recruitment');
+
+        [singleDrawBtn, tenDrawBtn, urgentRecruitmentBtn].forEach(btn => {
+            if (btn) {
+                if (disabled) {
+                    btn.disabled = true;
+                    btn.style.opacity = '0.5';
+                    btn.style.cursor = 'not-allowed';
+                } else {
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                    btn.style.cursor = 'pointer';
+                }
+            }
+        });
+    }
+
     function createEmojiFall() {
         const emojis = ['🎉', '✨', '🌟', '💫', '🎊', '🌸', '💐', '🎈'];
         const congratulationTexts = ['恭喜', '欧气满满', '好运连连'];
@@ -39,6 +63,10 @@
     }
 
     function showResults(results) {
+        // 设置动画进行中标志
+        isAnimationPlaying = true;
+        updateDrawButtonsState(true);
+
         const container = document.getElementById('results-container');
         container.innerHTML = '';
 
@@ -186,6 +214,8 @@
 
         if (results.length > 0) {
             setTimeout(() => {
+                let totalAnimationTime = 500;
+
                 if (results.length === 1) {
                     const cardInfo = cards[0];
                     if (cardInfo) {
@@ -196,6 +226,7 @@
                             cardInfo.cardContent.style.transition = 'opacity 0.5s ease-in-out';
                         }, 300);
                     }
+                    totalAnimationTime = 300 + 500;
                 } else {
                     const highestStarCards = cards.filter(c => c.result.star === maxStar);
                     highestStarCards.forEach((c, i) => {
@@ -231,14 +262,31 @@
                             c.cardContent.style.transition = 'opacity 0.5s ease-in-out';
                         }, 500 + i * 100);
                     });
+
+                    totalAnimationTime = 500 + sortedCards.length * 100 + 500;
                 }
+
+                // 动画完成后清除标志
+                setTimeout(() => {
+                    isAnimationPlaying = false;
+                    updateDrawButtonsState(false);
+                }, totalAnimationTime);
             }, 500);
+        } else {
+            // 没有结果的情况，立即清除标志
+            isAnimationPlaying = false;
+            updateDrawButtonsState(false);
         }
 
     // 移除抽卡后自动滚动效果
     }
 
     async function performGacha(count) {
+        // 检查动画是否正在进行
+        if (isAnimationPlaying) {
+            return;
+        }
+
         try {
             const actualCount = currentPool === 'weapon' ? 1 : count;
 
@@ -294,6 +342,11 @@
     }
 
     async function performUrgentRecruitment() {
+        // 检查动画是否正在进行
+        if (isAnimationPlaying) {
+            return;
+        }
+
         try {
             const response = await fetch('/api/urgent_recruitment', {
                 method: 'POST',

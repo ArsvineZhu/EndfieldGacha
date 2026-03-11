@@ -212,26 +212,26 @@
             collectionArea.id = 'temp-collection-area';
             collectionArea.innerHTML = `
                 <h2>贵重品库/武器</h2>
-                <div class="filter-container" style="margin-bottom:20px;padding:15px;background:rgba(255,255,255,0.05);border-radius:8px;">
-                    <div style="display:flex;flex-wrap:wrap;gap:20px;align-items:center;">
-                        <div>
-                            <label style="color:#aaa;margin-right:10px;">稀有度:</label>
-                            <select id="star-filter" style="padding:5px 10px;background:#333;color:white;border:1px solid #555;border-radius:4px;">
-                                <option value="">全部</option>
-                                <option value="6">6星</option>
-                                <option value="5">5星</option>
-                                <option value="4">4星</option>
+                <div class="filter-container" style="margin-bottom:20px;padding:20px;background:rgba(255,255,255,0.05);border-radius:12px;border:1px solid rgba(255,255,255,0.1);">
+                    <div style="display:flex;flex-wrap:wrap;gap:25px;align-items:center;">
+                        <div style="display:flex;align-items:center;gap:12px;">
+                            <label style="color:#e0e0e0;font-weight:500;min-width:60px;">稀有度:</label>
+                            <select id="star-filter" style="padding:10px 16px;background:linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));color:#fff;border:2px solid rgba(255,255,255,0.2);border-radius:8px;cursor:pointer;transition:all 0.3s ease;font-size:14px;font-weight:500;min-width:100px;appearance:none;background-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 12 12%22><path fill=%22%23fff%22 d=%22M6 8L1 3h10z%22/></svg>');background-repeat:no-repeat;background-position:right 12px center;padding-right:36px;">
+                                <option value="" style="background:#333;color:#fff;">全部</option>
+                                <option value="6" style="background:#333;color:#ff4444;">6星</option>
+                                <option value="5" style="background:#333;color:#f39c12;">5星</option>
+                                <option value="4" style="background:#333;color:#9b59b6;">4星</option>
                             </select>
                         </div>
-                        <div>
-                            <label style="color:#aaa;margin-right:10px;">类型:</label>
-                            <select id="type-filter" style="padding:5px 10px;background:#333;color:white;border:1px solid #555;border-radius:4px;">
-                                <option value="">全部</option>
-                                <option value="单手剑">单手剑</option>
-                                <option value="施术单元">施术单元</option>
-                                <option value="铳械">铳械</option>
-                                <option value="双手剑">双手剑</option>
-                                <option value="长柄武器">长柄武器</option>
+                        <div style="display:flex;align-items:center;gap:12px;">
+                            <label style="color:#e0e0e0;font-weight:500;min-width:60px;">类型:</label>
+                            <select id="type-filter" style="padding:10px 16px;background:linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));color:#fff;border:2px solid rgba(255,255,255,0.2);border-radius:8px;cursor:pointer;transition:all 0.3s ease;font-size:14px;font-weight:500;min-width:120px;appearance:none;background-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 12 12%22><path fill=%22%23fff%22 d=%22M6 8L1 3h10z%22/></svg>');background-repeat:no-repeat;background-position:right 12px center;padding-right:36px;">
+                                <option value="" style="background:#333;color:#fff;">全部</option>
+                                <option value="单手剑" style="background:#333;color:#fff;">单手剑</option>
+                                <option value="施术单元" style="background:#333;color:#fff;">施术单元</option>
+                                <option value="铳械" style="background:#333;color:#fff;">铳械</option>
+                                <option value="双手剑" style="background:#333;color:#fff;">双手剑</option>
+                                <option value="长柄武器" style="background:#333;color:#fff;">长柄武器</option>
                             </select>
                         </div>
                     </div>
