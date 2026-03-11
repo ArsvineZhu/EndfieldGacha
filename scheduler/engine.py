@@ -9,6 +9,7 @@
 - 详细的统计报告输出（使用Rich库美化）
 - 策略性能评分系统
 """
+
 import os
 import sys
 
@@ -17,26 +18,11 @@ project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from hashlib import md5
 from multiprocessing import Pool, cpu_count
-from pprint import pformat
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Optional
 import time
-from rich.console import Console
-from rich.progress import (
-    Progress,
-    BarColumn,
-    TextColumn,
-    TimeRemainingColumn,
-    TimeElapsedColumn,
-    TaskProgressColumn,
-    SpinnerColumn,
-)
-from rich.table import Table
-from rich.panel import Panel
-from rich.text import Text
-from rich.columns import Columns
-from rich import box
+
+from scheduler.display import SchedulerDisplay
 
 from core import CharGacha, Counters, GlobalConfigLoader
 
@@ -65,15 +51,13 @@ from scheduler.workers import (
     _worker_wrapper,
 )
 
-console = Console()
-
 
 class Scheduler:
     """策略调度器：多卡池策略评估总控类。
-    
+
     负责从配置目录加载卡池配置，组织多段抽卡计划，提供单次可视化模拟
     和大规模并行评估两种模式。支持配置切换、资源管理和详细的统计报告。
-    
+
     Attributes
     ----------
     config_dir : str
@@ -87,7 +71,7 @@ class Scheduler:
     __schedules : list of tuple
         已登记的抽卡计划列表，格式为:
         (rules, counters, check_in, use_origeometry, resource_inc)
-    
+
     Examples
     --------
     >>> from scheduler import Scheduler, Resource, Counters, DOSSIER, UP_OPRT
@@ -99,14 +83,14 @@ class Scheduler:
     >>> scheduler.schedule([DOSSIER, OPRT])
     >>> scheduler.schedule([UP_OPRT], use_origeometry=True)
     >>> scheduler.evaluate(scale=5000, workers=8)
-    
+
     Notes
     -----
     - 多进程评估使用``multiprocessing.Pool``，支持流式处理，内存占用较低
     - 统计报告使用Rich库美化输出，支持颜色和表格格式
     - 支持配置切换：每个计划可以对应不同的卡池配置
     """
-    
+
     def __init__(
         self,
         config_dir: str = "configs",
@@ -115,7 +99,7 @@ class Scheduler:
         increment: Resource | None = None,
     ):
         """初始化策略调度器。
-        
+
         Parameters
         ----------
         config_dir : str, optional
@@ -128,7 +112,7 @@ class Scheduler:
             每日/每阶段资源增量；为None时使用默认值：
             - 特许寻访凭证: 5
             - 嵌晶玉: 22500 (500*45)
-            - 武库配额: 600
+            - 武库配额: 800
             - 衍质源石: 25
         """
         self.config_dir = config_dir
@@ -138,7 +122,7 @@ class Scheduler:
             else Resource(
                 chartered_permits=5,
                 oroberyl=45 * 500,
-                arsenal_tickets=600,
+                arsenal_tickets=800,
                 origeometry=25,
             )
         )
@@ -151,17 +135,19 @@ class Scheduler:
                     self.arrangement.append(line.strip())
 
         self.resource = Resource() if not resource else resource
-        self.__schedules: List[Tuple[List[Any], Counters, bool, bool, Resource]] = []
+        self.__schedules: List[
+            Tuple[List[Any], Counters, bool, bool, Resource, bool]
+        ] = []
 
     @property
     def schedules(self):
         """已登记的抽卡计划列表（只读属性）。
-        
+
         Returns
         -------
         list of tuple
             每个元素为五元组(rules, counters, check_in, use_origeometry, resource_inc)：
-            
+
             rules : list
                 策略描述列表，传入GachaStrategy构造函数。
             counters : Counters
@@ -178,12 +164,12 @@ class Scheduler:
     @schedules.setter
     def schedules(self, value):
         """设置抽卡计划集合。
-        
+
         Parameters
         ----------
         value : list
             由若干五元组组成的列表，结构同只读属性schedules。
-            
+
         Raises
         ------
         ValueError
@@ -201,12 +187,13 @@ class Scheduler:
         init_counters: Counters | None = None,
         check_in: bool = True,
         use_origeometry: bool = False,
+        is_core: bool = True,
     ):
         """追加一段抽卡计划。
-        
+
         每次调用会在内部schedules列表末尾添加一个计划。在evaluate调用中，
         这些计划会按顺序依次执行。
-        
+
         Parameters
         ----------
         rules : list
@@ -220,12 +207,12 @@ class Scheduler:
             是否视为完成签到任务，影响增加的特许凭证数量，默认True。
         use_origeometry : bool, optional
             是否允许在券与特许凭证不足时继续消耗源石进行换算抽卡，默认False。
-            
+
         Notes
         -----
         - 建议在调用evaluate之前先连续调用本方法，构造完整抽卡流程。
         - 本方法不进行任何模拟，仅记录配置。
-        
+
         See Also
         --------
         evaluate : 执行大规模评估
@@ -238,12 +225,224 @@ class Scheduler:
                 check_in,
                 use_origeometry,
                 (resource_increment if resource_increment else self.increment),
+                is_core,
             )
         )
 
+    def add_cycle(
+        self,
+        rules: List[int],
+        init_counters: Optional[Counters] = None,
+        check_in: bool = True,
+        resource_increment: Resource = Resource(),
+        use_origeometry: bool = False,
+        is_core: bool = True,
+    ) -> None:
+        """添加单个周期的策略配置。
+
+        本方法是对 schedule() 方法的别名，提供更符合直觉的命名。
+
+        Parameters
+        ----------
+        rules : List[int]
+            策略描述列表，直接传入 GachaStrategy 构造函数。
+        init_counters : Counters, optional
+            初始计数器。第一个周期可承接已有进度，后续周期为 None 时
+            自动继承上一周期的部分计数。
+        check_in : bool, optional
+            是否视为完成签到任务，影响增加的特许凭证数量，默认 True。
+        resource_increment : Resource, optional
+            在本周期开始前额外增加的资源。默认使用空资源对象。
+        use_origeometry : bool, optional
+            是否允许在券与特许凭证不足时继续消耗源石进行换算抽卡，默认 False.
+
+        See Also
+        --------
+        schedule : 功能相同的原始方法
+        schedule_group : 批量添加多个周期
+        """
+        self.schedule(
+            rules=rules,
+            init_counters=init_counters,
+            check_in=check_in,
+            resource_increment=resource_increment,
+            use_origeometry=use_origeometry,
+            is_core=is_core,
+        )
+
+    def schedule_group(
+        self,
+        cycles: List[Dict],
+    ) -> None:
+        """批量添加多个周期的策略配置。
+
+        使用单个调用添加多个抽卡周期，提高代码简洁性。
+
+        Parameters
+        ----------
+        cycles : List[Dict]
+            周期配置列表，每个字典包含以下可选键：
+            - rules: List[int] - 策略规则列表
+            - init_counters: Optional[Counters] - 初始计数器
+            - check_in: bool - 是否签到，默认 True
+            - resource_increment: Resource - 资源增量，默认空资源
+            - use_origeometry: bool - 是否使用源石，默认 False
+
+        Raises
+        ------
+        ValueError
+            如果 cycles 参数不是列表或包含无效配置时抛出。
+
+        Examples
+        --------
+        >>> scheduler = Scheduler()
+        >>> cycles = [
+        ...     {"rules": [DOSSIER, OPRT]},
+        ...     {"rules": [UP_OPRT], "use_origeometry": True},
+        ...     {"rules": [DOSSIER, OPRT], "check_in": False},
+        ... ]
+        >>> scheduler.schedule_group(cycles)
+
+        See Also
+        --------
+        schedule : 添加单个计划的原始方法
+        add_cycle : 添加单个周期的别名方法
+        """
+        if not isinstance(cycles, list):
+            raise ValueError("cycles must be a list")
+
+        for cycle_config in cycles:
+            if not isinstance(cycle_config, dict):
+                raise ValueError(f"Invalid cycle config: {cycle_config}")
+
+            rules = cycle_config.get("rules")
+            if rules is None:
+                raise ValueError(f"Missing 'rules' key in cycle config: {cycle_config}")
+
+            init_counters = cycle_config.get("init_counters")
+            check_in = cycle_config.get("check_in", True)
+            resource_increment = cycle_config.get("resource_increment", Resource())
+            use_origeometry = cycle_config.get("use_origeometry", False)
+            is_core = cycle_config.get("is_core", True)
+
+            self.add_cycle(
+                rules=rules,
+                init_counters=init_counters,
+                check_in=check_in,
+                resource_increment=resource_increment,
+                use_origeometry=use_origeometry,
+                is_core=is_core,
+            )
+
+    def _build_schedules_data(self) -> List[Dict[str, Any]]:
+        """构造调度计划的序列化数据，用于多进程worker传递。
+
+        Returns
+        -------
+        List[Dict[str, Any]]
+            序列化后的调度计划列表，每个元素包含一个计划的所有配置信息
+        """
+        schedules_data = []
+        for plan in self.schedules:
+            schedules_data.append(
+                {
+                    "rules": plan[0],
+                    "init_counters": {
+                        "total": plan[1].total,
+                        "no_6star": plan[1].no_6star,
+                        "no_5star_plus": plan[1].no_5star_plus,
+                        "no_up": plan[1].no_up,
+                        "guarantee_used": plan[1].guarantee_used,
+                        "urgent_used": plan[1].urgent_used,
+                    },
+                    "check_in": plan[2],
+                    "use_origeometry": plan[3],
+                    "resource_increment": {
+                        "chartered_permits": plan[4].chartered_permits,
+                        "oroberyl": plan[4].oroberyl,
+                        "arsenal_tickets": plan[4].arsenal_tickets,
+                        "origeometry": plan[4].origeometry,
+                    },
+                }
+            )
+        return schedules_data
+
+    def _build_tasks(
+        self, schedules_data: List[Dict[str, Any]], change: bool, scale: int
+    ) -> List[Tuple]:
+        """构造多进程任务列表。
+
+        Parameters
+        ----------
+        schedules_data : List[Dict[str, Any]]
+            从_build_schedules_data返回的序列化调度计划
+        change : bool
+            是否在计划间切换卡池配置
+        scale : int
+            模拟次数
+
+        Returns
+        -------
+        List[Tuple]
+            多进程任务列表，每个元素是传递给worker的参数元组
+        """
+        resource_data = {
+            "chartered_permits": self.resource.chartered_permits,
+            "oroberyl": self.resource.oroberyl,
+            "arsenal_tickets": self.resource.arsenal_tickets,
+            "origeometry": self.resource.origeometry,
+        }
+
+        return [
+            (
+                self.config_dir,
+                self.arrangement,
+                schedules_data,
+                change,
+                i,
+                resource_data,
+            )
+            for i in range(scale)
+        ]
+
+    @staticmethod
+    def _adapt_results(results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """把worker返回的原始结果转换为评分系统需要的格式。
+
+        Parameters
+        ----------
+        results : List[Dict[str, Any]]
+            worker返回的原始模拟结果列表
+
+        Returns
+        -------
+        List[Dict[str, Any]]
+            适配后的结果列表，符合ScoringSystem.calculate_raw_statistics的输入要求
+        """
+        adapted_results = []
+        for res in results:
+            adapted_results.append(
+                {
+                    "draws": res["total_draws"],
+                    "six_stars": res["six_stars"],
+                    "up_chars": res["up_chars"],
+                    "current_up": res["up_chars"],
+                    "past_up": 0,
+                    "permanent": res["six_stars"] - res["up_chars"],
+                    "resource_left": res["resource_left"],
+                    "flex_resource": res["resource_left"],
+                    "goals_achieved": [
+                        res["complete"],
+                        res["complete"],
+                        res["complete"],
+                    ],
+                }
+            )
+        return adapted_results
+
     def simulate(self, change: bool = True, display: bool = True):
         """按当前计划执行一次顺序模拟，并可选地打印详细过程。
-        
+
         Parameters
         ----------
         change : bool, optional
@@ -251,12 +450,12 @@ class Scheduler:
             为False时所有计划都使用第一个配置文件。
         display : bool, optional
             是否在标准输出中打印每步抽卡过程与结果，默认True。
-            
+
         Returns
         -------
         None
             本方法主要用于调试与验证策略，不返回统计结果。
-            
+
         Notes
         -----
         - 输出包含每个banner的卡池名称、UP角色、计数器和资源状态。
@@ -313,9 +512,7 @@ class Scheduler:
                 result = gacha.attempt()
                 output.append((result.name, result.star, False))
 
-                state, potential = process_gacha_result(
-                    result, gacha, state, potential
-                )
+                state, potential = process_gacha_result(result, gacha, state, potential)
 
                 if gacha.counters.total == 30 and not cnts.urgent_used:
                     state, potential, urgent_results = handle_urgent_gacha(
@@ -347,10 +544,17 @@ class Scheduler:
                     print(cnt if not item[i][2] else "#", item[i][0])
 
     def evaluate(
-        self, scale: int = 20000, change: bool = True, workers: int | None = None
+        self,
+        scale: int = 20000,
+        change: bool = True,
+        workers: int | None = None,
+        strategies: List[List[int]] | None = None,
+        scoring_mode: str = "relative",
+        weights: Optional[Dict[str, Dict[str, float]]] = None,
+        show_progress: bool = True,
     ):
         """进行大规模多进程模拟并输出详细统计报告。
-        
+
         Parameters
         ----------
         scale : int, optional
@@ -360,98 +564,194 @@ class Scheduler:
         workers : int or None, optional
             进程数。为None时自动设为max(1, min(int(cpu_count() * 0.75), 4))；
             若指定值大于cpu_count()，则会被裁剪到CPU核心数。
-            
+        strategies : List[List[int]] or None, optional
+            多策略列表，每个元素为一个策略规则列表。如果提供此参数，将对每个策略
+            独立进行模拟评估并输出对比报告。为None时使用当前已调度的策略。
+        scoring_mode : str, optional
+            评分模式，可选"relative"（相对评分，默认）或"absolute"（绝对评分），
+            仅在多策略评估时生效。
+        custom_weights : Dict[str, Dict[str, float]] or None, optional
+             自定义权重配置，用于覆盖默认评分权重，仅在多策略评估时生效。
+             注：此参数已过时，建议使用 weights 参数。
+        weights : Dict[str, Dict[str, float]] or None, optional
+             评分权重配置，用于覆盖默认评分权重，仅在多策略评估时生效。
+             结构：
+             {
+                 "dimension_weights": {"u": 0.4, "e": 0.2, "r": 0.25, "f": 0.15},
+                 "star_weights": {"current_up": 3, "past_up": 2, "permanent": 1}
+             }
+             如果为 None，则使用默认权重。
+
         Returns
         -------
-        None
-            计算结果通过Rich表格与面板直接输出到终端，不以返回值形式提供。
-            
+        None or List[Dict[str, Any]]
+            单策略模式下返回None，结果直接输出到终端；多策略模式下返回各策略的
+            评分结果列表。
+
         Notes
         -----
         - 使用multiprocessing.Pool与imap进行流式处理，在较大样本规模下
           仍保持较低内存占用。
         - 统计汇总与评分计算由_print_statistics完成。
         - 输出包含：总抽数、6星数、UP角色数、资源使用、评分等级等。
-        
+        - 多策略模式下会输出策略对比报告，包含各策略的综合评分和排名。
+
         Examples
         --------
+        >>> # 单策略模式（原有方式，兼容）
         >>> scheduler = Scheduler()
         >>> scheduler.schedule([DOSSIER, OPRT])
         >>> scheduler.evaluate(scale=10000, workers=4)
-        
+
+        >>> # 多策略模式
+        >>> scheduler = Scheduler()
+        >>> strategies = [
+        ...     [DOSSIER, OPRT],
+        ...     [DOSSIER, UP_OPRT],
+        ...     [UP_OPRT, OPRT]
+        ... ]
+        >>> results = scheduler.evaluate(scale=5000, workers=4, strategies=strategies)
+
         See Also
         --------
         simulate : 单次可视化模拟
         """
+        # 参数校验
+        if scale <= 0:
+            raise ValueError("scale must be greater than 0")
+        if workers is not None and workers < 0:
+            raise ValueError("workers must be a non-negative integer")
+        if len(self.schedules) == 0 and strategies is None:
+            SchedulerDisplay.print(
+                "[yellow]警告：未添加任何调度计划，评估结果可能无意义[/yellow]"
+            )
+
         if workers is None:
             workers = max(1, min(int(cpu_count() * 0.75), 4))
         elif workers > cpu_count():
             workers = cpu_count()
 
-        schedules_data = []
-        for plan in self.schedules:
-            schedules_data.append(
-                {
-                    "rules": plan[0],
-                    "init_counters": {
-                        "total": plan[1].total,
-                        "no_6star": plan[1].no_6star,
-                        "no_5star_plus": plan[1].no_5star_plus,
-                        "no_up": plan[1].no_up,
-                        "guarantee_used": plan[1].guarantee_used,
-                        "urgent_used": plan[1].urgent_used,
-                    },
-                    "check_in": plan[2],
-                    "use_origeometry": plan[3],
-                    "resource_increment": {
-                        "chartered_permits": plan[4].chartered_permits,
-                        "oroberyl": plan[4].oroberyl,
-                        "arsenal_tickets": plan[4].arsenal_tickets,
-                        "origeometry": plan[4].origeometry,
-                    },
-                }
+        # 多策略评估逻辑
+        if strategies is not None:
+            if not isinstance(strategies, list) or len(strategies) == 0:
+                SchedulerDisplay.print("[red]  策略列表不能为空[/red]")
+                return
+
+            all_raw_stats = []
+            all_strategy_results = []
+
+            SchedulerDisplay.clear()
+            SchedulerDisplay.print(
+                f"[bold blue]=== 多策略对比评估报告 ===[/bold blue] {time.strftime('%Y-%m-%d %H:%M:%S')}"
+            )
+            SchedulerDisplay.print("")
+            SchedulerDisplay.print(
+                f"[bold]  共 {len(strategies)} 个策略，每个策略模拟 {scale} 次[/bold]"
+            )
+            SchedulerDisplay.print(f"[bold]  评分模式: {scoring_mode}[/bold]")
+            SchedulerDisplay.print("")
+
+            for idx, strategy_rules in enumerate(strategies):
+                SchedulerDisplay.print(
+                    f"[cyan]  正在评估策略 {idx + 1}/{len(strategies)}...[/cyan]"
+                )
+
+                # 临时保存原始计划，设置当前策略
+                original_schedules = self.schedules.copy()
+                self.schedules = []
+                self.schedule(strategy_rules)
+
+                # 准备调度数据和任务列表
+                schedules_data = self._build_schedules_data()
+                tasks = self._build_tasks(schedules_data, change, scale)
+
+                # 执行模拟
+                start_time = time.time()
+                results = []
+
+                with Pool(processes=workers) as pool:
+                    batch_size = max(1, scale // 100)
+                    batch_results = []
+                    for result in pool.imap(_worker_wrapper, tasks):
+                        batch_results.append(result)
+                        if len(batch_results) >= batch_size:
+                            results.extend(batch_results)
+                            batch_results = []
+                    if batch_results:
+                        results.extend(batch_results)
+
+                elapsed_time = time.time() - start_time
+
+                # 转换结果为评分系统所需格式
+                adapted_results = self._adapt_results(results)
+
+                # 计算原生统计量
+                raw_stats = ScoringSystem.calculate_raw_statistics(adapted_results)
+                all_raw_stats.append(raw_stats)
+
+                # 保存策略结果
+                all_strategy_results.append(
+                    {
+                        "strategy_id": f"S{idx + 1}",
+                        "strategy_rules": strategy_rules,
+                        "simulation_results": results,
+                        "raw_stats": raw_stats,
+                        "elapsed_time": elapsed_time,
+                    }
+                )
+
+                # 恢复原始计划
+                self.schedules = original_schedules
+                SchedulerDisplay.print(
+                    f"[green]  策略 {idx + 1} 评估完成，耗时 {elapsed_time:.1f}s[/green]"
+                )
+
+            SchedulerDisplay.print("")
+            SchedulerDisplay.print(f"[cyan]  正在计算综合评分...[/cyan]")
+
+            # 计算综合评分
+            comprehensive_scores = ScoringSystem.calculate_comprehensive_score(
+                all_raw_stats, mode=scoring_mode, weights=weights
             )
 
-        self._print_header(scale, workers, change, schedules_data)
-
-        tasks = [
-            (
-                self.config_dir,
-                self.arrangement,
-                schedules_data,
-                change,
-                i,
-                {
-                    "chartered_permits": self.resource.chartered_permits,
-                    "oroberyl": self.resource.oroberyl,
-                    "arsenal_tickets": self.resource.arsenal_tickets,
-                    "origeometry": self.resource.origeometry,
-                },
+            # 打印多策略对比报告
+            SchedulerDisplay.print_multi_strategy_report(
+                all_strategy_results, comprehensive_scores, scoring_mode
             )
-            for i in range(scale)
-        ]
+
+            return comprehensive_scores
+
+        # 原有单策略评估逻辑
+        schedules_data = self._build_schedules_data()
+        tasks = self._build_tasks(schedules_data, change, scale)
 
         if not tasks:
-            console.print("[red]  无模拟任务需要执行[/red]")
+            SchedulerDisplay.print("[red]  无模拟任务需要执行[/red]")
             return
 
         start_time = time.time()
         results = []
 
         with Pool(processes=workers) as pool:
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                BarColumn(bar_width=40),
-                TaskProgressColumn(),
-                TextColumn("已用时: "),
-                TimeElapsedColumn(),
-                TextColumn(" | 预计剩余: "),
-                TimeRemainingColumn(),
-                console=console,
-                transient=True,
-            ) as progress:
-                task = progress.add_task("模拟进度", total=scale)
+            if show_progress:
+                with SchedulerDisplay.create_progress() as progress:
+                    task = progress.add_task("模拟进度", total=scale)
+                    try:
+                        batch_size = max(1, scale // 100)
+                        batch_results = []
+                        for result in pool.imap(_worker_wrapper, tasks):
+                            batch_results.append(result)
+                            if len(batch_results) >= batch_size:
+                                results.extend(batch_results)
+                                progress.update(task, advance=len(batch_results))
+                                batch_results = []
+                        if batch_results:
+                            results.extend(batch_results)
+                            progress.update(task, advance=len(batch_results))
+                    except Exception as e:
+                        SchedulerDisplay.print(f"[red]模拟过程中发生错误: {e}[/red]")
+                        raise
+            else:
                 try:
                     batch_size = max(1, scale // 100)
                     batch_results = []
@@ -459,320 +759,43 @@ class Scheduler:
                         batch_results.append(result)
                         if len(batch_results) >= batch_size:
                             results.extend(batch_results)
-                            progress.update(task, advance=len(batch_results))
                             batch_results = []
                     if batch_results:
                         results.extend(batch_results)
-                        progress.update(task, advance=len(batch_results))
                 except Exception as e:
-                    console.print(f"[red]  模拟过程中发生错误: {e}[/red]")
+                    SchedulerDisplay.print(f"[red]模拟过程中发生错误: {e}[/red]")
                     raise
 
         elapsed_time = time.time() - start_time
-        self._print_statistics(results, elapsed_time, workers)
 
-    def _print_header(
-        self, scale: int, workers: int, change: bool, schedules_data: list
-    ):
-        """打印评估任务的配置概览。"""
-        console.clear()
+        # 转换结果为评分系统所需格式
+        adapted_results = self._adapt_results(results)
+        raw_stats = ScoringSystem.calculate_raw_statistics(adapted_results)
 
-        header = Panel(
-            Text("策略评估报告", style="bold white", justify="center"),
-            subtitle=f"{time.strftime('%Y-%m-%d %H:%M:%S')}",
-            style="bold blue",
-            box=box.DOUBLE,
-        )
-        console.print(header)
-
-        config_table = Table(show_header=False, box=box.SIMPLE, expand=True)
-        config_table.add_column("参数", style="cyan", width=15)
-        config_table.add_column("值", style="yellow", ratio=1)
-
-        rules = [plan["rules"] for plan in schedules_data]
-        config_table.add_row(
-            "策略标识",
-            f"S{md5(pformat(rules).encode('utf-8')).hexdigest()[:5].upper()}",
-        )
-
-        config_table.add_row("并行进程", f"{workers}")
-        config_table.add_row("卡池切换", "启用" if change else "禁用")
-        config_table.add_row("", "")
-        config_table.add_row("策略组", "代码")
-        for idx, rule in enumerate(rules):
-            config_table.add_row(
-                f"  ({idx + 1})", f"{pformat(GachaStrategy.decode_strategy(rule))}"
-            )
-        console.print(
-            Panel(config_table, title="[bold]配置信息[/bold]", box=box.ROUNDED)
-        )
-        console.print()
-
-    def _print_statistics(
-        self, results: List[Dict[str, Any]], elapsed_time: float, workers: int
-    ):
-        """根据 worker 返回结果打印统计与评分报告。"""
-        total = len(results)
-        if total == 0:
-            return
-
-        total_draws = [r["total_draws"] for r in results]
-        six_stars = [r["six_stars"] for r in results]
-        up_chars = [r["up_chars"] for r in results]
-        resource_left = [r["resource_left"] for r in results]
-        complete_count = sum(1 for r in results if r["complete"])
-        draw_avg = sum(total_draws) / total
-        six_avg = sum(six_stars) / total
-        up_avg = sum(up_chars) / total
-        complete_rate = complete_count / total * 100
-
-        new_scores = [
-            ScoringSystem.calculate_score(
-                r["total_draws"],
-                r["six_stars"],
-                r["up_chars"],
-                r["resource_left"],
-                r["complete"],
+        # 打印统计报告
+        if show_progress:
+            comprehensive_scores = ScoringSystem.calculate_comprehensive_score(
+                [raw_stats], mode="absolute"
+            )[0]
+            SchedulerDisplay.print_header(scale, workers, change, self.schedules)
+            SchedulerDisplay.print_statistics(
+                results,
+                elapsed_time,
+                workers,
+                raw_stats,
+                comprehensive_scores,
                 len(self.schedules),
             )
-            for r in results
-        ]
 
-        new_score_values = [s["total_score"] for s in new_scores]
-        new_score_avg = sum(new_score_values) / total
-        grade_distribution = {}
-        for s in new_scores:
-            grade = s["grade"]
-            grade_distribution[grade] = grade_distribution.get(grade, 0) + 1
+        return raw_stats
 
-        console.print()
-
-        summary_panel = Panel(
-            Columns(
-                [
-                    Panel(
-                        f"[bold green]{complete_rate:.1f}%[/bold green]\n可行度",
-                        box=box.SIMPLE,
-                    ),
-                    Panel(
-                        f"[bold yellow]{new_score_avg * complete_rate / 100:.1f}[/bold yellow]\n综合评分",
-                        box=box.SIMPLE,
-                    ),
-                    Panel(
-                        f"[bold yellow]{sum(resource_left)/total:.1f}[/bold yellow]\n资源剩余",
-                        box=box.SIMPLE,
-                    ),
-                    Panel(
-                        f"[bold yellow]{up_avg:.1f}[/bold yellow]\nUP获得",
-                        box=box.SIMPLE,
-                    ),
-                    Panel(
-                        f"[bold magenta]{total * workers:,}[/bold magenta]\n模拟次数",
-                        box=box.SIMPLE,
-                    ),
-                    Panel(
-                        f"[bold magenta]{elapsed_time:.1f}s[/bold magenta]\n执行时间",
-                        box=box.SIMPLE,
-                    ),
-                ]
-            ),
-            title="[bold white]核心指标概览[/bold white]",
-            box=box.ROUNDED,
-        )
-        console.print(summary_panel)
-        console.print()
-
-        stats_table = Table(
-            title="[bold]基础统计数据[/bold]",
-            box=box.ROUNDED,
-            show_header=True,
-            header_style="bold cyan",
-            expand=True,
-        )
-        stats_table.add_column("指标", style="bold", ratio=3)
-        stats_table.add_column("平均值", justify="right", ratio=3)
-        stats_table.add_column("最小值", justify="right", ratio=2)
-        stats_table.add_column("最大值", justify="right", ratio=2)
-        stats_table.add_column("标准差", justify="right", ratio=2)
-
-        import statistics
-
-        stats_table.add_row(
-            "总抽数",
-            f"{draw_avg:.1f}",
-            f"{min(total_draws)}",
-            f"{max(total_draws)}",
-            f"{statistics.stdev(total_draws):.1f}" if len(total_draws) > 1 else "N/A",
-        )
-        stats_table.add_row(
-            "6星数量",
-            f"{six_avg:.2f}",
-            f"{min(six_stars)}",
-            f"{max(six_stars)}",
-            f"{statistics.stdev(six_stars):.2f}" if len(six_stars) > 1 else "N/A",
-        )
-        stats_table.add_row(
-            "UP数量",
-            f"{up_avg:.2f}",
-            f"{min(up_chars)}",
-            f"{max(up_chars)}",
-            f"{statistics.stdev(up_chars):.2f}" if len(up_chars) > 1 else "N/A",
-        )
-        stats_table.add_row(
-            "剩余资源",
-            f"[bold]{sum(resource_left)/total:.0f}[/bold]",
-            f"{min(resource_left)}",
-            f"{max(resource_left)}",
-            (
-                f"{statistics.stdev(resource_left):.1f}"
-                if len(resource_left) > 1
-                else "N/A"
-            ),
-        )
-        console.print(stats_table)
-        console.print()
-
-        score_table = Table(
-            title="[bold]评分详情[/bold]",
-            box=box.ROUNDED,
-            show_header=True,
-            header_style="bold cyan",
-            expand=True,
-        )
-        score_table.add_column("评分维度", style="bold", ratio=3)
-        score_table.add_column("平均得分", justify="right", ratio=3)
-        score_table.add_column("满分", justify="right", ratio=2)
-        score_table.add_column("得分率", justify="right", ratio=2)
-
-        luck_avg = sum(s["luck_score"] for s in new_scores) / total
-        storage_avg = sum(s["storage_score"] for s in new_scores) / total
-        ach_avg = sum(s["achievement_score"] for s in new_scores) / total
-
-        score_table.add_row(
-            "获取评估", f"{luck_avg:.1f}", "45", f"{luck_avg/45*100:.1f}%"
-        )
-        score_table.add_row(
-            "资源保有", f"{storage_avg:.1f}", "35", f"{storage_avg/35*100:.1f}%"
-        )
-        score_table.add_row(
-            "目标达成", f"{ach_avg:.1f}", "20", f"{ach_avg/20*100:.1f}%"
-        )
-        score_table.add_row(
-            "[bold]整体评分[/bold]",
-            f"[bold]{new_score_avg:.1f}[/bold]",
-            "100",
-            f"[bold]{new_score_avg:.1f}%[/bold]",
-        )
-        console.print(score_table)
-        console.print()
-
-        grade_table = Table(
-            title="[bold]等级分布统计[/bold]",
-            box=box.ROUNDED,
-            show_header=True,
-            header_style="bold cyan",
-            expand=True,
-        )
-        grade_table.add_column("等级", style="bold", ratio=1)
-        grade_table.add_column("描述", ratio=2)
-        grade_table.add_column("数量", justify="right", ratio=2)
-        grade_table.add_column("占比", justify="right", ratio=2)
-        grade_table.add_column("分布图", ratio=5)
-
-        grade_order = ["S", "A", "B", "C", "D", "E"]
-        grade_names = {
-            "S": "极佳",
-            "A": "优秀",
-            "B": "良好",
-            "C": "一般",
-            "D": "较差",
-            "E": "失败",
-        }
-        grade_styles = {
-            "S": "red",
-            "A": "yellow",
-            "B": "green",
-            "C": "blue",
-            "D": "magenta",
-            "E": "white",
-        }
-
-        for grade in grade_order:
-            count = grade_distribution.get(grade, 0)
-            percentage = count / total * 100
-            bar = "█" * int(percentage / 3.33)
-            grade_table.add_row(
-                f"[bold {grade_styles[grade]}]{grade}[/bold {grade_styles[grade]}]",
-                grade_names[grade],
-                f"{count:,}",
-                f"{percentage:.1f}%",
-                f"[{grade_styles[grade]}]{bar}[/{grade_styles[grade]}]",
-            )
-        console.print(grade_table)
-        console.print()
-
-        percentile_table = Table(
-            title="[bold]百分位统计[/bold]",
-            box=box.ROUNDED,
-            show_header=True,
-            header_style="bold cyan",
-            expand=True,
-        )
-        percentile_table.add_column("分位", style="bold", ratio=1)
-        percentile_table.add_column("综合评分", justify="right", ratio=2)
-        percentile_table.add_column("总抽数", justify="right", ratio=2)
-        percentile_table.add_column("6星数", justify="right", ratio=2)
-
-        percentiles = [10, 25, 50, 75, 90, 95, 99]
-        for p in percentiles:
-            percentile_table.add_row(
-                f"P{p}",
-                f"{self._percentile(new_score_values, p):.1f}",
-                f"{self._percentile(total_draws, p):.0f}",
-                f"{self._percentile(six_stars, p):.0f}",
-            )
-        console.print(percentile_table)
-        console.print()
-
-        perf_table = Table(
-            title="[bold]性能分析报告[/bold]",
-            box=box.ROUNDED,
-            show_header=True,
-            header_style="bold cyan",
-            expand=True,
-        )
-        perf_table.add_column("指标", style="bold", ratio=3)
-        perf_table.add_column("数值", justify="right", ratio=2)
-        perf_table.add_column("说明", ratio=4)
-
-        sim_per_sec = total / elapsed_time if elapsed_time > 0 else 0
-        cpu_efficiency = (workers / cpu_count() * 100) if cpu_count() > 0 else 0
-
-        perf_table.add_row(
-            "模拟速度", f"{sim_per_sec:,.0f} 次/秒", "每秒完成的模拟次数"
-        )
-        perf_table.add_row(
-            "进程利用率", f"{cpu_efficiency:.1f}%", f"使用 {workers}/{cpu_count()} 核心"
-        )
-        perf_table.add_row(
-            "平均单次耗时", f"{elapsed_time/total*1000:.2f} ms", "单次模拟平均耗时"
-        )
-        perf_table.add_row("内存效率", "良好", "使用流式处理，内存占用低")
-
-        footer = Panel(
-            Text("报告结束", style="bold", justify="center"),
-            box=box.DOUBLE,
-            style="bold blue",
-        )
-        console.print(footer)
-
-    def _percentile(self, data: List, p: float) -> float:
-        """计算列表数据的近似分位数。"""
-        sorted_data = sorted(data)
-        idx = int(len(data) * p / 100)
-        if idx >= len(sorted_data):
-            idx = len(sorted_data) - 1
-        return sorted_data[idx]
+    def print_report(self, raw_stats, mode: str = "relative") -> None:
+        """打印简洁的评估报告
+        Args:
+            raw_stats: 从evaluate方法返回的原始统计数据
+            mode: 评分模式，"relative"或"absolute"
+        """
+        SchedulerDisplay.print_report(raw_stats, mode)
 
 
 def main():

@@ -39,7 +39,26 @@ if __name__ == "__main__":
         from waitress import serve
 
         print(f"使用 Waitress 生产服务器启动，端口：{args.port}")
-        serve(app, host="0.0.0.0", port=args.port, threads=16)
+        # 生产环境强制关闭Flask调试模式
+        app.debug = False
+
+        # Waitress生产级配置
+        serve(
+            app,
+            # 网络配置
+            host="0.0.0.0",
+            port=args.port,
+            # 性能配置
+            threads=16,
+            connection_limit=64,
+            asyncore_use_poll=os.name != "nt",  # Linux开启，Windows不支持
+            max_request_body_size=10 * 1024 * 1024,  # 限制10MB请求体
+            # 安全配置
+            ident="GachaSimServer",
+            expose_tracebacks=False,
+            # 连接管理
+            channel_timeout=60,
+        )
     else:
         if args.dev:
             print(f"开发模式启动，端口：{args.port}，静态资源不压缩，便于调试")

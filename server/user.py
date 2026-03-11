@@ -11,14 +11,42 @@
 import json
 import os
 import hashlib
+import sqlite3
 from datetime import datetime
+from typing import Optional, Dict, Any
 
 
-# 用户数据存储文件夹路径
-USER_DATA_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), "users")
+# 数据库文件路径
+DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "userdata.db")
 
-# 确保用户数据文件夹存在
-os.makedirs(USER_DATA_FOLDER, exist_ok=True)
+
+# 初始化数据库连接
+def init_db():
+    """初始化数据库，创建用户表"""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    # 创建用户表，使用SQLite JSON类型存储嵌套数据
+    cursor.execute(
+        """
+    CREATE TABLE IF NOT EXISTS users (
+        user_id TEXT PRIMARY KEY,
+        created_at TEXT NOT NULL,
+        last_visit TEXT NOT NULL,
+        char_gacha TEXT NOT NULL,
+        weapon_gacha TEXT NOT NULL,
+        collection TEXT NOT NULL,
+        resources TEXT NOT NULL
+    )
+    """
+    )
+
+    conn.commit()
+    conn.close()
+
+
+# 初始化数据库
+init_db()
 
 
 def get_user_ip(request):
@@ -38,25 +66,83 @@ def generate_user_id(ip_address, user_agent=None):
     return hashlib.md5(identifier.encode("utf-8")).hexdigest()
 
 
-def get_user_file_path(user_id):
-    """获取用户数据文件路径"""
-    return os.path.join(USER_DATA_FOLDER, f"{user_id}.json")
-
-
-def load_user(user_id):
+def load_user(user_id: str) -> Optional[Dict[str, Any]]:
     """加载指定用户的数据"""
-    user_file = get_user_file_path(user_id)
-    if os.path.exists(user_file):
-        with open(user_file, "r", encoding="utf-8") as f:
-            return json.load(f)
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+    SELECT created_at, last_visit, char_gacha, weapon_gacha, collection, resources
+    FROM users WHERE user_id = ?
+    """,
+        (user_id,),
+    )
+
+    result = cursor.fetchone()
+    conn.close()
+
+    if result:
+        created_at, last_visit, char_gacha, weapon_gacha, collection, resources = result
+        return {
+            "user_id": user_id,
+            "created_at": created_at,
+            "last_visit": last_visit,
+            "char_gacha": json.loads(char_gacha),
+            "weapon_gacha": json.loads(weapon_gacha),
+            "collection": json.loads(collection),
+            "resources": json.loads(resources),
+        }
     return None
 
 
-def save_user(user_id, user_data):
+def save_user(user_id: str, user_data: Dict[str, Any]) -> None:
     """保存用户数据"""
-    user_file = get_user_file_path(user_id)
-    with open(user_file, "w", encoding="utf-8") as f:
-        json.dump(user_data, f, ensure_ascii=False, indent=2)
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    # 先尝试更新，如果不存在则插入
+    cursor.execute(
+        """
+    UPDATE users SET
+        last_visit = ?,
+        char_gacha = ?,
+        weapon_gacha = ?,
+        collection = ?,
+        resources = ?
+    WHERE user_id = ?
+    """,
+        (
+            user_data["last_visit"],
+            json.dumps(user_data["char_gacha"], ensure_ascii=False),
+            json.dumps(user_data["weapon_gacha"], ensure_ascii=False),
+            json.dumps(user_data["collection"], ensure_ascii=False),
+            json.dumps(user_data["resources"], ensure_ascii=False),
+            user_id,
+        ),
+    )
+
+    if cursor.rowcount == 0:
+        # 用户不存在，插入新记录
+        cursor.execute(
+            """
+        INSERT INTO users (
+            user_id, created_at, last_visit, char_gacha, weapon_gacha, collection, resources
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+            (
+                user_id,
+                user_data["created_at"],
+                user_data["last_visit"],
+                json.dumps(user_data["char_gacha"], ensure_ascii=False),
+                json.dumps(user_data["weapon_gacha"], ensure_ascii=False),
+                json.dumps(user_data["collection"], ensure_ascii=False),
+                json.dumps(user_data["resources"], ensure_ascii=False),
+            ),
+        )
+
+    conn.commit()
+    conn.close()
 
 
 def create_new_user(user_id):

@@ -115,8 +115,9 @@ EndfieldGacha 采用模块化分层架构设计，各层职责清晰，便于维
 #### 策略层 (`scheduler/` 包)
 
 - **GachaStrategy**: 魔数编码策略系统（32位整数编码条件）
-- **ScoringSystem**: 科学评分系统（三维评分：运气0-60、效率0-20、目标0-20）
-- **Scheduler**: 策略调度器，支持多卡池连续模拟和批量并行评估
+- **ScoringSystem**: 科学评分系统（四维评分：目标达成效用40%、资源利用效率20%、风险控制能力25%、策略灵活性15%）
+- **Scheduler**: 策略调度器，支持多卡池连续模拟、批量并行评估和多策略对比分析
+- **NativeStatistics**: 原生统计量数据结构，包含分级目标达成、资源消耗、风险控制、策略灵活性四类统计量
 
 #### 工具层 (`tools/` 包)
 
@@ -502,8 +503,94 @@ def custom_strategy():
 - `CharGacha.attempt()`: 角色卡池单次抽卡
 - `WeaponGacha.attempt()`: 武器卡池单次申领
 - `GachaStrategy.terminate()`: 检查策略终止条件
-- `ScoringSystem.calculate_score()`: 计算综合评分
+- `ScoringSystem.calculate_score()`: 计算综合评分（兼容旧版）
+- `ScoringSystem.calculate_raw_statistics()`: 计算原生统计量
+- `ScoringSystem.calculate_comprehensive_score()`: 计算四维综合评分
 - `Scheduler.evaluate()`: 执行批量评估
+- `Scheduler.evaluate_multiple_strategies()`: 多策略批量评估
+
+#### 评分系统详解（新）
+
+新的评分系统采用四维评估框架，全面分析抽卡策略的多个维度：
+
+**1. 目标达成效用 (40%权重)**
+
+- 评估策略达成目标的能力
+- 使用3:2:1价值权重：当期UP(50%)、往期UP(33%)、常驻6星(17%)
+- 核心公式：U(S) = 0.5·P₁(S) + 0.333·P₂(S) + 0.167·P₃(S)
+
+**2. 资源利用效率 (20%权重)**
+
+- 评估资源使用的经济性
+- 基于期望总资源消耗与期望剩余资源
+- 核心公式：E(S) = (1 - E[K_total(S)] / E[K_total(S)] + E[R_remain(S)]) × 20%
+
+**3. 风险控制能力 (25%权重)**
+
+- 评估策略的抗风险能力
+- 基于核心目标下行风险、目标达成数变异系数、零收益概率
+- 核心公式：R(S) = (1 - P_down(S)) × (1 - CV(S)) × (1 - P_zero(S)) × 25%
+
+**4. 策略灵活性 (15%权重)**
+
+- 评估策略的调整潜力
+- 基于期望可灵活调配资源
+- 核心公式：F(S) = min(1.0, E[R_flex(S)] / K_total) × 15%
+
+**双模式支持**
+
+- **相对模式**：基于策略组内相对表现评分，适合同组策略对比
+- **绝对模式**：基于绝对阈值评分，适合跨组策略评估
+
+**使用示例：**
+
+```python
+from scheduler import ScoringSystem, Scheduler
+import numpy as np
+
+# 1. 多策略批量评估
+scheduler = Scheduler(config_dir="configs", arrange="arrange1")
+
+# 定义多种策略
+strategies = [
+    [DOSSIER, OPRT],           # 策略1：情报书+6星角色
+    [UP_OPRT],                 # 策略2：专注UP角色
+    [URGENT, DOSSIER, UP_OPRT] # 策略3：综合策略
+]
+
+# 执行多策略评估
+results = scheduler.evaluate_multiple_strategies(
+    strategies=strategies,
+    scale=5000,
+    workers=4,
+    mode="relative"  # 使用相对模式评分
+)
+
+# 2. 原生统计量计算
+strategy_results = [...]  # 抽卡结果数据
+raw_stats = ScoringSystem.calculate_raw_statistics(strategy_results)
+
+# 3. 四维综合评分计算
+comprehensive_scores = ScoringSystem.calculate_comprehensive_score(
+    raw_stats_list=[raw_stats],
+    mode="relative",
+    weights=None  # 使用默认权重
+)
+
+print(f"目标达成效用: {comprehensive_scores[0]['u_score']*100:.1f}%")
+print(f"资源利用效率: {comprehensive_scores[0]['e_score']*100:.1f}%")
+print(f"风险控制能力: {comprehensive_scores[0]['r_score']*100:.1f}%")
+print(f"策略灵活性: {comprehensive_scores[0]['f_score']*100:.1f}%")
+print(f"综合评分: {comprehensive_scores[0]['total_score']:.1f}")
+print(f"等级: {comprehensive_scores[0]['grade']}")
+```
+
+**有效性验证模块**
+系统内置三类验证功能：
+
+1. **概率分布验证**：确保核心概率与期望值一致
+2. **评分一致性验证**：确保相对/绝对模式评分逻辑一致
+3. **统计量有效性验证**：确保原生统计量计算正确
 
 ### 配置定制
 
@@ -574,7 +661,9 @@ configs/
 2. **配置缓存**：`GlobalConfigLoader`使用缓存机制，避免重复读取文件
 3. **资源兑换**：衍质源石可兑换为嵌晶玉(1:75)或武库配额(1:25)
 4. **保底优先级**：武器池保底优先级：UP保底 > 6星保底 > 5星保底
-5. **评分等级**：S级(90-100)、A级(80-89)、B级(70-79)、C级(60-69)、D级(50-59)、E级(0-49)
+5. **评分系统**：四维评分体系（目标达成效用40%、资源利用效率20%、风险控制能力25%、策略灵活性15%），支持相对/绝对双模式
+6. **评分等级**：S级(90-100)、A级(80-89)、B级(70-79)、C级(60-69)、D级(50-59)、E级(0-49)
+7. **价值权重**：使用3:2:1权重评估角色价值（当期UP:往期UP:常驻6星）
 
 ---
 
@@ -613,6 +702,27 @@ configs/
   - 统一文档版本标识（2.0.0 → 2.1.0）
   - 完善故障排除和注意事项说明
   - 更新贡献指南和开发规范
+
+### 2026年3月10日 2.2.0 科学评分系统升级
+
+- **四维评分系统**：
+  - 新增四维评分体系：目标达成效用(40%)、资源利用效率(20%)、风险控制能力(25%)、策略灵活性(15%)
+  - 支持双模式评分：相对模式（同组对比）、绝对模式（跨组对比）
+  - 使用3:2:1权重评估角色价值：当期UP(50%)、往期UP(33%)、常驻6星(17%)
+- **原生统计量计算**：
+  - 新增`NativeStatistics`数据结构，包含四类原生统计量
+  - 实现分级目标达成概率、资源消耗期望、风险控制指标、灵活性指标计算
+- **多策略批量评估**：
+  - 新增`Scheduler.evaluate_multiple_strategies()`方法
+  - 支持同时对多个策略进行评分对比分析
+- **有效性验证模块**：
+  - 新增概率分布验证功能
+  - 新增评分一致性验证功能
+  - 新增统计量有效性验证功能
+- **API完善**：
+  - 新增`ScoringSystem.calculate_raw_statistics()`方法
+  - 新增`ScoringSystem.calculate_comprehensive_score()`方法
+  - 保持向后兼容性，旧版`calculate_score()`方法继续支持
 
 ### 未来发展方向
 
