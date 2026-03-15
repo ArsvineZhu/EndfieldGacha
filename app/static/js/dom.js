@@ -9,8 +9,8 @@
     const TEMP_AREAS = ['temp-collection-area', 'temp-resources-area', 'temp-history-area'];
 
     function createDOMStructure() {
-        const app = document.getElementById('app');
-        app.innerHTML = `
+        const root = document.getElementById('root');
+        root.innerHTML = `
             <div class="app-container">
                 <div class="nav-overlay" id="nav-overlay"></div>
                 

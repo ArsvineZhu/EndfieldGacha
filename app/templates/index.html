@@ -4,15 +4,16 @@
 <head>
     <!-- 基础设置 -->
     <meta charset="UTF-8">
-    
+
     <!-- 响应式视口设置 -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+
     <!-- PWA/Web App 设置 -->
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    
+
     <!-- 其他设置 -->
     <meta name="format-detection" content="telephone=no">
     <meta name="theme-color" content="#121212">
@@ -32,11 +33,12 @@
     <link rel="stylesheet" href="{{ url_for('static', filename=get_static_url('css/responsive-mobile-large.css')) }}">
     <link rel="stylesheet" href="{{ url_for('static', filename=get_static_url('css/responsive-mobile-medium.css')) }}">
     <link rel="stylesheet" href="{{ url_for('static', filename=get_static_url('css/responsive-mobile-small.css')) }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename=get_static_url('css/responsive-mobile-landscape.css')) }}">
+    <link rel="stylesheet"
+        href="{{ url_for('static', filename=get_static_url('css/responsive-mobile-landscape.css')) }}">
 </head>
 
 <body>
-    <div id="app"></div>
+    <div id="root"></div>
     <script src="{{ url_for('static', filename=get_static_url('js/cache.js')) }}"></script>
     <script src="{{ url_for('static', filename=get_static_url('js/dom.js')) }}"></script>
     <script src="{{ url_for('static', filename=get_static_url('js/ui.js')) }}"></script>

@@ -7,6 +7,7 @@ API 路由模块
 
 from flask import render_template, request, jsonify, session
 from datetime import datetime
+import json
 
 from core import CharGacha, WeaponGacha, GlobalConfigLoader
 from .user import (
@@ -98,6 +99,7 @@ def create_routes(app):
 
             results = []
             for _ in range(count):
+                current_draw = char_gacha.counters.total + 1  # 当前抽数（从1开始）
                 result = char_gacha.attempt()
                 results.append(
                     {
@@ -107,6 +109,7 @@ def create_routes(app):
                         "is_up_g": result.is_up_g,
                         "is_6_g": result.is_6_g,
                         "is_5_g": result.is_5_g,
+                        "draw_number": current_draw,
                     }
                 )
 
@@ -128,9 +131,9 @@ def create_routes(app):
             user_info["char_gacha"]["no_6star"] = char_gacha.counters.no_6star
             user_info["char_gacha"]["no_5star_plus"] = char_gacha.counters.no_5star_plus
             user_info["char_gacha"]["no_up"] = char_gacha.counters.no_up
-            user_info["char_gacha"]["guarantee_used"] = (
-                char_gacha.counters.guarantee_used
-            )
+            user_info["char_gacha"][
+                "guarantee_used"
+            ] = char_gacha.counters.guarantee_used
 
             # 记录操作后的资源
             operation_resources_after = {
@@ -205,6 +208,9 @@ def create_routes(app):
             for _ in range(count):
                 apply_results = weapon_gacha.attempt()
                 for result in apply_results:
+                    current_draw = (
+                        weapon_gacha.counters.total + 1
+                    )  # 当前抽数（从1开始）
                     results.append(
                         {
                             "name": result.name,
@@ -213,6 +219,7 @@ def create_routes(app):
                             "is_up_g": result.is_up_g,
                             "is_6_g": result.is_6_g,
                             "is_5_g": result.is_5_g,
+                            "draw_number": current_draw,
                         }
                     )
 
@@ -243,9 +250,9 @@ def create_routes(app):
             user_info["weapon_gacha"]["total"] = weapon_gacha.counters.total
             user_info["weapon_gacha"]["no_6star"] = weapon_gacha.counters.no_6star
             user_info["weapon_gacha"]["no_up"] = weapon_gacha.counters.no_up
-            user_info["weapon_gacha"]["guarantee_used"] = (
-                weapon_gacha.counters.guarantee_used
-            )
+            user_info["weapon_gacha"][
+                "guarantee_used"
+            ] = weapon_gacha.counters.guarantee_used
 
             # 记录操作后的资源
             operation_resources_after = {
@@ -322,6 +329,7 @@ def create_routes(app):
         # 执行 10 连抽
         results = []
         for _ in range(10):
+            current_draw = urgent_gacha.counters.total + 1  # 当前抽数（从1开始）
             result = urgent_gacha.attempt(disable_guarantee=True)
             results.append(
                 {
@@ -331,6 +339,7 @@ def create_routes(app):
                     "is_up_g": result.is_up_g,
                     "is_6_g": result.is_6_g,
                     "is_5_g": result.is_5_g,
+                    "draw_number": current_draw,
                 }
             )
 
@@ -536,8 +545,6 @@ def create_routes(app):
     # 获取卡池信息 API
     @app.route("/api/pool_info", methods=["GET"])
     def get_pool_info():
-        import json
-
         # 获取卡池类型参数，默认为角色卡池
         pool_type = request.args.get("pool_type", "char")
 

@@ -37,7 +37,7 @@ class SchedulerDisplay:
 
     @staticmethod
     def print_header(
-        scale: int, workers: int, change: bool, schedules: List[Tuple]
+        scale: int, workers: int, change: bool, schedules: List[Any]
     ) -> None:
         """打印评估任务的配置概览。
 
@@ -49,7 +49,7 @@ class SchedulerDisplay:
             进程数
         change : bool
             是否启用卡池切换
-        schedules : List[Tuple]
+        schedules : List[BannerPlan]
             调度计划列表
         """
         console.clear()
@@ -66,7 +66,8 @@ class SchedulerDisplay:
         config_table.add_column("参数", style="cyan", width=15)
         config_table.add_column("值", style="yellow", ratio=1)
 
-        rules = [plan[0] for plan in schedules]
+        # 提取规则
+        rules = [plan.rules for plan in schedules]
         config_table.add_row(
             "策略标识",
             f"S{md5(pformat(rules).encode('utf-8')).hexdigest()[:5].upper()}",

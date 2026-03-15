@@ -70,9 +70,6 @@
         const container = document.getElementById('results-container');
         container.innerHTML = '';
 
-        let maxStar = 0;
-        let hasBoostedItem = false;
-
         // 获取当前卡池的 UP 列表（boosted items）
         const boostedItemsEl = document.getElementById('boosted-items');
         const boostedItemNames = [];
@@ -86,16 +83,22 @@
             });
         }
 
+        let maxStar = 0;
+        let congrats = false;
+        let count = 0;
         results.forEach(result => {
             maxStar = Math.max(maxStar, result.star);
-            // 检查是否是概率提升的项目（UP 角色/武器）
-            if (boostedItemNames.includes(result.name)) {
-                hasBoostedItem = true;
+            if (result.star == 6) {
+                count += 1;
+            }
+            // 检查是否是概率提升的项目（UP 角色/武器）且抽数 <= 80 OR 多金
+            if (count >= 2 || (boostedItemNames.includes(result.name) && result.draw_number <= 80)) {
+                congrats = true;
             }
         });
 
-        // 如果抽到概率提升的项目，触发 emoji 飘落效果
-        if (hasBoostedItem) {
+        // 如果抽到概率提升的项目且抽数 <= 80，触发 emoji 飘落效果
+        if (congrats) {
             createEmojiFall();
         }
 
@@ -277,8 +280,6 @@
             isAnimationPlaying = false;
             updateDrawButtonsState(false);
         }
-
-    // 移除抽卡后自动滚动效果
     }
 
     async function performGacha(count) {

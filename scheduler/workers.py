@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """调度用 worker 与辅助方法。"""
+
 from math import ceil
 from copy import deepcopy
 from typing import Any, Dict, List, Tuple
@@ -42,7 +43,7 @@ def process_gacha_result(
     result: Any, gacha: CharGacha, state: Dict[str, Any], potential: int
 ) -> Tuple[Dict[str, Any], int]:
     """处理单次抽卡结果，更新状态和潜能计数。
-    
+
     Parameters
     ----------
     result : Any
@@ -53,7 +54,7 @@ def process_gacha_result(
         当前状态字典。
     potential : int
         当前潜能计数。
-        
+
     Returns
     -------
     tuple
@@ -81,7 +82,7 @@ def handle_urgent_gacha(
     potential: int,
 ) -> Tuple[Dict[str, Any], int, List[Any]]:
     """处理加急招募（10连抽）。
-    
+
     Parameters
     ----------
     config : Any
@@ -94,7 +95,7 @@ def handle_urgent_gacha(
         当前状态字典。
     potential : int
         当前潜能计数。
-        
+
     Returns
     -------
     tuple
@@ -108,9 +109,7 @@ def handle_urgent_gacha(
         result = urgent.attempt()
         results.append(result)
 
-        state, potential = process_gacha_result(
-            result, gacha, state, potential
-        )
+        state, potential = process_gacha_result(result, gacha, state, potential)
         state["urgent"] = True
 
     return state, potential, results
@@ -127,10 +126,10 @@ def initialize_banner_state(cnts: Counters) -> Dict[str, Any]:
 
 
 def _worker_wrapper(args: Any) -> Dict[str, Any]:
-    return _run_simulation_worker(*args)
+    return _simulator(*args)
 
 
-def _run_simulation_worker(
+def _simulator(
     config_dir: str,
     arrangement: List[str],
     schedules: List[Dict[str, Any]],
@@ -139,7 +138,7 @@ def _run_simulation_worker(
     init_resource: Dict[str, int],
 ) -> Dict[str, Any]:
     """运行单次模拟的worker函数。
-    
+
     Parameters
     ----------
     config_dir : str
@@ -154,7 +153,7 @@ def _run_simulation_worker(
         随机种子。
     init_resource : dict
         初始资源。
-        
+
     Returns
     -------
     dict
@@ -192,11 +191,18 @@ def _run_simulation_worker(
         check = plan["check_in"]
         use_ori = plan["use_origeometry"]
         addition = Resource(**plan["resource_increment"])
+        config_name = plan.get("name")
+
+        # 选择配置：如果有 name 则使用 name，否则使用 arrangement 顺序
+        if config_name:
+            selected_config = config_name
+        else:
+            selected_config = arrangement[idx] if change else arrangement[0]
 
         config = GlobalConfigLoader(
             os.path.join(
                 config_dir,
-                arrangement[idx] if change else arrangement[0],
+                selected_config,
             )
         )
         gacha = CharGacha(config)
@@ -234,9 +240,7 @@ def _run_simulation_worker(
             if up_names and result.name in up_names:
                 up_chars += 1
 
-            state, potential = process_gacha_result(
-                result, gacha, state, potential
-            )
+            state, potential = process_gacha_result(result, gacha, state, potential)
 
             if gacha.counters.total == 30 and not cnts.urgent_used:
                 state, potential, urgent_results = handle_urgent_gacha(
