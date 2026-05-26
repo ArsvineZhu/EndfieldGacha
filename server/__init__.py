@@ -11,16 +11,16 @@ Server 包
 - routes: API 路由
 """
 
-from .app import create_app, compress_static_files
+from .app import compress_static_files, create_app
+from .resource import (
+    process_exchange,
+    process_recharge,
+)
 from .user import (
+    create_new_user,
     get_or_create_current_user,
     load_user,
     save_user,
-    create_new_user,
-)
-from .resource import (
-    process_recharge,
-    process_exchange,
 )
 
 __all__ = [

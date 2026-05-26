@@ -1,0 +1,15 @@
+{
+  "schema_version": "char-banner",
+  "pool_name": "「春雷动，万物生」",
+  "open_time": "2026-04-17 12:00:00 (UTC+8)",
+  "close_time": "2026-05-14 06:00:00 (UTC+8)",
+  "featured": {
+    "current_up": [
+      "庄方宜"
+    ],
+    "past_up": [
+      "洛茜",
+      "汤汤"
+    ]
+  }
+}

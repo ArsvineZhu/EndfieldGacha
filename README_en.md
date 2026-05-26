@@ -1,376 +1,163 @@
 # Endfield Gacha | 终末地卡池
 
-**文 / A**：[**中文**](README.md) | [**English**](README_en.md)
+**Updated**: 2026-05-26
+
+**Project version**: `2.0.0`
+
+[中文](README.md) | [English](README_en.md)
 
 ---
 
-## Endfield Gacha
+Endfield Gacha is a simulator for *Arknights: Endfield* headhunting and issue systems. The current repository implements the character banner, weapon banner, web service, structured strategy evaluation, scoring, and statistical tools. This document follows the actual code.
 
-A gacha system for *Arknights: Endfield*, including but not limited to statistics and simulation of **Chartered Headhunting** and **Arsenal Issue**.
+## What is implemented
 
-## Table of Contents
+- `CharGacha`: character banner simulation
+- `WeaponGacha`: weapon issue simulation
+- `GlobalConfigLoader`: configuration loader
+- `GachaResult`: pull result data model
+- `Counters`: pull state counters
+- `server/`: Flask web application and user storage
+- `scheduler/`: structured strategy scheduling and scoring
+- `tools/`: demo, evaluation, and verification scripts
 
-- [Project Introduction](#project-introduction)
-- [Notes](#notes)
-- [Statistical Conclusions](#statistical-conclusions)
-- [Changelog](#changelog)
-- [Acknowledgements](#acknowledgements)
+## Repository layout
 
----
-
-## Project Introduction
-
-### 1. Environment Requirements
-
-- **Python** 3.10+ (developed with 3.14.2)
-
-- Dependency Libraries (see requirements.txt for complete list):
-      - Flask, Flask-Cors, waitress (Web service)
-      - numpy (core computation)
-      - rich (terminal styling and progress display)
-      - matplotlib, pillow, scipy (statistical plotting and analysis)
-      - tqdm (progress display)
-
-### 2. Installation Steps
-
-#### Clone the Repository
-
-```bash
-git clone https://github.com/ArsvineZhu/EndfieldGacha.git
-cd EndfieldGacha
-```
-
-#### Install Dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### Project Structure
-
-```plaintext
+```text
 EndfieldGacha/
-├── run.py                   # Unified entry point (recommended)
-├── core.py                  # Core gacha logic
-├── server.py                # Web service
-├── scheduler/               # Strategy scheduling package
-│   ├── engine.py           # Scheduler main logic
-│   ├── strategy.py         # Magic-number strategy encoding
-│   ├── scoring.py          # Resource and scoring system
-│   └── workers.py          # Multiprocess workers
-├── tools/                   # Runnable tools
-│   ├── demo.py             # Gacha demo and statistics
-│   ├── evaluation.py       # Strategy evaluation
-│   └── examination.py      # Probability verification
-├── configs/                 # Configuration directory
-├── app/                     # Web application
-├── test/                    # Test cases
-├── doc/                     # Documentation
-├── pic/                     # Image resources
-├── start.ps1                # Windows startup script
-├── AGENTS.md                # AI assistant index
-└── ref.md                   # Developer reference
+├── run.py
+├── gacha_core/
+├── server.py
+├── server/
+├── scheduler/
+├── tools/
+├── app/
+├── configs/
+├── doc/
+├── legacy/
+├── test/
+├── pic/
+└── ref.md
 ```
 
-**Quick run**: `python run.py [demo|evaluation|examination|server]`
+## Entrypoints
 
----
+```bash
+uv sync
 
-## Notes
+uv run run.py          # help
+uv run run.py demo     # demo and statistics
+uv run run.py eval     # strategy evaluation
+uv run run.py exam     # probability verification
+uv run run.py server   # start the web app
 
-Some image assets are screenshots from **Arknights: Endfield**.
-
-Original introduction to in-game gacha mechanics: [mechanics.md](doc/mechanics_en.md).
-
-Some rules are **not detailed** in official explanations of Chartered Headhunting and Arsenal Issue. Therefore, **reasonable assumptions** have been made during development for the following parts:
-
-### I. 10-Pull Pity Mechanism
-
-The Chartered Headhunting banner has a rule: *“Every 10 headhunting attempts guarantee at least one 5★ or higher Operator”*.
-The probability distribution between 5★ and 6★ on that guaranteed attempt is not specified, so two assumptions are considered:
-
-#### (1) 5★ takes up 4★ probability; 6★ base probability unchanged (current implementation)
-
-Example: First 10-headhunting attempt on a new Chartered Headhunting banner, no 5★ or higher in first 9 attempts.
-10th attempt distribution:
-
-```plaintext
-6★:  0.80%
-5★: 91.20%
-4★:  0.00%
+uv run server.py --dev
+uv run server.py --waitress --port 5000
 ```
 
-Example: Mid-banner Chartered Headhunting, no 6★ in first 68 attempts, no 5★ in previous 9 attempts.
-Next attempt (69th):
+`run.py` is the unified CLI entrypoint. `server.py` is the web server wrapper. The default web port is `5000`.
+The web UI now defaults to `configs/config_7`, which is the replica pool configuration.
 
-```plaintext
-6★: 20.80%
-5★: 79.20%
-4★:  0.00%
+## Core implementation
+
+### `gacha_core/`
+
+- `gacha_core/randomizer.py`: `BatchRandom`
+- `gacha_core/config.py`: `GlobalConfigLoader`
+- `gacha_core/char.py`: `CharGacha`
+- `gacha_core/weapon.py`: `WeaponGacha`
+- `gacha_core/models.py`: `GachaResult`, `Counters`
+
+### Character banner
+
+- Single pull cost: 1 Chartered Headhunting Permit or 500 Oroberyl
+- Base rates: 6★ 0.8%, 5★ 8%, 4★ 91.2%
+- 5★ pity: every 10 pulls
+- 6★ soft pity: starts after pull 65, +5% per pull, guaranteed on pull 80
+- Featured 6★ hard pity: 120 pulls
+- Rewards from pulls: 6★ 2000 Arsenal Tickets, 5★ 200, 4★ 20
+- Accumulated rewards in the current implementation: urgent recruitment at 30 pulls, dossier at 60 pulls, and repeated featured token rewards every 240 pulls
+
+### Weapon issue
+
+- One issue = 10 pulls, costs 1980 Arsenal Tickets
+- Base rates: 6★ 4%, 5★ 15%, 4★ 81%
+- `per_apply_must_have=true` guarantees at least one 5★+ result per issue
+- 6★ pity: every 4 issues
+- Featured 6★ pity: every 8 issues
+- Priority: featured 6★ > 6★ > 5★
+- Rewards from pulls: 6★ 50 AIC Quota, 5★ 10, 4★ 1
+- Accumulated rewards start at the 10th issue and alternate every 8 issues
+
+### Structured strategy
+
+- `scheduler/strategy_rules.py` only supports structured rule trees
+- `scheduler/strategy_protocol.py` uses `strategy-protocol-v1`
+- legacy magic strategies remain as archives and are not accepted by the protocol layer
+- `Scheduler.banner(...)` and `Scheduler.evaluate_multiple_strategies(...)` automatically adapt supported payloads
+
+### Scoring
+
+- Main scoring implementation: `scheduler/scoring.py`
+- Current scoring version: `SCORING_VERSION = 2.3.0`
+- Four scoring dimensions: goal, utility, resource, and risk
+- `BaselineEstimator` uses file caching and near-state cubic-spline interpolation
+- The current scoring path is character-banner only
+
+### Web service
+
+- App factory: `server/app.py`
+- Routes: `server/routes.py`
+- Storage: SQLite database `userdata.db`
+- User identity: MD5 hash of IP + User-Agent
+- Supported operations: recharge, exchange, gacha, urgent recruitment
+
+### Tooling
+
+- `tools/demo.py`: `demo_char_draw()`, `demo_weapon_apply()`, `stats_char_quota()`, `stats_weapon_quota()`, `stats_char_up_prob()`, `stats_char_potential()`
+- `tools/evaluation.py`: scenario-based strategy evaluation from `evaluation_examples.json`
+- `tools/examination.py`: probability distribution verification
+
+## Configuration
+
+The code actually reads:
+
+- `configs/constants.json`
+- `configs/char_pool_base.json`
+- `configs/config_*/char_banner.json`
+- `configs/weapon_pool_base.json`
+- `configs/config_*/weapon_banners.json`
+- `configs/config_*/gacha_rules.json`
+- `configs/arrangement`
+- `configs/arrange1`
+
+`configs/config_1` is the default config directory, and the first line of `configs/arrangement` can also define the default. Both banner types use explicit banner files; legacy `char_pool.json` and `weapon_pool.json` are archived under `legacy/configs/`. `gacha_rules.json` only stores reward overrides; shared rules and banner defaults come from `configs/constants.json`. If `featured.normal` is explicitly present in `char_banner.json`, it replaces the shared 6-star normal roster for that banner. `weapon_banners.json` can declare multiple weapon banners in one config directory, and the runtime reads the entry pointed to by `default_banner_id` unless a specific banner id is requested.
+
+## Documentation map
+
+- [Chinese mechanics](doc/mechanics.md)
+- [English mechanics](doc/mechanics_en.md)
+- [Strategy protocol](doc/strategy_protocol.md)
+- [Character config migration record](doc/implementation_records/2026-05-26-char-config.md)
+- [Runtime package split record](doc/implementation_records/2026-05-26-runtime-package-split.md)
+- [Scoring follow-up record](doc/implementation_records/2026-05-26-scoring-followup.md)
+- [Legacy scoring design archive](legacy/doc/策略评分系统设计方案.md)
+- [Developer reference](ref.md)
+
+## Development commands
+
+```bash
+uv run pytest test/ -v
+uv run ruff check .
+uv run pyright
+uv run python app/utils/compress.py
 ```
 
-> **Rule**: If no 6★ Operator in first 65 headhunting attempts, 6★ probability increases by 5% per attempt starting from attempt 66, until guaranteed 6★ at attempt 80 (Soft Pity).
+## Important implementation notes
 
-#### (2) Total 5★+6★ probability = 100%, remapped proportionally (discarded)
+- The code does not implement separate duplicate-operator or duplicate-weapon exchange systems; duplicates only update collection and resource counters
+- The current sample banners in `configs/config_1` are `「熔火灼痕」` and `「熔铸申领」`
+- `gacha_rules.json` only keeps per-config overrides; shared defaults come from `configs/constants.json`
+- The protocol layer no longer accepts `legacy_magic` payloads
 
-Example: First 10-headhunting attempt on a new Chartered Headhunting banner, no 5★+ in first 9 attempts.
-10th attempt:
 
-```plaintext
-6★: ~ 0.91% ← 0.8% / (0.8% + 8%)
-5★: ~90.91% ← 8.0% / (0.8% + 8%)
-4★:  0.00%
-```
-
-Example: Mid-banner Chartered Headhunting, no 6★ in 68 attempts, no 5★ in previous 9 attempts.
-Next attempt (69th):
-
-```plaintext
-6★: ~72.22% ← 20.8% / (20.8% + 8%)
-5★: ~27.78% ←  8.0% / (20.8% + 8%)
-4★:  0.00%
-```
-
-The second assumption clearly **does not match real gameplay experience** ~~and contradicts developer intent~~, so it is discarded.
-
-The same first assumption applies to the Arsenal Issue banner for 10-Pull Pity.
-
-### II. 6★ Probability Increase (Soft Pity)
-
-Chartered Headhunting rule:
-*“If no 6★ Operator in first 65 headhunting attempts, 6★ probability increases by 5% per attempt starting from attempt 66, until guaranteed 6★ at attempt 80.”*
-
-It does not specify how 5★ and 4★ rates are distributed when 6★ rate rises. Two assumptions:
-
-#### (1) 6★ takes up lower-rarity probabilities
-
-Example: Mid-banner Chartered Headhunting, no 6★ in 68 attempts, 5★ already obtained in previous 9 attempts (10-Pull Pity not triggered).
-Next attempt (69th):
-
-```plaintext
-6★: 20.80%
-5★:  8.00%
-4★: 71.20% (truncated)
-```
-
-At higher pull counts:
-
-```plaintext
-6★: 80.80%
-5★:  8.00%
-4★: 11.20% (truncated)
-```
-
-Further:
-
-```plaintext
-6★: 95.80%
-5★:  4.20% (truncated)
-4★:  0.00% (fully truncated)
-```
-
-This assumption distorts 5★/4★ ratios at high attempts.
-Without real data, I cannot verify if this matches actual in-game results.
-
-> **Premise**: Prioritize taking 4★ probability, not 5★. 5★ fisrt? NO WAY!
-
-#### (2) Total 5★+4★ probability = 100%, remapped proportionally (tentative)
-
-Example: Mid-banner Chartered Headhunting, no 6★ in 68 attempts, 5★ already obtained (10-Pull Pity not triggered).
-Next attempt (69th):
-
-```plaintext
-6★:  20.80%
-5★: ~ 6.38% ← 8% * (1 – 20.80%) / (8% + 91.2%)
-4★: ~72.81% ← 91.2% * (1 – 20.80%) / (8% + 91.2%)
-```
-
-This preserves the 5★/4★ ratio and is more likely the actual implementation.
-
-Without data, it is hard to confirm which is realistic. **Assumption 2 is used tentatively.**
-
----
-
-## Statistical Conclusions
-
-All results are from `demo.py` simulations, default sample size: **100K trials** unless noted.
-
-### (1) Headhunting attempts needed to get Rate-UP Operator on a Chartered Headhunting banner
-
-Probability distribution:
-![Figure 1](pic/stats/Figure_1.png "Headhunting attempts needed to obtain Rate-UP Operator on a Chartered Headhunting banner")
-
-**Conclusion**: Average headhunting attempts for Rate-UP Operator: **81.57**
-
-- 1–65 (Early 6★): 22.70%
-- 66–80 (Soft Pity): 33.09% (~1/3)
-- 81–119: 10.08%
-- 120 (Hard Pity): 34.13% (~1/3)
-
-~~120-attempt Hard Pity is OFF THE CHARTS! What a monolith bar!~~
-
-> Note: 10 free headhunting attempts (10-pull) from Urgent Recruitment are not used or counted.
-
-### (2) Arsenal Issue attempts (1 attempt = 10 weapons) needed to get Rate-UP Weapon on an Arsenal Issue banner
-
-Probability distribution:
-![Figure 2](pic/stats/Figure_2.png "Arsenal Issue attempts needed to obtain Rate-UP Weapon on an Arsenal Issue banner")
-
-**Conclusion**: Average Arsenal Issue attempts for Rate-UP Weapon: **55.49** (≈5–6 issue attempts)
-
-- 10–20: 9.62%
-- 20–30: 8.60%
-- 30–40: 7.72%
-- 40–50: 11.95% *
-- 50–60: 7.12%
-- 60–70: 6.31%
-- 70–80: 5.71%
-- 80–90: 42.95% *
-
-> \* No 6★ Weapon in 3 Arsenal Issue attempts → guaranteed 6★ on 4th attempt
-> \* No Rate-UP Weapon in 7 Arsenal Issue attempts → guaranteed Rate-UP on 8th attempt
-
-### (3) Expected headhunting attempts for Rate-UP Operator (stopping at Soft Pity: 80 attempts)
-
-Probability distribution:
-![Figure 3](pic/stats/Figure_3.png "Expected headhunting attempts for Rate-UP Operator (stopping at Soft Pity, 80 attempts)")
-
-**Conclusion**: Average pulls: **54.75**
-
-> Note: 10 free headhunting attempts (10-pull) from Urgent Recruitment not counted.
-
-### (4) Expected headhunting attempts for Rate-UP Operator (stopping at 119 attempts)
-
-Probability distribution:
-![Figure 4](pic/stats/Figure_4.png "Expected headhunting attempts for Rate-UP Operator (stopping at 119 attempts)")
-
-**Conclusion**: Average attempts: **61.46**
-
-> Note: 10 free headhunting attempts (10-pull) from Urgent Recruitment not counted.
-
-### (5) Arsenal Ticket from 120 headhunting attempts on Chartered Headhunting banner
-
-Probability distribution:
-![Figure 5](pic/stats/Figure_5.png "Arsenal Ticket from 120 headhunting attempts on Chartered Headhunting banner")
-
-**Conclusion**: Arsenal Ticket approximates a normal distribution.
-Mean: **9411**, Standard deviation: **1591**
-
-> Note: 10 free headhunting attempts (10-pull) from Urgent Recruitment not counted.
-
-### (6) AIC Quota from 8 Arsenal Issue attempts
-
-Probability distribution:
-![Figure 6](pic/stats/Figure_6.png "AIC Quota from 8 Arsenal Issue attempts")
-
-**Conclusion**: AIC Quota approximates a normal distribution.
-Mean: **391**, Standard deviation: **71**
-
-### (7) Number & rarity distribution of Operators from 120 Chartered Headhunting attempts
-
-Probability distribution:
-![Figure 7](pic/stats/Figure_7.png "Number & rarity distribution of Operators from 120 Chartered Headhunting attempts")
-
-**Conclusion**: 6★ Operator count approximates normal distribution.
-Mean: **2.09**, Standard deviation: **0.80**
-
-Rarity rates:
-
-- 4★: 84.98%
-- 5★: 13.27%
-- 6★: 1.74% (Rate-UP = 0.87%)
-
-> Note: 10 free headhunting attempts (10-pull) from Urgent Recruitment not counted.
-
-### (8) Number & rarity distribution of Weapons from 8 Arsenal Issue attempts
-
-Probability distribution:
-![Figure 8](pic/stats/Figure_8.png "Number & rarity distribution of Weapons from 8 Arsenal Issue attempts")
-
-**Conclusion**: 6★ Weapon count approximates normal distribution.
-Mean: **4.02**, Standard deviation: **1.44**
-
-Rarity rates:
-
-- 4★: 79.11%
-- 5★: 15.87%
-- 6★: 5.02% (Rate-UP = 1.255%)
-
-### (9) Arsenal Ticket Distribution from 10 Headhunting Attempts of Urgent Recruitment
-
-Probability distribution:
-![Figure 9](pic/stats/Figure_9.png "Urgent Recruitment Arsenal Ticket Distribution")
-
-**Conclusion**: Urgent Recruitment 10-headhunt attempt Arsenal Ticket mean: **571**
-
----
-
-## Changelog
-
-### 2026‑02‑09 Version 1.0.0 Stable release
-
-- Initial version release with basic gacha functionality
-- Character and Weapon pool simulation support
-- Console client interface
-
-### 2026-02-24 Version 1.1.0 Gacha Core Tweaks
-
-- Optimize the **random number generation** mechanism and enable the **reproducibility** of gacha draw outcomes.
-- Added statistics in `demo.py`: "The number of pulls required for the current UP 6-star character to reach **max potential** (number of drawn characters + number of tokens = 6)"
-- Added **probability verification** in `examination.py`
-
-### 2026-03-01 Version 2.0.0 Web Client Release
-
-- Flask Web server implementation with complete user management system
-- Web interface accessible at <http://localhost:5000>
-- User data persistence storage (`users/` directory)
-- Full functionality including character/weapon gacha, recharge, exchange, and history records
-
-### 2026-03-05 Version 2.1.0 Documentation System & Architecture Optimization
-
-- **Documentation System Overhaul**:
-  - Rewrote AGENTS.md as an AI assistant-specific document with structured project indexing
-  - Enhanced README.md with technical architecture details, quick start guide, and developer guide
-  - Established a complete document reference system for AI assistants and developers
-- **System Architecture Optimization**:
-  - Clarified that no new gacha pool types will be added (only Character and Weapon pools)
-  - Improved documentation for the strategy scheduling system (`scheduler.py`)
-  - Optimized configuration file structure documentation
-- **Code Quality Improvements**:
-  - Unified document version identification (2.0.0 → 2.1.0)
-  - Enhanced troubleshooting and important notes
-  - Updated contribution guidelines and development standards
-
-### Future Development Directions
-
-#### Web Client Enhancement
-
-- Support reading historical gacha records
-- Support importing owned Operators
-- Support Tokens from duplicate Operators, exchangeable for **Bond Quota** or **Endpoint Quota**
-
-#### Statistical Analysis Expansion
-
-- Integrate more data visualization options
-- Add data export functionality (CSV, Excel formats)
-
-#### Performance Optimization
-
-- Optimize large-scale batch simulation performance
-- Consider database support to improve user data access efficiency
-
----
-
-## Acknowledgements
-
-- Shanghai Hypergryph Network Technology Co., Ltd.
-- *Arknights: Endfield*
-- ~~Who gave me bad ideas,~~ Rosemary stan & white-haired catgirl: **Ning-ning (宁宁)**
-- Veteran Arknights friends who discussed with me: **LoyaLTY**
-- All developers and content creators who supported and inspired me
-
-> Note: Listed in no particular order.
-
----
-
-> Note: Parts of this document and code may be AI-generated. This document is translated based on the Chinese version and the comparison of in-game proper nouns; please refer to the Chinese version as the authoritative source. Due to the difficulty of cross-reference translation, the content of this English version may lag behind the latest updates of the Chinese version.

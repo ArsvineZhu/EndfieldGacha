@@ -9,9 +9,11 @@ if __name__ == "__main__":
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
 
-from typing import List, Dict
+from typing import Dict, List
+
 from tqdm import trange
-from core import WeaponGacha, CharGacha, GlobalConfigLoader
+
+from gacha_core import CharGacha, GlobalConfigLoader, WeaponGacha
 
 # 支持两种运行方式：作为模块导入（使用相对导入）或直接运行（使用绝对导入）
 try:
@@ -100,3 +102,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

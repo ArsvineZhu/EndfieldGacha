@@ -13,7 +13,7 @@ async function initPage() {
     setupEventListeners();
     document.querySelector('.gacha-area').style.display = 'block';
     document.querySelector('.stats-area').style.display = 'block';
-    updatePoolUI(currentPool);
+    updatePoolUI(currentPool, true);
     await loadUserData();
     showResults([]);
 }

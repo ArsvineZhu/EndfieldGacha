@@ -6,8 +6,8 @@ Flask 应用工厂模块
 """
 
 import os
-from flask import Flask
 
+from flask import Flask
 
 # 获取项目根目录（server 包的上级目录）
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

@@ -9,7 +9,6 @@
 
 from datetime import datetime
 
-
 # 充值挡位配置
 RECHARGE_TIERS = {
     6: {"base": 2, "extra": 1, "total": 3},  # 2+1

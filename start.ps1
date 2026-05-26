@@ -39,78 +39,25 @@ Write-ColorOutput "        终末地卡池模拟器 启动中..." "Cyan"
 Write-ColorOutput "========================================" "Cyan"
 Write-Host ""
 
-if (-not (Test-Command "python")) {
-    Write-ColorOutput "[错误] 未找到 Python，请先安装 Python 3.8+" "Red"
+if (-not (Test-Command "uv")) {
+    Write-ColorOutput "[错误] 未找到 uv，请先安装 uv（https://docs.astral.sh/uv/）" "Red"
     exit 1
 }
-$pythonVersion = python --version 2>&1
-Write-Host "[信息] Python版本: $pythonVersion"
-
-if (-not (Test-Command "pip")) {
-    Write-ColorOutput "[错误] 未找到 pip，请重新安装 Python" "Red"
-    exit 1
-}
-
-function Test-VenvValid {
-    param([string]$VenvPath)
-    $pythonExec = Join-Path $VenvPath "Scripts\python.exe"
-    if (-not (Test-Path $pythonExec)) { return $false }
-    try {
-        $result = & $pythonExec --version 2>&1
-        return $LASTEXITCODE -eq 0
-    } catch { return $false }
-}
-
-$venvPath = Join-Path $PSScriptRoot ".venv"
-$useGlobalPython = $false
-
-if (Test-Path $venvPath) {
-    if (-not (Test-VenvValid $venvPath)) {
-        Write-ColorOutput "[警告] 虚拟环境已损坏，正在删除并重建..." "Yellow"
-        try {
-            Remove-Item -Path $venvPath -Recurse -Force -ErrorAction Stop
-        } catch {
-            Write-ColorOutput "[警告] 无法删除旧虚拟环境，将使用全局 Python" "Yellow"
-            $useGlobalPython = $true
-        }
-    }
-}
-
-if ($useGlobalPython -or (-not (Test-Path $venvPath))) {
-    if (-not $useGlobalPython) {
-        Write-ColorOutput "[信息] 正在创建虚拟环境..." "Cyan"
-        python -m venv $PSScriptRoot\.venv
-        if ($LASTEXITCODE -ne 0) {
-            Write-ColorOutput "[警告] 创建虚拟环境失败，将使用全局 Python" "Yellow"
-            $useGlobalPython = $true
-        }
-    }
-    
-    if ($useGlobalPython) {
-        $pythonExec = "python"
-        $pipExec = "pip"
-    } else {
-        $pythonExec = Join-Path $PSScriptRoot ".venv\Scripts\python.exe"
-        $pipExec = Join-Path $PSScriptRoot ".venv\Scripts\pip.exe"
-        Write-ColorOutput "      虚拟环境创建完成" "Green"
-    }
-} else {
-    $pythonExec = Join-Path $venvPath "Scripts\python.exe"
-    $pipExec = Join-Path $venvPath "Scripts\pip.exe"
-}
+Write-Host "[信息] uv版本: $(uv --version)"
 
 Write-Host ""
 Write-ColorOutput "[1/5] 检查并安装依赖..." "Yellow"
-if (Test-Path "requirements.txt") {
-    Write-ColorOutput "      正在安装依赖..." "Cyan"
-    & $pipExec install -r requirements.txt 2>&1 | Out-Null
+if (Test-Path "pyproject.toml") {
+    Write-ColorOutput "      正在同步依赖（uv sync --frozen）..." "Cyan"
+    uv sync --frozen 2>&1 | Out-Null
     if ($LASTEXITCODE -ne 0) {
-        Write-ColorOutput "[警告] 依赖安装失败，将尝试使用现有环境" "Yellow"
-    } else {
-        Write-ColorOutput "      依赖安装完成" "Green"
+        Write-ColorOutput "[错误] 依赖同步失败，请检查 pyproject.toml/网络环境" "Red"
+        exit 1
     }
+    Write-ColorOutput "      依赖同步完成" "Green"
 } else {
-    Write-ColorOutput "[警告] 未找到 requirements.txt" "Yellow"
+    Write-ColorOutput "[错误] 未找到 pyproject.toml" "Red"
+    exit 1
 }
 
 Write-Host ""
@@ -149,8 +96,8 @@ Write-ColorOutput "按 Ctrl+C 停止服务器" "Cyan"
 Write-Host ""
 
 $startInfo = New-Object System.Diagnostics.ProcessStartInfo
-$startInfo.FileName = $pythonExec
-$startInfo.Arguments = "server.py --waitress"
+$startInfo.FileName = "uv"
+$startInfo.Arguments = "run python server.py --waitress"
 $startInfo.WorkingDirectory = $PSScriptRoot
 $startInfo.RedirectStandardOutput = $false
 $startInfo.RedirectStandardError = $false

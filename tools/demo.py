@@ -10,7 +10,8 @@ if __name__ == "__main__":
         sys.path.insert(0, project_root)
 
 from dataclasses import dataclass
-from core import CharGacha, WeaponGacha, GlobalConfigLoader
+
+from gacha_core import CharGacha, GlobalConfigLoader, WeaponGacha
 
 
 @dataclass(frozen=True)
@@ -41,7 +42,7 @@ class GachaTestTool:
 
     def demo_char_draw(self, draw_times: int = 5):
         """角色卡池抽卡示例"""
-        title = f"「熔火灼痕」寻访示例"
+        title = "「熔火灼痕」寻访示例"
         print(
             f"\n{title.center(self.width['draw_num']+self.width['star']+self.width['quota']+20, '-')}"
         )
@@ -108,7 +109,7 @@ class GachaTestTool:
 
     def demo_weapon_apply(self, apply_times: int = 1):
         """武器卡池申领示例"""
-        title = f"「熔铸申领」申领示例"
+        title = "「熔铸申领」申领示例"
         print(
             f"\n{title.center(self.width['draw_num']+self.width['star']+self.width['quota']+40, '-')}"
         )
@@ -178,7 +179,7 @@ class GachaTestTool:
 
         from tqdm import trange
 
-        print(f"正在统计抽 120 次角色池获得的配额数量...")
+        print("正在统计抽 120 次角色池获得的配额数量...")
         quota_list = []  # 记录每次120抽的配额值
         total_quota = 0
         for _ in trange(draw_times):
@@ -273,7 +274,7 @@ class GachaTestTool:
 
         from tqdm import trange
 
-        print(f"正在统计 8 次武器池申领获得的配额数量...")
+        print("正在统计 8 次武器池申领获得的配额数量...")
         quota_list = []  # 记录每次8次申领的配额值
         total_quota = 0
         for _ in trange(draw_times):
@@ -370,7 +371,7 @@ class GachaTestTool:
 
         from tqdm import trange
 
-        print(f"正在统计抽 120 次角色池获得的6星角色数量...")
+        print("正在统计抽 120 次角色池获得的6星角色数量...")
         six_star_counts = []  # 记录每次120抽获得的6星角色数量
         total_six_stars = 0
         star_counts = {4: 0, 5: 0, 6: 0}  # 记录不同星级角色的总数量
@@ -484,7 +485,7 @@ class GachaTestTool:
 
         from tqdm import trange
 
-        print(f"正在统计 8 次武器池申领获得的6星武器数量...")
+        print("正在统计 8 次武器池申领获得的6星武器数量...")
         six_star_counts = []  # 记录每次8次申领获得的6星武器数量
         total_six_stars = 0
         star_counts = {4: 0, 5: 0, 6: 0}  # 记录不同星级武器的总数量
@@ -603,7 +604,7 @@ class GachaTestTool:
 
         from tqdm import trange
 
-        print(f"正在统计抽中UP角色所需的抽数...")
+        print("正在统计抽中UP角色所需的抽数...")
         up_draw_counts = []  # 记录每次抽中UP角色所需的抽数
 
         for _ in trange(test_times):
@@ -711,7 +712,7 @@ class GachaTestTool:
 
         from tqdm import trange
 
-        print(f"正在统计抽中UP武器所需的抽数...")
+        print("正在统计抽中UP武器所需的抽数...")
         up_draw_counts = []  # 记录每次抽中UP武器所需的抽数
 
         for _ in trange(test_times):
@@ -806,7 +807,7 @@ class GachaTestTool:
 
         from tqdm import trange
 
-        print(f"正在统计加急招募10连抽获得的武库配额数量...")
+        print("正在统计加急招募10连抽获得的武库配额数量...")
         quota_list = []  # 记录每次10连抽的配额值
         total_quota = 0
         for _ in trange(draw_times):
@@ -826,7 +827,6 @@ class GachaTestTool:
             import numpy as np
 
             # 添加正态分布曲线拟合
-            from scipy import stats
 
             # 计算区间边界
             max_quota = max(quota_list)
@@ -882,7 +882,7 @@ class GachaTestTool:
 
         from tqdm import trange
 
-        print(f"正在统计将指定角色满潜所需的抽数...")
+        print("正在统计将指定角色满潜所需的抽数...")
         potential_draw_counts = []  # 记录每次满潜所需的抽数
 
         for _ in trange(draw_times):
@@ -1013,3 +1013,4 @@ if __name__ == "__main__":
     # 说明：统计当期UP6星角色；计入累积奖励；“加急招募”的十连抽若获得当期UP6星角色也计入
     # 结论：456.14抽（样本量100000）
     # tool.stats_char_potential(20000, gragh=True)
+

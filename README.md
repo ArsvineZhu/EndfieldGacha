@@ -1,758 +1,161 @@
 # 终末地卡池 | Endfield Gacha
 
-**文 / A**：[**中文**](README.md "中文版自述文档") | [**English**](README_en.md "English version readme document")
+**更新日期**：2026-05-26
+
+**项目版本**：`2.0.0`
+
+[中文](README.md) | [English](README_en.md)
 
 ---
 
-## 终末地卡池
+《明日方舟：终末地》寻访与申领模拟工具。当前仓库实现了角色池、武器池、Web 服务、策略评估、评分系统和统计工具，所有说明以实际代码为准。
 
-《明日方舟：终末地》的寻访与申领系统，包括但不限于统计、模拟。
+## 当前能力
 
-## 目录
+- 角色卡池模拟：`CharGacha`
+- 武器卡池模拟：`WeaponGacha`
+- 配置加载：`GlobalConfigLoader`
+- 单次结果对象：`GachaResult`
+- 计数器状态：`Counters`
+- Web 服务与用户数据：`server/`
+- 结构化策略评估：`scheduler/`
+- 概率统计与演示：`tools/`
 
-- [项目介绍](#项目介绍 "项目介绍")
+## 仓库结构
 
-- [技术架构详解](#技术架构详解 "技术架构详解")
-
-- [快速入门指南](#快速入门指南 "快速入门指南")
-
-- [说明](#说明 "说明")
-
-- [统计结论](#统计结论 "统计结论")
-
-- [开发者指南](#开发者指南 "开发者指南")
-
-- [更新日志](#更新日志 "更新日志")
-
-- [致谢](#致谢 "致谢")
-
----
-
-## 项目介绍
-
-### 1. 环境要求
-
-- **Python** 3.10+ （编写使用3.14.2）
-
-- 依赖库（完整列表见 requirements.txt）：
-      - Flask, Flask-Cors, waitress （Web服务）
-      - numpy （核心计算）
-      - rich （终端美化与进度显示）
-      - matplotlib, pillow, scipy （统计绘图与分析）
-      - tqdm （进度显示）
-
-### 2. 安装步骤
-
-#### 2.1 克隆仓库
-
-```bash
-git clone https://github.com/ArsvineZhu/EndfieldGacha.git
-cd EndfieldGacha
-```
-
-#### 2.2 安装依赖
-
-```bash
-pip install -r requirements.txt
-```
-
-### 3. 项目结构
-
-```plaintext
+```text
 EndfieldGacha/
-├── run.py                   # 统一入口（推荐）
-├── core.py                  # 核心抽卡逻辑
-├── server.py                # Web 服务
-├── scheduler/               # 策略调度包
-│   ├── engine.py           # 调度器主逻辑
-│   ├── strategy.py         # 魔数编码策略
-│   ├── scoring.py          # 资源与评分系统
-│   └── workers.py          # 多进程 worker
-├── tools/                   # 可运行工具
-│   ├── demo.py             # 抽卡演示与统计
-│   ├── evaluation.py       # 策略评估
-│   └── examination.py      # 概率分布验证
-├── configs/                 # 配置文件目录
-├── app/                     # Web 应用
-├── test/                    # 测试用例
-├── doc/                     # 文档
-├── pic/                     # 图片资源
-├── start.ps1                # Windows 启动脚本
-├── AGENTS.md                # AI 助手索引
-└── ref.md                   # 开发者参考
+├── run.py
+├── gacha_core/
+├── server.py
+├── server/
+├── scheduler/
+├── tools/
+├── app/
+├── configs/
+├── doc/
+├── legacy/
+├── test/
+├── pic/
+└── ref.md
 ```
 
-**快速运行**：
-
-- `python run.py` — 显示帮助
-- `python run.py demo` — 抽卡演示
-- `python run.py eval` — 策略评估
-- `python run.py exam` — 概率验证
-- `python run.py server` — 启动 Web 服务
-
----
-
-## 技术架构详解
-
-### 项目整体架构
-
-EndfieldGacha 采用模块化分层架构设计，各层职责清晰，便于维护和扩展：
-
-#### 核心层 (`core.py`)
-
-- **BatchRandom**: 批量随机数生成器（支持种子复现）
-- **GachaResult**: 抽卡结果数据类（名称、星级、配额、保底标记）
-- **GlobalConfigLoader**: 全局配置加载器（单例模式）
-- **CharGacha**: 角色卡池类（6星概率递增、UP保底120抽、6星保底85抽、5星保底10抽）
-- **WeaponGacha**: 武器卡池类（申领式抽卡、最后1抽替换机制）
-
-#### 服务层 (`server.py`)
-
-- Flask Web服务器，提供完整的用户管理系统
-- 基于IP和User-Agent生成唯一用户ID，数据存储在`users/`目录
-- 支持角色/武器抽卡、充值、兑换、历史记录等完整功能
-
-#### 策略层 (`scheduler/` 包)
-
-- **GachaStrategy**: 魔数编码策略系统（32位整数编码条件）
-- **ScoringSystem**: 科学评分系统（四维评分：目标达成效用40%、资源利用效率20%、风险控制能力25%、策略灵活性15%）
-- **Scheduler**: 策略调度器，支持多卡池连续模拟、批量并行评估和多策略对比分析
-- **NativeStatistics**: 原生统计量数据结构，包含分级目标达成、资源消耗、风险控制、策略灵活性四类统计量
-
-#### 工具层 (`tools/` 包)
-
-- **`demo.py`**: 抽卡演示与统计工具（提供丰富的统计分析功能）
-- **`evaluation.py`**: 策略评估脚本（预置多种抽卡策略对比）
-- **`examination.py`**: 概率分布验证工具
-
-#### 前端层 (`app/`目录)
-
-- **templates/**: HTML模板文件
-- **static/**: 压缩后的CSS、JS、图片资源
-- **utils/compress.py**: 静态资源压缩和混淆工具
-
-#### 数据层
-
-- **configs/**: 多套卡池配置（config_1 到 config_7）
-- **users/**: 用户数据存储（JSON格式）
-- **pic/**: 图片资源文件
-- **doc/**: 游戏机制说明文档
-
-### 模块依赖关系
-
-```plaintext
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   server.py     │    │  scheduler/     │    │   tools/        │
-│   (Web服务)     │◄──►│  (策略调度)     │◄──►│   (演示工具)    │
-└────────┬────────┘    └────────┬────────┘    └────────┬────────┘
-         │                      │                      │
-         ▼                      ▼                      ▼
-┌─────────────────────────────────────────────────────────────┐
-│                     core.py (核心逻辑)                       │
-│   ┌───────────┬───────────┬───────────┬───────────┐        │
-│   │BatchRandom│GachaResult│ConfigLoader│CharGacha │        │
-│   └───────────┴───────────┴───────────┴───────────┘        │
-└─────────────────────────────────────────────────────────────┘
-         │                      │                      │
-         ▼                      ▼                      ▼
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   configs/      │    │   users/        │    │   app/static    │
-│   (配置文件)    │    │   (用户数据)    │    │   (前端资源)    │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-```
-
-## 快速入门指南
-
-### 1. 启动Web服务（推荐）
+## 运行入口
 
 ```bash
-# 使用统一入口（推荐）
-python run.py server
+uv sync
 
-# 或使用启动脚本（Windows）
-.\start.ps1
+uv run run.py          # 显示帮助
+uv run run.py demo     # 抽卡演示与统计
+uv run run.py eval     # 策略评估
+uv run run.py exam     # 概率分布验证
+uv run run.py server   # 启动 Web 服务
 
-# 或直接运行
-python server.py
+uv run server.py --dev
+uv run server.py --waitress --port 5000
 ```
 
-服务启动后，访问 <http://localhost:5000> 即可使用完整的Web界面进行抽卡模拟。
+`run.py` 是统一入口；`server.py` 是 Web 服务命令行包装器。默认 Web 端口为 `5000`。
+Web 端当前默认读取 `configs/config_7`，也就是复刻池配置。
 
-### 2. 使用演示工具进行统计分析
+## 核心实现
+
+### `gacha_core/`
+
+- `gacha_core/randomizer.py`：`BatchRandom`
+- `gacha_core/config.py`：`GlobalConfigLoader`
+- `gacha_core/char.py`：`CharGacha`
+- `gacha_core/weapon.py`：`WeaponGacha`
+- `gacha_core/models.py`：`GachaResult`、`Counters`
+
+### 角色池
+
+- 单次抽卡消耗 1 张特许寻访凭证，或 500 个嵌晶玉
+- 基础概率为 6★ 0.8%、5★ 8%、4★ 91.2%
+- 5★ 保底为 10 抽
+- 6★ 软保底从第 66 抽开始，每抽增加 5%，第 80 抽保底
+- 当期 UP 6★ 硬保底为 120 抽
+- 角色池结果会发放武库配额：6★ 2000、5★ 200、4★ 20
+- 累计奖励当前实现为 30 抽加急招募、60 抽寻访情报书、240 抽周期性 UP 信物
+
+### 武器池
+
+- 每次申领固定为 10 抽，消耗 1980 个武库配额
+- 基础概率为 6★ 4%、5★ 15%、4★ 81%
+- `per_apply_must_have=true` 时，每次申领至少出现 1 个 5★+ 结果
+- 6★ 保底为 4 次申领
+- 当期 UP 6★ 保底为 8 次申领
+- 保底优先级为 UP > 6★ > 5★
+- 武器池结果会发放集成配额：6★ 50、5★ 10、4★ 1
+- 累计奖励当前实现为从第 10 次申领开始，按 8 次周期交替发放两类奖励
+
+### 结构化策略
+
+- `scheduler/strategy_rules.py` 只支持结构化规则树
+- `scheduler/strategy_protocol.py` 使用 `strategy-protocol-v1`
+- 旧版魔数策略保留为存档文件，不再作为协议输入
+- `Scheduler.banner(...)` 和 `Scheduler.evaluate_multiple_strategies(...)` 会自动做协议适配
+
+### 评分系统
+
+- 评分主实现位于 `scheduler/scoring.py`
+- 当前版本号：`SCORING_VERSION = 2.3.0`
+- 四个评分维度为目标、收益、资源、风险
+- `BaselineEstimator` 使用文件缓存，并可对近邻状态做三次样条插值
+- 当前评分仅面向角色池，不纳入武器池
+
+### Web 服务
+
+- 应用工厂：`server/app.py`
+- 路由：`server/routes.py`
+- 用户存储：SQLite 数据库 `userdata.db`
+- 用户身份：由 IP + User-Agent 生成 MD5 标识
+- 资源操作：充值、兑换、抽卡、加急招募
+
+### 工具脚本
+
+- `tools/demo.py`：`demo_char_draw()`、`demo_weapon_apply()`、`stats_char_quota()`、`stats_weapon_quota()`、`stats_char_up_prob()`、`stats_char_potential()`
+- `tools/evaluation.py`：基于 `evaluation_examples.json` 的策略评估
+- `tools/examination.py`：概率分布验证
+
+## 配置文件
+
+当前代码实际读取的配置文件只有：
+
+- `configs/constants.json`
+- `configs/char_pool_base.json`
+- `configs/config_*/char_banner.json`
+- `configs/weapon_pool_base.json`
+- `configs/config_*/weapon_banners.json`
+- `configs/config_*/gacha_rules.json`
+- `configs/arrangement`
+- `configs/arrange1`
+
+角色池和武器池都只接受显式 banner 配置；旧 `char_pool.json` / `weapon_pool.json` 只保留在 `legacy/configs/` 归档目录。`configs/config_1` 是默认加载目录；`arrangement` 的第一行也可决定默认配置。`gacha_rules.json` 只保留当期奖励覆盖，通用规则与 banner 默认值都来自 `constants.json`。`char_banner.json` 的 `featured.normal` 一旦显式给出，就会覆盖共享 6 星普通池；`weapon_banners.json` 则允许同一配置目录声明多个武器池，运行时默认读取 `default_banner_id` 指向的条目。
+
+## 文档导航
+
+- [中文机制说明](doc/mechanics.md)
+- [English mechanics](doc/mechanics_en.md)
+- [策略协议](doc/strategy_protocol.md)
+- [角色池配置迁移记录](doc/implementation_records/2026-05-26-char-config.md)
+- [运行时包拆分记录](doc/implementation_records/2026-05-26-runtime-package-split.md)
+- [评分系统记录](doc/implementation_records/2026-05-26-scoring-followup.md)
+- [旧评分设计归档](legacy/doc/策略评分系统设计方案.md)
+- [开发参考](ref.md)
+
+## 开发命令
 
 ```bash
-python run.py demo
-# 或
-python -m tools.demo
+uv run pytest test/ -v
+uv run ruff check .
+uv run pyright
+uv run python app/utils/compress.py
 ```
 
-演示工具提供以下主要功能：
-
-- `demo_char_draw()`: 角色卡池抽卡示例
-- `stats_char_up_prob()`: 统计UP角色所需抽数
-- `stats_char_quota()`: 统计120抽角色池配额分布
-- `stats_char_potential()`: 统计角色满潜所需抽数
-
-### 3. 执行策略评估
-
-```bash
-python run.py evaluation
-# 或
-python -m tools.evaluation
-```
-
-策略评估脚本预置了多种抽卡策略，可对比不同策略的效率和评分。
-
-### 4. 核心模块调用示例
-
-```python
-# 角色卡池单抽
-from core import CharGacha, GlobalConfigLoader
-config = GlobalConfigLoader("configs/config_1")
-gacha = CharGacha(config, size=1024)
-result = gacha.attempt()  # 返回 GachaResult 对象
-
-# 武器卡池申领
-from core import WeaponGacha
-weapon_gacha = WeaponGacha(config, size=1024)
-results = weapon_gacha.attempt()  # 返回 GachaResult 列表（通常10个）
-```
-
-### 5. 配置文件说明
-
-项目支持多套配置，默认使用 `configs/config_1/` 目录下的配置文件：
-
-- `char_pool.json`: 角色卡池数据
-- `weapon_pool.json`: 武器卡池数据  
-- `gacha_rules.json`: 抽卡规则配置
-- `constants.json`: 全局常量配置
-
----
-
-## 说明
-
-部分图片素材来自于 **《明日方舟：终末地》** 游戏截图。
-
-游戏内寻访与申领机制[介绍原文](doc/mechanics.md "游戏寻访与申领机制介绍")。
-
-部分规则在官方的寻访与申领介绍中 **没有详细说明**，因此在开发过程中，我对以下内容进行了 **合理假设**：
-
-### 一、十连保底机制
-
-在特许寻访中存在“**每十次寻访必定获得5★及以上干员**”的机制，但在那个必定“出5★及以上干员”的一次寻访中，5★与6★的概率分布没有说明，因此我认为有两种假设：
-
-#### （1）五星挤占四星概率，六星基础概率不变（当前）
-
-e.g. 新开启的特许寻访的第一次十连寻访，前 9 次寻访无 5★ 及以上干员，则第十次寻访的概率分布为：
-
-```plaintext
-6★： 0.80%
-5★：91.20%
-4★：00.00%
-```
-
-e.g. 寻访中途的特许寻访，前 68 次寻访无 6★ 干员，且前 9 次寻访无 5★ 干员，则下一次寻访（第69次寻访）的概率分布为：
-
-```plaintext
-6★：20.80%
-5★：79.20%
-4★： 0.00%
-```
-
-> **规则**：前 65 次寻访未出 6★ 干员，则从第66次寻访起，每次寻访的 6★ 概率增加 5%，直至第 80 次寻访必出 6★ 干员（小保底 / 软保底）
-
-#### （2）五星与六星总概率视作1，按比例重新映射（舍弃）
-
-e.g. 新开启的特许寻访的第一次十连寻访，前 9 次寻访无 5★ 及以上干员，则第十次寻访的概率分布为：
-
-```plaintext
-6★：~ 0.91% <- 0.8% / (0.8% + 8%)
-5★：~90.91% <- 8% / (0.8% + 8%)
-4★：  0.00%
-```
-
-e.g. 寻访中途的特许寻访，前 68 次寻访无 6★ 干员，且前 9 次寻访无 5★ 干员，则下一次寻访（第69次寻访）的概率分布为：
-
-```plaintext
-6★：~72.22% <- 20.8% / (20.8% + 8%)
-5★：~27.78% <- 8% / (20.8% + 8%)
-4★：  0.00%
-```
-
-由此看出第二种假设“五星与六星总概率视作1，按比例重新映射”明显**不符合实际体验**~~且与游戏厂家设计意图相悖~~，故此舍弃。
-
-同理，武库申领的“一次申领（10 连）保底至少 1 件 5★及以上武器”机制，同样适用第一种假设。
-
-### 二、六星概率提升机制（小保底 / 软保底）
-
-特许寻访中有规则：“前 65 次寻访未出 6★ 干员，则从第66次寻访起，每次寻访的**6★ 概率增加 5%**，直至第 80 次寻访必出 6★ 干员。”此表述未说明 6★ 概率提升后，5★ 与 4★ 出率如何分布，故此有两种假设：
-
-#### （1）六星挤占其余星级概率
-
-e.g. 寻访中途的特许寻访，前 68 次寻访无 6★ 干员，且前 9 次寻访存在 5★ 干员（不触发十连保底），则下一次寻访（第69次寻访）的概率分布为：
-
-```plaintext
-6★：20.80%
-5★： 8.00%
-4★：71.20% （末尾被截断）
-```
-
-当抽数更多时：
-
-```plaintext
-6★：80.80%
-5★： 8.00%
-4★：11.20% （末尾被截断）
-```
-
-进一步地：
-
-```plaintext
-6★：95.80%
-5★： 4.20% （末尾被截断）
-4★： 0.00% （截断）
-```
-
-这种假设会使得寻访次数提升后，5★ 与 4★ 的比例失调。但是由于缺乏数据支撑，我无法知晓在 65-80 次寻访之间获取 5★ 与 4★ 的比例如何、现实是否符合此假设。
-
-> **前提**：优先挤占 4★ 的概率，总不能先占 5★ 的概率吧，不能吧？
-
-#### （2）五星与四星总概率视作1，按比例重新映射（暂定）
-
-e.g. 寻访中途的特许寻访，前 68 次寻访无 6★ 干员，且前 9 次寻访存在 5★ 干员（不触发十连保底），则下一次寻访（第69次寻访）的概率分布为：
-
-```plaintext
-6★： 20.80%
-5★：~ 6.38% <- 8% * (1 - 20.80%) / (8% + 91.2%)
-4★：~72.81% <- 91.2% * (1 - 20.80%) / (8% + 91.2%)
-```
-
-此假设保持获取 5★ 与 4★ 的比例不变，更有可能是实际使用的方案。
-
-由于缺乏数据支撑，难以看出哪一种假设不符合实际体验，**只能暂定使用第二种**。
-
----
-
-## 统计结论
-
-以下统计结果来自 `demo.py` 的模拟结果，若无特别说明，模拟规模均为 10 万次。
-
-### （1） 在一次特许寻访中，获取概率提升干员时所需的寻访次数
-
-以下是概率分布：
-
-![Figure 1](pic/stats/Figure_1.png "在一次特许寻访中，获取概率提升干员时所需的寻访次数")
-
-**结论**：平均获取概率提升干员所需寻访次数为 **81.57** 次
-
-- 1-65（提前金）：22.70%
-- 66-80（小保底）：33.09% （约 1/3）
-- 81-119：10.08%
-- 120-120（大保底）：34.13% （约 1/3）
-
-~~120大保底概率一骑绝尘！擎天柱吗这是？~~
-
-> 注：【加急招募】赠送的 10 次寻访未使用，不计入。
-
-### （2）在一次武库申领中，获取概率提升武器时所需的申领次数
-
-以下是概率分布：
-
-![Figure 2](pic/stats/Figure_2.png "在一次武库申领中，获取概率提升武器时所需的申领次数")
-
-**结论**：平均获取概率提升武器所需申领次数为 **55.49** 次（约 5 ~ 6 次申领）
-
-- 10-20: 9.62%
-- 20-30: 8.60%
-- 30-40: 7.72%
-- 40-50: 11.95% *
-- 50-60: 7.12%
-- 60-70: 6.31%
-- 70-80: 5.71%
-- 80-90: 42.95% *
-
-> \* 3 次申领未获取 6 星武器，则第 4 次必出 6 星武器
-> \* 7 次申领未获取概率提升武器，则第 8 次必出概率提升武器
-
-### （3）在一次特许寻访中，最多寻访至小保底（80次）查看获取概率提升干员的期望寻访次数
-
-以下是概率分布：
-
-![Figure 3](pic/stats/Figure_3.png "在一次特许寻访中，最多寻访至小保底（80次）查看获取概率提升干员的期望寻访次数")
-
-**结论**：平均获取概率提升干员所需寻访次数为 **54.75** 次
-
-> 注：【加急招募】赠送的 10 次寻访未使用，不计入。
-
-### （4）在一次特许寻访中，最多寻访至119次，查看获取概率提升干员的期望寻访次数
-
-以下是概率分布：
-
-![Figure 4](pic/stats/Figure_4.png "在一次特许寻访中，最多寻访至119次，查看获取概率提升干员的期望寻访次数")
-
-**结论**：平均获取概率提升干员所需寻访次数为 **61.46** 次
-
-> 注：【加急招募】赠送的 10 次寻访未使用，不计入。
-
-### （5）在一次特许寻访中，寻访至120次，查看获取武库配额的数量
-
-以下是概率分布：
-
-![Figure 5](pic/stats/Figure_5.png "在一次特许寻访中，寻访至120次，查看获取武库配额的数量")
-
-**结论**：特许寻访获取的武库配额分布近似正态分布，均值为 **9411**，标准差为 **1591**
-
-> 注：【加急招募】赠送的 10 次寻访未使用，不计入。
-
-### （6）在一次武库申领中，8次申领获取的集成配额数量
-
-以下是概率分布：
-
-![Figure 6](pic/stats/Figure_6.png "8 次武库申领获取的集成配额数量")
-
-**结论**：8次武库申领获取的集成配额数量分布近似正态分布，均值为 **391**，标准差为 **71**
-
-### （7）120抽角色池的角色数量及概率分布
-
-以下是概率分布：
-
-![Figure 7](pic/stats/Figure_7.png "120 次特许寻访的干员数量及星级分布")
-
-**结论**：120次特许寻访的6星干员数量分布近似正态分布，均值为 **2.09**，标准差为 **0.80**
-
-各星级角色出率：
-
-- 4星：84.98%
-- 5星：13.27%
-- 6星：1.74% (UP = 0.87%)
-
-> 注：【加急招募】赠送的 10 次寻访未使用，不计入。
-
-### （8）8次武库申领的武器数量及概率分布
-
-以下是概率分布：
-
-![Figure 8](pic/stats/Figure_8.png "8 次武库申领的武器数量及星级分布")
-
-**结论**：8次武库申领获取的6星武器数量分布近似正态分布，均值为 **4.02**，标准差为 **1.44**
-
-各星级武器出率：
-
-- 4星：79.11%
-- 5星：15.87%
-- 6星：5.02% (UP = 1.255%)
-
-### （9）加急招募获得武库配额数量分布
-
-以下是概率分布：
-
-![Figure 9](pic/stats/Figure_9.png "加急招募获得武库配额数量分布")
-
-**结论**：加急招募的 10 连寻访获得武库配额数量均值为 **571**
-
----
-
-## 开发者指南
-
-### 扩展开发
-
-#### 系统扩展说明
-
-**注意**：本系统已经稳定，**不再添加新的卡池类型**。当前仅支持角色卡池和武器卡池两种类型，符合《明日方舟：终末地》游戏机制。
-
-#### 自定义策略
-
-使用魔数编码定义新策略：
-
-```python
-# 魔数编码结构：符号位(1) | 停止掩码(7) | 条件掩码(8) | 参数(16)
-CUSTOM_STRATEGY = (-1 << 31) | (0b0000001 << 24) | (GT << 16) | 100
-# 含义：当资源大于100时触发，停止条件为加急招募
-
-# 在evaluation.py中添加策略函数
-def custom_strategy():
-    scheduler = Scheduler(config_dir="configs", arrange="arrange1")
-    scheduler.schedule([CUSTOM_STRATEGY])
-    scheduler.evaluate(scale=10000, workers=8)
-```
-
-#### 界面定制
-
-1. 修改`app/templates/index.html`前端模板
-2. 更新`app/static/`中的CSS和JS文件
-3. 运行`python app/utils/compress.py`压缩静态资源
-
-### API参考
-
-#### Web服务API接口
-
-| 接口路径 | 方法 | 功能描述 | 参数 |
-| --------- | ------ | --------- | ------ |
-| `/api/gacha` | POST | 执行抽卡 | `pool_type`, `count` |
-| `/api/urgent_recruitment` | POST | 加急招募抽卡 | 无 |
-| `/api/rewards` | GET | 获取累计奖励 | `pool_type` |
-| `/api/user_data` | GET | 获取用户数据 | 无 |
-| `/api/clear_data` | POST | 清空用户数据 | 无 |
-| `/api/recharge` | POST | 充值操作 | `amount` |
-| `/api/exchange` | POST | 资源兑换 | `from`, `to`, `amount` |
-| `/api/history` | GET | 获取历史记录 | `pool_type` |
-| `/api/pool_info` | GET | 获取卡池信息 | `pool_type` |
-
-#### 核心模块关键方法
-
-- `CharGacha.attempt()`: 角色卡池单次抽卡
-- `WeaponGacha.attempt()`: 武器卡池单次申领
-- `GachaStrategy.terminate()`: 检查策略终止条件
-- `ScoringSystem.calculate_score()`: 计算综合评分（兼容旧版）
-- `ScoringSystem.calculate_raw_statistics()`: 计算原生统计量
-- `ScoringSystem.calculate_comprehensive_score()`: 计算四维综合评分
-- `Scheduler.evaluate()`: 执行批量评估
-- `Scheduler.evaluate_multiple_strategies()`: 多策略批量评估
-
-#### 评分系统详解（新）
-
-新的评分系统采用四维评估框架，全面分析抽卡策略的多个维度：
-
-**1. 目标达成效用 (40%权重)**
-
-- 评估策略达成目标的能力
-- 使用3:2:1价值权重：当期UP(50%)、往期UP(33%)、常驻6星(17%)
-- 核心公式：U(S) = 0.5·P₁(S) + 0.333·P₂(S) + 0.167·P₃(S)
-
-**2. 资源利用效率 (20%权重)**
-
-- 评估资源使用的经济性
-- 基于期望总资源消耗与期望剩余资源
-- 核心公式：E(S) = (1 - E[K_total(S)] / E[K_total(S)] + E[R_remain(S)]) × 20%
-
-**3. 风险控制能力 (25%权重)**
-
-- 评估策略的抗风险能力
-- 基于核心目标下行风险、目标达成数变异系数、零收益概率
-- 核心公式：R(S) = (1 - P_down(S)) × (1 - CV(S)) × (1 - P_zero(S)) × 25%
-
-**4. 策略灵活性 (15%权重)**
-
-- 评估策略的调整潜力
-- 基于期望可灵活调配资源
-- 核心公式：F(S) = min(1.0, E[R_flex(S)] / K_total) × 15%
-
-**双模式支持**
-
-- **相对模式**：基于策略组内相对表现评分，适合同组策略对比
-- **绝对模式**：基于绝对阈值评分，适合跨组策略评估
-
-**使用示例：**
-
-```python
-from scheduler import ScoringSystem, Scheduler
-import numpy as np
-
-# 1. 多策略批量评估
-scheduler = Scheduler(config_dir="configs", arrange="arrange1")
-
-# 定义多种策略
-strategies = [
-    [DOSSIER, OPRT],           # 策略1：情报书+6星角色
-    [UP_OPRT],                 # 策略2：专注UP角色
-    [URGENT, DOSSIER, UP_OPRT] # 策略3：综合策略
-]
-
-# 执行多策略评估
-results = scheduler.evaluate_multiple_strategies(
-    strategies=strategies,
-    scale=5000,
-    workers=4,
-    mode="relative"  # 使用相对模式评分
-)
-
-# 2. 原生统计量计算
-strategy_results = [...]  # 抽卡结果数据
-raw_stats = ScoringSystem.calculate_raw_statistics(strategy_results)
-
-# 3. 四维综合评分计算
-comprehensive_scores = ScoringSystem.calculate_comprehensive_score(
-    raw_stats_list=[raw_stats],
-    mode="relative",
-    weights=None  # 使用默认权重
-)
-
-print(f"目标达成效用: {comprehensive_scores[0]['u_score']*100:.1f}%")
-print(f"资源利用效率: {comprehensive_scores[0]['e_score']*100:.1f}%")
-print(f"风险控制能力: {comprehensive_scores[0]['r_score']*100:.1f}%")
-print(f"策略灵活性: {comprehensive_scores[0]['f_score']*100:.1f}%")
-print(f"综合评分: {comprehensive_scores[0]['total_score']:.1f}")
-print(f"等级: {comprehensive_scores[0]['grade']}")
-```
-
-**有效性验证模块**
-系统内置三类验证功能：
-
-1. **概率分布验证**：确保核心概率与期望值一致
-2. **评分一致性验证**：确保相对/绝对模式评分逻辑一致
-3. **统计量有效性验证**：确保原生统计量计算正确
-
-### 配置定制
-
-#### 配置文件结构
-
-```plaintext
-configs/
-├── arrangement           # 默认配置顺序：config_1 到 config_7
-├── arrange1             # 调度器专用配置顺序：config_3 到 config_7
-├── config_1/            # 配置集1
-│   ├── char_pool.json   # 角色卡池数据
-│   ├── weapon_pool.json # 武器卡池数据
-│   ├── gacha_rules.json # 抽卡规则配置
-│   └── constants.json   # 全局常量配置
-└── config_2/ ... config_7/  # 其他配置集
-```
-
-#### 关键配置项
-
-**`gacha_rules.json` - 抽卡规则**：
-
-```json
-{
-  "char": {
-    "base_prob": {"6": 0.008, "5": 0.08, "4": 0.912},
-    "guarantee_5star_plus_draw": 10,      # 5星保底抽数
-    "guarantee_6star_draw": 85,           # 6星保底抽数
-    "6star_prob_increase_start": 65,      # 概率递增起始抽数
-    "prob_increase": 0.05,                # 每次递增概率
-    "up_guarantee_draw": 120,             # UP保底抽数
-    "quota_rule": {"6": 2000, "5": 200, "4": 20}
-  }
-}
-```
-
-### 开发规范
-
-#### 代码风格
-
-- 类名：大驼峰命名法（如 `CharGacha`）
-- 方法名：小驼峰命名法（如 `draw_once`）
-- 变量名：小驼峰命名法（如 `up_prob`）
-- 常量名：全大写下划线分隔（如 `DEFAULT_PRECISION`）
-
-#### 错误处理
-
-- 使用 try-except 捕获异常
-- 抛出有意义的异常信息
-- 提供详细的错误提示
-
-#### 性能优化
-
-- 使用批量随机数生成提升性能
-- 使用缓存减少文件IO操作
-- 使用高效的数据结构
-
-### 贡献指南
-
-1. **问题反馈**：在GitHub Issues中报告问题或建议
-2. **功能开发**：创建功能分支，遵循现有代码规范
-3. **测试要求**：确保修改不影响现有功能，运行测试
-4. **文档更新**：同步更新相关文档（README、AGENTS.md等）
-5. **提交规范**：使用清晰的提交信息，说明变更内容
-
-### 注意事项
-
-1. **随机种子**：`BatchRandom`支持种子复现，便于测试和调试
-2. **配置缓存**：`GlobalConfigLoader`使用缓存机制，避免重复读取文件
-3. **资源兑换**：衍质源石可兑换为嵌晶玉(1:75)或武库配额(1:25)
-4. **保底优先级**：武器池保底优先级：UP保底 > 6星保底 > 5星保底
-5. **评分系统**：四维评分体系（目标达成效用40%、资源利用效率20%、风险控制能力25%、策略灵活性15%），支持相对/绝对双模式
-6. **评分等级**：S级(90-100)、A级(80-89)、B级(70-79)、C级(60-69)、D级(50-59)、E级(0-49)
-7. **价值权重**：使用3:2:1权重评估角色价值（当期UP:往期UP:常驻6星）
-
----
-
-## 更新日志
-
-### 2026年2月9日 1.0.0 基本稳定版本发布
-
-- 初始版本发布，实现基本抽卡功能
-- 支持角色和武器卡池模拟
-- 提供控制台客户端交互
-
-### 2026年2月24日 1.1.0 抽卡核心优化
-
-- 优化**随机数生成**，支持**复现**抽卡结果
-- 新增 `demo.py` 统计：“当期UP6星角色满潜（抽中角色数量 + 信物数量 = 6）所需要的抽数”
-- 新增 `examination.py` 用于**概率验证**
-
-### 2026年3月1日 2.0.0 Web 端抽卡模拟上线
-
-- Flask Web服务器上线，支持完整的用户管理系统
-- 提供Web界面交互，访问 <http://localhost:5000>
-- 实现用户数据持久化存储（`users/`目录）
-- 支持角色/武器抽卡、充值、兑换、历史记录等完整功能
-
-### 2026年3月5日 2.1.0 文档体系完善与架构优化
-
-- **文档体系重构**：
-  - 重写AGENTS.md为AI助手专用文档，提供结构化项目索引
-  - 增强README.md文档，新增技术架构详解、快速入门指南、开发者指南
-  - 建立完整文档引用体系，便于AI助手和开发者查阅
-- **系统架构优化**：
-  - 明确系统不再添加新卡池类型，保持角色/武器双卡池设计
-  - 完善策略调度系统（`scheduler.py`）文档说明
-  - 优化配置文件结构说明
-- **代码质量提升**：
-  - 统一文档版本标识（2.0.0 → 2.1.0）
-  - 完善故障排除和注意事项说明
-  - 更新贡献指南和开发规范
-
-### 2026年3月10日 2.2.0 科学评分系统升级
-
-- **四维评分系统**：
-  - 新增四维评分体系：目标达成效用(40%)、资源利用效率(20%)、风险控制能力(25%)、策略灵活性(15%)
-  - 支持双模式评分：相对模式（同组对比）、绝对模式（跨组对比）
-  - 使用3:2:1权重评估角色价值：当期UP(50%)、往期UP(33%)、常驻6星(17%)
-- **原生统计量计算**：
-  - 新增`NativeStatistics`数据结构，包含四类原生统计量
-  - 实现分级目标达成概率、资源消耗期望、风险控制指标、灵活性指标计算
-- **多策略批量评估**：
-  - 新增`Scheduler.evaluate_multiple_strategies()`方法
-  - 支持同时对多个策略进行评分对比分析
-- **有效性验证模块**：
-  - 新增概率分布验证功能
-  - 新增评分一致性验证功能
-  - 新增统计量有效性验证功能
-- **API完善**：
-  - 新增`ScoringSystem.calculate_raw_statistics()`方法
-  - 新增`ScoringSystem.calculate_comprehensive_score()`方法
-  - 保持向后兼容性，旧版`calculate_score()`方法继续支持
-
-### 未来发展方向
-
-- **Web端功能增强**：
-  - 支持读取历史抽卡记录
-  - 支持导入已有角色
-  - 支持获取重复角色的信物，可兑换为【保障配额】或【终点配额】
-- **统计分析扩展**：
-  - 集成更多数据可视化选项
-  - 添加数据导出功能（CSV、Excel格式）
-- **性能优化**：
-  - 优化大规模批量模拟性能
-  - 考虑数据库支持提升用户数据访问效率
-
----
-
-## 致谢
-
-- 上海鹰角网络科技有限公司
-
-- 《明日方舟：终末地》
-
-- ~~给我出馊主意的~~迷迭香厨、白毛猫娘：**宁宁**
-
-- 和我一起讨论的老牌舟友：**LoyaLTY**
-
-- 所有支持我、给予我灵感的开发者、视频创作者
-
-> **注**：以上排名不分先后
-
----
-
-> （注：文档及代码部分内容可能由 AI 生成）
+## 需要注意的实现事实
+
+- 当前代码没有独立的“重复角色 / 重复武器兑换”系统实现，重复结果只会更新收藏与资源计数
+- `configs/config_1` 中的当前示例卡池名为 `「熔火灼痕」` 和 `「熔铸申领」`
+- `gacha_rules.json` 仅保存当期差异；默认规则来自 `configs/constants.json`
+- 旧版 `legacy_magic` 策略不再被协议层接受

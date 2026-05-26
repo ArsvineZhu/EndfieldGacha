@@ -1,0 +1,15 @@
+{
+  "schema_version": "char-banner",
+  "pool_name": "「热烈色彩」",
+  "open_time": "2026-02-24 12:00:00 (UTC+8)",
+  "close_time": "2026-03-12 06:00:00 (UTC+8)",
+  "featured": {
+    "current_up": [
+      "伊冯"
+    ],
+    "past_up": [
+      "洁尔佩塔",
+      "莱万汀"
+    ]
+  }
+}

@@ -1,117 +1,254 @@
-# 专有名词中英对照
+# 开发者参考
 
-## （1）角色相关
+**更新日期**：2026-05-26
 
-- 角色：统一称为【干员】，英文对应【Operator】
-- 当期UP干员：【洁尔佩塔（Gilberta）】，为【轻飘飘的信使（The Floaty Messenger）】特许寻访卡池的概率提升6★干员
-- 重复干员规则：重复获取的干员将转化为对应【信物（Token）】，如【Gilberta's Token（洁尔佩塔的信物）】，信物可兑换为对应配额资源
-- 全卡池可获取干员中英对照：
+本文档以当前代码实现为准，记录仓库里真正存在的模块、接口和配置。
 
-  | 星级 | 中文名称 | 标准英文名称 |
-  | ---- | ---- | ---- |
-  | 6★ | 洁尔佩塔 | Gilberta |
-  | 6★ | 莱万汀 | Laevatain |
-  | 6★ | 伊冯 | Yvonne |
-  | 6★ | 余烬 | Ember |
-  | 6★ | 黎风 | Lifeng |
-  | 6★ | 艾尔黛拉 | Ardelia |
-  | 6★ | 别礼 | Last Rite |
-  | 6★ | 骏卫 | Pogranichnik |
-  | 5★ | 佩丽卡 | Perlica |
-  | 5★ | 弧光 | Arclight |
-  | 5★ | 艾维文娜 | Avywenna |
-  | 5★ | 大潘 | Da Pan |
-  | 5★ | 陈千语 | Chen Qianyu |
-  | 5★ | 狼卫 | Wulfgard |
-  | 5★ | 赛希 | Xaihi |
-  | 5★ | 昼雪 | Snowshine |
-  | 5★ | 阿列什 | Alesh |
-  | 4★ | 秋栗 | Akekuri |
-  | 4★ | 卡契尔 | Catcher |
-  | 4★ | 埃特拉 | Estella |
-  | 4★ | 萤石 | Fluorite |
-  | 4★ | 安塔尔 | Antal |
+## 1. 运行入口
 
-## （2）卡池相关
+| 命令 | 说明 |
+|---|---|
+| `uv run run.py` | 显示统一帮助 |
+| `uv run run.py demo` | 抽卡演示与统计 |
+| `uv run run.py eval` | 策略评估 |
+| `uv run run.py exam` | 概率验证 |
+| `uv run run.py server` | 启动 Web 服务 |
+| `uv run server.py --dev` | Web 服务开发模式 |
+| `uv run server.py --waitress --port 5000` | Waitress 生产模式 |
 
-### 2.1 角色卡池
+## 2. 核心模块
 
-- 通用名称：【特许寻访】，英文对应【Chartered Headhunting】
-- 当期专属卡池：【轻飘飘的信使（The Floaty Messenger）】属于【特许寻访】
-- 通用常驻卡池：【基础寻访（Basic Headhunting）】
+### `gacha_core/`
 
-### 2.2 武器卡池
+| 符号 | 说明 |
+|---|---|
+| `BatchRandom` | 批量随机数生成器，支持种子复现 |
+| `GachaResult` | 抽卡结果数据类 |
+| `Counters` | 抽卡状态计数器 |
+| `GlobalConfigLoader` | 读取 `constants.json`、`gacha_rules.json`、`char_pool_base.json`、`char_banner.json`、`weapon_pool_base.json`、`weapon_banners.json` |
+| `CharGacha` | 角色池抽卡逻辑 |
+| `WeaponGacha` | 武器池申领逻辑 |
 
-- 通用名称：【武库申领】，英文对应【Arsenal Issue】
-- 当期专属卡池：【迅行申领（Express Delivery Issue）】、【熔铸申领（Smelting Forge Issue）】属于【武库申领（Arsenal Issue）】
-- 当期UP武器：【使命必达（Delivery Guaranteed）】，为【迅行申领】卡池的概率提升6★武器
-- 全卡池可获取6★武器中英对照：
+### `CharGacha`
 
-  | 中文名称 | 标准英文名称 |
-  | ---- | ---- |
-  | 使命必达 | Delivery Guaranteed |
-  | 骑士精神 | Chivalric Virtues |
-  | 遗忘 | Oblivion |
-  | 楔子 | Wedge |
-  | 热熔切割器 | Thermite Cutter |
-  | 白夜新星 | White Night Nova |
-  | 典范 | Exemplar |
+```python
+char_gacha = CharGacha(config=None, seed=-1, size=1024)
+result = char_gacha.attempt(disable_guarantee=False)
+rewards = char_gacha.get_accumulated_reward()
+```
 
-> 注：【轻飘飘的信使】、【迅行申领】、【Express Delivery Issue】、【Smelting Forge Issue】是对应当期UP内容的专属卡池，对于通用的卡池，不应使用此专有名称。
+- `attempt()` 返回单个 `GachaResult`
+- `disable_guarantee=True` 可用于分布统计
+- 计数器字段：
+  - `total`
+  - `no_6star`
+  - `no_5star_plus`
+  - `no_up`
+  - `guarantee_used`
+  - `urgent_used`
 
-## （3）抽取、获取相关
+### `WeaponGacha`
 
-### 3.1 【特许寻访】抽取规则
+```python
+weapon_gacha = WeaponGacha(config=None, seed=-1, size=1024)
+results = weapon_gacha.attempt(disable_guarantee=False)
+rewards = weapon_gacha.get_accumulated_reward()
+```
 
-- “一抽”称为【一次寻访】，英文对应【1 headhunting attempt】，可【获取】1位干员
-- 抽取操作表述：单抽为【Headhunt×1】，10连抽为【Headhunt×10】
-- 额外抽取机制：【加急招募（Urgent Recruitment）】，完成指定寻访次数可获取免费10连寻访机会，该次抽取保底1位5★及以上干员
-- 累计寻访奖励：【寻访情报书（Headhunting Dossier）】，累计指定寻访次数可获取，可兑换对应卡池的10连寻访凭证
-- 累计寻访保底奖励：【信物赠礼（Token Tribute）】，每累计指定寻访次数，可额外获取当期UP干员的信物×1
+- `attempt()` 返回 `List[GachaResult]`
+- 每次申领固定 10 抽
+- 计数器字段：
+  - `total`
+  - `no_6star`
+  - `no_up`
+  - `guarantee_used`
 
-### 3.2 【武库申领】抽取规则
+### `GlobalConfigLoader`
 
-- “一抽（10连）”称为【一次申领】，英文对应【1 issue attempt】，可【获取】10件武器，单次申领保底至少1件5★或以上武器
-- 抽取操作表述：【Arsenal Issue×10】
-- 保底术语：【Guarantee（保底）】，包含常驻6★保底、UP 6★保底机制
-- 累计申领奖励：【武库赠礼（Arms Offering）】、【迅行赠礼（Express Delivery Tribute）】，累计指定申领次数可交替获取，可分别兑换【补充武库箱·迅行（Arms OC: Express Delivery）】、当期UP 6★武器【使命必达（Delivery Guaranteed）】
-- 武器自选道具：【补充武库箱·迅行（Arms OC: Express Delivery）】，可在指定6★武器中自选1件的道具
+| 方法 | 说明 |
+|---|---|
+| `get_pool_data(pool_type)` | 读取角色/武器卡池数据（两类卡池都由 base pool + banner 配置组装） |
+| `get_rule_config(pool_type)` | 读取抽卡规则，并转换数值类型 |
+| `get_pool_info(pool_type)` | 返回当前配置集的卡池名和时间信息 |
+| `get_text(key)` | 返回硬编码文案和卡池名 |
+| `get_default_precision()` | 返回 `default_precision` |
 
-### 3.3 通用概率与统计术语
+默认配置路径来自 `configs/arrangement` 的第一行；如果文件不存在，则回退到 `configs/config_1`。
 
-- “UP”：统一称为【概率提升】，英文对应【Rate-UP】
-- 【Base drop rate】：基础概率，指卡池内对应星级物品的基础获取概率
-- 【Drop Rates & Guarantee Rules】：概率与保底规则说明，卡池核心抽取规则
-- 【attempt(s)】：抽取次数，用于统计寻访/申领的累计次数
+## 3. 策略与评分
 
-## （4）基本资源
+### `scheduler/__init__.py`
 
-### 4.1 原有资源标准中英文与补充说明
+对外导出：
 
-| 中文名称 | 标准英文名称 | 核心规则补充 |
-| ---- | ---- | ---- |
-| 特许寻访凭证 | Chartered HH Permit | 1张可进行1次特许寻访单抽 |
-| 灵动信使寻访凭证 | Messenger Express HH Permit | 当期【轻飘飘的信使】卡池专属单抽寻访凭证，1张可进行1次该卡池特许寻访单抽 |
-| 灵动信使十连凭证 | Messenger Express 10×Permit | 当期【轻飘飘的信使】卡池专属10连寻访凭证，1张可进行1次该卡池特许寻访10连抽 |
-| 嵌晶玉 | Oroberyl | 500个可进行1次特许寻访单抽 |
-| 武库配额 | Arsenal Ticket | 1980个可进行1次武库申领10连抽取；获取4★/5★/6★干员可获得对应数量的武库配额 |
-| 衍质源石 | Origeometry | 1个可单向兑换为75个嵌晶玉；1个可单向兑换为25个武库配额 |
+- `Scheduler`
+- `StrategyRuleSet`
+- `StrategyCondition`
+- `StrategyRuleEngine`
+- `StrategyProtocolAdapter`
+- `STRATEGY_PROTOCOL_VERSION`
+- `ScoringSystem`
+- `ScoringPreferences`
+- `StrategyGoal`
+- `StrategyTrace`
+- `StageTrace`
+- `StrategyScoreReport`
+- `BaselineEstimator`
+- `Resource`
+- `LogMapConfig`
 
-### 4.2 新增资源术语
+### `scheduler/strategy_rules.py`
 
-| 中文名称 | 标准英文名称 | 核心规则补充 |
-| ---- | ---- | ---- |
-| 集成配额 | AIC Quota | 获取5★/6★武器可获得，可在采购中心-配额兑换所中使用 |
-| 终点配额 | Endpoint Quota | 重复获取满潜6★干员可转化获得，可在采购中心-配额兑换所中使用 |
-| 保障配额 | Bond Quota | 重复获取未满潜干员可转化获得，可在采购中心-配额兑换所中使用 |
+#### 结构化节点
 
-## （5）系统功能专有名词
+- `StrategyCondition(kind, operator, value)`
+- `StrategyRuleSet(match="all"|"any", conditions=[...], version="strategy-structured", tags=[])`
 
-- 【采购中心（Acquisition Center）】：游戏内资源兑换、礼包购买的核心系统，包含子模块：
-  - 帝江精选（Dijiang Select）
-  - 源石兑换（Originium Exchange）
-  - 礼包（Bundles）
-  - 武库交易所（Arsenal Exchange）
-  - 配额兑换所（Quota Exchange）
-  - 信用商店（Credit Store）
-- 【贵重品库（Valuables Stash）】：游戏内道具存放系统
+#### 当前支持的字段
+
+- `draws`
+- `current_up`
+- `six_star_count`
+- `resource_left`
+- `potential`
+- `hard_pity`
+- `urgent`
+- `dossier`
+- `soft_pity`
+- `up_oprt`
+- `oprt`
+
+#### 兼容别名
+
+- `draw_count` -> `draws`
+- `urgent_recruitment` -> `urgent`
+- `headhunting_dossier` -> `dossier`
+- `current_up_count` -> `current_up`
+- `up_operator_count` -> `current_up`
+- `six_star_obtained_count` -> `six_star_count`
+
+### `scheduler/strategy_protocol.py`
+
+- 协议版本固定为 `strategy-protocol-v1`
+- 顶层 `kind` 目前只接受 `structured`
+- `legacy_magic` 顶层载荷会被拒绝
+- `list` 类型的旧策略输入会被拒绝
+- `Scheduler.banner(...)` 和 `Scheduler.evaluate_multiple_strategies(...)` 会自动调用适配层
+
+### `scheduler/scoring.py`
+
+| 符号 | 说明 |
+|---|---|
+| `SCORING_VERSION` | 当前为 `2.3.0` |
+| `SCORING_CACHE_VERSION` | 当前为 `score-cache-v1` |
+| `Resource` | 抽卡资源模型 |
+| `StrategyGoal` | AND 目标定义 |
+| `StageTrace` | 单阶段轨迹 |
+| `StrategyTrace` | 单次完整策略轨迹 |
+| `ScoringPreferences` | 评分偏好参数 |
+| `StrategyScoreReport` | 评分输出结果 |
+| `BaselineEstimator` | 基准价值估计器 |
+| `ScoringSystem` | 评分主系统 |
+
+#### 当前实现事实
+
+- `ScoringSystem.score_traces(...)` 至少需要一个目标
+- 当前评分只面向角色池，不纳入武器池
+- `BaselineEstimator` 默认缓存文件是 `logs/scoring_cache.json`
+- 近邻插值使用三次样条
+- `ScoringPreferences` 支持历史 UP 名单、已有潜能记录和问卷状态
+
+### `scheduler/engine.py`
+
+- `Scheduler.banner(...)`：添加单个计划
+- `Scheduler.banners(...)`：批量添加计划
+- `Scheduler.evaluate(...)`：执行单策略评估
+- `Scheduler.evaluate_multiple_strategies(...)`：对比多个策略
+- `Scheduler.initial_standard_draws()`：把当前资源折算成标准角色池抽数
+
+当前调度器使用的计划对象是 `BannerPlan`，而不是旧的元组格式。
+
+## 4. Web 服务
+
+### `server/`
+
+- `server/app.py`：Flask 应用工厂
+- `server/routes.py`：路由
+- `server/resource.py`：充值、兑换和资源消耗
+- `server/user.py`：用户数据读写
+
+### Web 事实
+
+- 用户数据保存在 SQLite 数据库 `userdata.db`
+- 用户 ID 由 IP + User-Agent 生成 MD5
+- 默认用户资源包括：
+  - `chartered_permits`
+  - `oroberyl`
+  - `arsenal_tickets`
+  - `origeometry`
+  - `urgent_recruitment`
+  - `urgent_used`
+- 充值档位只接受 `6 / 30 / 98 / 198 / 328 / 648`
+- 兑换只支持 `origeometry -> oroberyl` 或 `origeometry -> arsenal_tickets`
+
+## 5. 工具包
+
+### `tools/demo.py`
+
+| 方法 | 默认值 | 说明 |
+|---|---|---|
+| `demo_char_draw(draw_times=5)` | `5` | 角色池演示 |
+| `demo_weapon_apply(apply_times=1)` | `1` | 武器池演示 |
+| `stats_char_quota(draw_times=50000, gragh=False)` | `50000` | 角色池配额分布 |
+| `stats_weapon_quota(draw_times=50000, gragh=False)` | `50000` | 武器池配额分布 |
+| `stats_char_up_prob(test_times=50000, gragh=False, limit=0)` | `50000` | 抽到 UP 角色所需抽数 |
+| `stats_char_potential(draw_times=50000, gragh=False)` | `50000` | 满潜所需抽数 |
+
+### `tools/evaluation.py`
+
+- 默认读取 `tools/evaluation_examples.json`
+- 支持 `shared`、`scenarios`、`run_order`
+- 每个场景可以覆盖资源、计数器、权重、目标、模拟规模和 worker 数
+
+### `tools/examination.py`
+
+- 通过关闭保底机制验证纯概率分布
+- 角色池和武器池都使用当前配置文件
+
+## 6. 配置目录
+
+### 实际存在的配置文件
+
+- `configs/constants.json`
+- `configs/char_pool_base.json`
+- `configs/config_*/char_banner.json`
+- `configs/weapon_pool_base.json`
+- `configs/config_*/weapon_banners.json`
+- `configs/config_*/gacha_rules.json`
+- `configs/arrangement`
+- `configs/arrange1`
+
+### 重要事实
+
+- `gacha_rules.json` 以覆盖方式合并到 `constants.json`
+- `constants.json.banner_defaults` 为角色池和武器池提供共享 banner 默认值
+- `config_1` 是默认示例配置
+- `arrange1` 用于调度器默认顺序
+- `arrangement` 的第一行决定默认加载目录
+
+## 7. 术语对照
+
+| 代码术语 | 含义 |
+|---|---|
+| `chartered_permits` | 特许寻访凭证 |
+| `oroberyl` | 嵌晶玉 |
+| `arsenal_tickets` | 武库配额 |
+| `origeometry` | 衍质源石 |
+| `urgent_recruitment` | 加急招募 |
+| `guarantee_used` | 当期硬保底是否已消耗 |
+
+## 8. 维护建议
+
+- 新增文档前先确认代码中是否真的存在对应接口
+- 旧的游戏机制描述如果无法在代码里找到实现，应写成“未实现”而不是“已实现”
+- 更新文档后，至少执行一次 `ruff`、`pyright` 和相关测试

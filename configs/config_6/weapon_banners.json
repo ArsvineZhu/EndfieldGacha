@@ -1,0 +1,20 @@
+{
+  "schema_version": "weapon-banners",
+  "default_banner_id": "main",
+  "banners": [
+    {
+      "id": "main",
+      "pool_name": "「行舟申领」",
+      "open_time": "2026-04-17 12:00:00 (UTC+8)",
+      "close_time": "2026-05-14 06:00:00 (UTC+8)",
+      "featured": {
+        "current_up": [
+          {
+            "name": "孤舟",
+            "type": "施术单元"
+          }
+        ]
+      }
+    }
+  ]
+}
