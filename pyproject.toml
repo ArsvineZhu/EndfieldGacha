@@ -1,0 +1,66 @@
+[project]
+name = "endfield-gacha"
+version = "2.2.2"
+description = "Arknights Endfield gacha simulation and strategy evaluation toolkit"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "flask",
+    "flask-cors",
+    "matplotlib",
+    "numpy",
+    "pillow",
+    "rcssmin",
+    "rich>=14.3.2",
+    "scipy",
+    "six",
+    "tqdm",
+    "waitress",
+]
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.400",
+    "pytest",
+    "ruff>=0.12.0",
+]
+
+[tool.uv]
+package = false
+default-groups = ["dev"]
+
+[tool.pytest.ini_options]
+testpaths = ["test"]
+python_files = ["test_*.py", "*_test.py"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+exclude = [
+    ".git",
+    ".venv",
+    "__pycache__",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
+[tool.ruff.lint.per-file-ignores]
+"test/**/*.py" = ["E402"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+[tool.pyright]
+pythonVersion = "3.10"
+include = ["core.py", "server", "scheduler", "tools"]
+exclude = [
+    "**/__pycache__",
+    "**/node_modules",
+    "**/.*",
+    ".venv",
+    "test",
+]
+typeCheckingMode = "basic"

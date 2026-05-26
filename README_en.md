@@ -24,7 +24,7 @@ A gacha system for *Arknights: Endfield*, including but not limited to statistic
 
 - **Python** 3.10+ (developed with 3.14.2)
 
-- Dependency Libraries (see requirements.txt for complete list):
+- Dependency Libraries (see pyproject.toml / uv.lock for complete list):
       - Flask, Flask-Cors, waitress (Web service)
       - numpy (core computation)
       - rich (terminal styling and progress display)
@@ -43,7 +43,7 @@ cd EndfieldGacha
 #### Install Dependencies
 
 ```bash
-pip install -r requirements.txt
+uv sync
 ```
 
 ### Project Structure
@@ -55,7 +55,8 @@ EndfieldGacha/
 ├── server.py                # Web service
 ├── scheduler/               # Strategy scheduling package
 │   ├── engine.py           # Scheduler main logic
-│   ├── strategy.py         # Magic-number strategy encoding
+│   ├── strategy_v2.py      # Structured strategy rules
+│   ├── strategy_protocol.py# Structured JSON protocol
 │   ├── scoring.py          # Resource and scoring system
 │   └── workers.py          # Multiprocess workers
 ├── tools/                   # Runnable tools
@@ -72,7 +73,7 @@ EndfieldGacha/
 └── ref.md                   # Developer reference
 ```
 
-**Quick run**: `python run.py [demo|evaluation|examination|server]`
+**Quick run**: `uv run run.py [demo|eval|exam|server]`
 
 ---
 
@@ -374,3 +375,5 @@ Probability distribution:
 ---
 
 > Note: Parts of this document and code may be AI-generated. This document is translated based on the Chinese version and the comparison of in-game proper nouns; please refer to the Chinese version as the authoritative source. Due to the difficulty of cross-reference translation, the content of this English version may lag behind the latest updates of the Chinese version.
+
+

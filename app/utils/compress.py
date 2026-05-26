@@ -1,7 +1,11 @@
-import os
-import json
 import hashlib
+import json
+import os
+import shutil
 import subprocess
+import tempfile
+from typing import Any
+
 import rcssmin
 
 STATIC_DIR = "app/static"
@@ -14,15 +18,21 @@ def get_file_hash(content):
 
 
 def obfuscate_js(input_path, output_path):
-    try:
-        # 确保输出目录存在
-        output_dir = os.path.dirname(output_path)
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-
-        # 使用terser进行压缩和轻度混淆
-        cmd = [
-            "npx",
+    terser_bin = shutil.which("terser") or shutil.which("terser.cmd") or "terser"
+    npx_bin = shutil.which("npx") or shutil.which("npx.cmd") or "npx"
+    commands = [
+        [
+            terser_bin,
+            input_path,
+            "--output",
+            output_path,
+            "--compress",
+            "--mangle",
+            "--toplevel",
+        ],
+        [
+            npx_bin,
+            "--yes",
             "terser",
             input_path,
             "--output",
@@ -30,35 +40,98 @@ def obfuscate_js(input_path, output_path):
             "--compress",
             "--mangle",
             "--toplevel",
-        ]
+        ],
+    ]
 
-        result = subprocess.run(
-            cmd, check=True, capture_output=True, text=True, shell=True
-        )
-        return True
-    except subprocess.CalledProcessError as e:
-        stderr_output = (
-            e.stderr
-            if isinstance(e.stderr, str)
-            else (e.stderr.decode("utf-8", errors="ignore") if e.stderr else str(e))
-        )
-        stdout_output = (
-            e.stdout
-            if isinstance(e.stdout, str)
-            else (e.stdout.decode("utf-8", errors="ignore") if e.stdout else "")
-        )
-        print(f"JS压缩失败: {stderr_output}")
-        if stdout_output:
-            print(f"标准输出: {stdout_output}")
-        print("提示: 请确保已安装Node.js，然后运行: npm install -g terser")
+    try:
+        # 确保输出目录存在
+        output_dir = os.path.dirname(output_path)
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+        last_error = None
+        for cmd in commands:
+            try:
+                subprocess.run(
+                    cmd,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                    shell=False,
+                    timeout=60,
+                )
+                return True
+            except FileNotFoundError as e:
+                last_error = e
+                continue
+            except subprocess.TimeoutExpired as e:
+                last_error = e
+                print(f"JS压缩超时（60s）: {' '.join(cmd)}")
+                continue
+            except subprocess.CalledProcessError as e:
+                last_error = e
+                stderr_output = (
+                    e.stderr
+                    if isinstance(e.stderr, str)
+                    else (
+                        e.stderr.decode("utf-8", errors="ignore")
+                        if e.stderr
+                        else str(e)
+                    )
+                )
+                stdout_output = (
+                    e.stdout
+                    if isinstance(e.stdout, str)
+                    else (
+                        e.stdout.decode("utf-8", errors="ignore")
+                        if e.stdout
+                        else ""
+                    )
+                )
+                print(f"JS压缩失败: {stderr_output}")
+                if stdout_output:
+                    print(f"标准输出: {stdout_output}")
+                continue
+
+        print("提示: 请确保已安装Node.js；或预装 terser（npm i -g terser）")
+        if last_error:
+            print(f"最后错误: {last_error}")
         return False
-    except FileNotFoundError:
-        print("terser 未找到，请先安装Node.js，然后运行: npm install -g terser")
+    except Exception as e:
+        print(f"JS压缩异常: {e}")
         return False
+
+
+def minify_js_file(input_path):
+    """返回 JS 压缩结果；失败时返回原始内容。"""
+    with open(input_path, "r", encoding="utf-8") as f:
+        original_content = f.read()
+
+    temp_fd, temp_path = tempfile.mkstemp(suffix=".js")
+    os.close(temp_fd)
+    try:
+        success = obfuscate_js(input_path, temp_path)
+        if not success or not os.path.exists(temp_path):
+            return False, original_content
+        with open(temp_path, "r", encoding="utf-8") as f:
+            return True, f.read()
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
 
 
 def compress_css(content):
     return rcssmin.cssmin(content)
+
+
+def ensure_text(value: Any) -> str:
+    """将压缩输出统一转换为 str，便于类型检查与文件写入。"""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, memoryview):
+        return value.tobytes().decode("utf-8")
+    if isinstance(value, (bytes, bytearray)):
+        return bytes(value).decode("utf-8")
+    return str(value)
 
 
 def cleanup_old_files(file_dir, name, ext, current_hash):
@@ -92,47 +165,50 @@ def process_js_file(file_path, manifest, existing_manifest=None):
     file_name = os.path.basename(file_path)
     name, ext = os.path.splitext(file_name)
 
-    # 计算当前文件的哈希值
+    # 计算当前源码哈希；manifest 仍记录源码，便于判断源文件是否变更
     current_hash = get_file_hash(content)
-    hashed_name = f"{name}.{current_hash}{ext}"
+    minify_success, output_content = minify_js_file(file_path)
+    output_hash = get_file_hash(output_content)
+    hashed_name = f"{name}.{output_hash}{ext}"
     output_path = os.path.join(file_dir, hashed_name)
     manifest_key = f"js/{file_name}"
 
-    # 检查是否已有相同哈希的文件
+    # 检查是否已有相同源码哈希且产物内容正确
     if existing_manifest and manifest_key in existing_manifest:
         existing_entry = existing_manifest[manifest_key]
-        # 如果是字典格式，检查哈希值
         if isinstance(existing_entry, dict):
-            if existing_entry.get("hash") == current_hash and os.path.exists(
-                os.path.join(STATIC_DIR, existing_entry["path"])
+            existing_output_path = os.path.join(STATIC_DIR, existing_entry["path"])
+            if (
+                existing_entry.get("hash") == current_hash
+                and os.path.exists(existing_output_path)
+                and open(existing_output_path, "r", encoding="utf-8").read() == output_content
             ):
-                manifest[manifest_key] = existing_entry
+                manifest[manifest_key] = {"hash": current_hash, "path": f"js/{hashed_name}"}
                 print(f"JS文件未修改，跳过: {file_path}")
                 return True
-        # 如果是字符串格式（旧版本），检查路径中是否包含哈希
         elif isinstance(existing_entry, str):
-            if current_hash in existing_entry and os.path.exists(
-                os.path.join(STATIC_DIR, existing_entry)
-            ):
-                manifest[manifest_key] = {"hash": current_hash, "path": existing_entry}
+            existing_output_path = os.path.join(STATIC_DIR, existing_entry)
+            if os.path.exists(existing_output_path) and open(
+                existing_output_path, "r", encoding="utf-8"
+            ).read() == output_content:
+                manifest[manifest_key] = {"hash": current_hash, "path": f"js/{hashed_name}"}
                 print(f"JS文件未修改，跳过: {file_path}")
                 return True
 
     # 文件已修改，先清理旧文件
-    cleanup_old_files(file_dir, name, ext, current_hash)
+    cleanup_old_files(file_dir, name, ext, output_hash)
 
-    # 文件不存在或已修改，进行处理
-    if obfuscate_js(file_path, output_path):
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(output_content)
+
+    if minify_success:
         manifest[manifest_key] = {"hash": current_hash, "path": f"js/{hashed_name}"}
         print(f"JS压缩完成: {file_path} -> {output_path}")
         return True
-    else:
-        # 压缩失败则直接复制原内容到哈希文件名
-        with open(output_path, "w", encoding="utf-8") as f:
-            f.write(content)
-        manifest[manifest_key] = {"hash": current_hash, "path": f"js/{hashed_name}"}
-        print(f"JS压缩失败，使用原内容: {file_path} -> {output_path}")
-        return False
+
+    manifest[manifest_key] = {"hash": current_hash, "path": f"js/{hashed_name}"}
+    print(f"JS压缩失败，使用原内容: {file_path} -> {output_path}")
+    return False
 
 
 def process_css_file(file_path, manifest, existing_manifest=None):
@@ -147,11 +223,7 @@ def process_css_file(file_path, manifest, existing_manifest=None):
     current_hash = get_file_hash(content)
 
     # 压缩CSS
-    minified_content = compress_css(content)
-
-    # 确保内容是字符串类型
-    if isinstance(minified_content, (bytes, bytearray)):
-        minified_content = minified_content.decode("utf-8")
+    minified_content = ensure_text(compress_css(content))
 
     # 生成哈希文件名
     file_hash = get_file_hash(minified_content)

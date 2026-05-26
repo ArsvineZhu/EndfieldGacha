@@ -60,7 +60,7 @@ Every 10 pulls guarantees at least 1 5★ or higher operator:
 
 - If no 6★ operator obtained in first 65 pulls, 6★ probability increases by 5% per pull starting from pull 66
 - 6★ Probability = Base Probability + (Current Pull - 65) * 5%
-- When probability increases, 4★ probability is reduced first, 5★ probability remains 8% unchanged
+- When probability increases, the remaining probability is remapped proportionally using the base 5★ / 4★ ratio
 - Pity counter is inherited across all Chartered Headhunting banners
 
 #### 3. 6★ Pity (Cross-banner inherited)
@@ -214,7 +214,7 @@ Applies to all weapon acquisition methods (claim, events, exchange, etc.):
 
 ## Implementation Notes
 
-- All probability calculations use `Decimal` high-precision type to avoid floating-point errors
+- Configuration probabilities are parsed with `Decimal`; runtime sampling uses precomputed thresholds for consistency and performance
 - Random number generation uses batch pre-generation mechanism, supports seed reproduction function
 - Pity judgment order is strictly executed according to priority to ensure compliance with game design expectations
 - ✅ Implemented: Core gacha logic, all pity mechanisms, quota rewards, accumulated rewards

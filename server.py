@@ -5,10 +5,10 @@ Web 服务器入口
 使用 server 包提供的应用工厂创建 Flask 应用
 """
 
-import os
-import sys
 import argparse
-from server import create_app, compress_static_files
+import os
+
+from server import compress_static_files, create_app
 
 
 def is_reloader_process():

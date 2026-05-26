@@ -5,24 +5,24 @@ API 路由模块
 提供所有 API 端点的路由处理函数
 """
 
-from flask import render_template, request, jsonify, session
-from datetime import datetime
 import json
+from datetime import datetime
 
-from core import CharGacha, WeaponGacha, GlobalConfigLoader
-from .user import (
-    get_or_create_current_user,
-    save_user,
-    reset_user_data,
-)
+from flask import jsonify, render_template, request, session
+
+from core import CharGacha, GlobalConfigLoader, WeaponGacha
+
 from .resource import (
-    process_recharge,
-    process_exchange,
     consume_char_gacha_resources,
     consume_weapon_gacha_resources,
-    update_last_visit,
+    process_exchange,
+    process_recharge,
 )
-
+from .user import (
+    get_or_create_current_user,
+    reset_user_data,
+    save_user,
+)
 
 # 全局配置实例
 DEFAULT_CONFIG = GlobalConfigLoader("configs/config_1")
@@ -236,7 +236,7 @@ def create_routes(app):
                                         break
                                 if weapon_type:
                                     break
-                        except:
+                        except Exception:
                             pass
 
                         user_info["collection"]["weapons"][result.name] = {
@@ -326,11 +326,11 @@ def create_routes(app):
         # 创建新的 CharGacha 实例（不计入先前卡池的保底计数）
         urgent_gacha = CharGacha(DEFAULT_CONFIG)
 
-        # 执行 10 连抽
+        # 执行 10 连抽（独立计数，但保底机制在这 10 抽内正常生效）
         results = []
         for _ in range(10):
             current_draw = urgent_gacha.counters.total + 1  # 当前抽数（从1开始）
-            result = urgent_gacha.attempt(disable_guarantee=True)
+            result = urgent_gacha.attempt()
             results.append(
                 {
                     "name": result.name,
@@ -595,7 +595,7 @@ def create_routes(app):
                 if isinstance(entry, dict):
                     return entry["path"]
                 return entry
-            except:
+            except Exception:
                 # 如果无法加载manifest，返回原始文件名
                 return filename
 

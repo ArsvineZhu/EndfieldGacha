@@ -1,13 +1,9 @@
 # -*- coding: utf-8 -*-
-"""魔数编码策略与预定义常量。
+"""旧魔数编码策略存档。
 
-提供基于魔数编码的抽卡策略系统，支持复杂的条件组合和终止逻辑。
-
-主要功能：
-- 32位魔数编码策略定义
-- 多条件组合策略（AND/OR逻辑）
-- 预定义策略常量（URGENT, DOSSIER, UP_OPRT等）
-- 比较运算符常量（GT, LT, GE, LE）
+该模块仅为历史实现保留原始代码，不再参与当前前后端策略逻辑。
+现行策略系统统一使用 `scheduler.strategy_v2` 与 `scheduler.strategy_protocol`
+提供的结构化规则对象和 structured JSON 协议。
 """
 from typing import Any, Callable, Dict, List, Tuple
 
@@ -69,11 +65,11 @@ class GachaStrategy:
     _STOP_DEFAULT_PARAM: Dict[str, int] = {
         "URGENT": 30,
         "DOSSIER": 60,
-        "SOFT_PITY": 85,
+        "SOFT_PITY": 80,
         "UP_OPRT": 120,
         "HARD_PITY": 120,
         "POTENTIAL": 6,
-        "OPRT": 85,
+        "OPRT": 80,
     }
 
     GT = 0b00000001 << 16

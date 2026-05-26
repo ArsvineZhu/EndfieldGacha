@@ -2,23 +2,23 @@
 """统一入口：快速运行演示、策略评估、概率验证或启动 Web 服务。
 
 用法:
-    python run.py              # 显示帮助
-    python run.py demo         # 抽卡演示与统计
-    python run.py eval         # 策略评估
-    python run.py exam         # 概率分布验证
-    python run.py server       # 启动 Web 服务
+    uv run run.py              # 显示帮助
+    uv run run.py demo         # 抽卡演示与统计
+    uv run run.py eval         # 策略评估
+    uv run run.py exam         # 概率分布验证
+    uv run run.py server       # 启动 Web 服务
 """
-import sys
 import os
+import sys
 
 
 def _show_help():
     print(__doc__)
     print("快捷命令:")
-    print("  python run.py demo         - 抽卡演示（120抽角色 + 8次武器申领）")
-    print("  python run.py eval         - 策略评估（批量模拟多种策略）")
-    print("  python run.py exam         - 概率验证（验证卡池概率分布）")
-    print("  python run.py server       - 启动 Web 服务（http://localhost:5000）")
+    print("  uv run run.py demo         - 抽卡演示（120抽角色 + 8次武器申领）")
+    print("  uv run run.py eval         - 策略评估（批量模拟多种策略）")
+    print("  uv run run.py exam         - 概率验证（验证卡池概率分布）")
+    print("  uv run run.py server       - 启动 Web 服务（http://localhost:5000）")
 
 
 def main():
@@ -27,7 +27,6 @@ def main():
         return
 
     cmd = sys.argv[1].lower()
-    rest = sys.argv[2:]
 
     if cmd == "demo":
         import runpy

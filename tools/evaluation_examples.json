@@ -1,0 +1,361 @@
+{
+  "default_scale": 2000,
+  "run_order": ["str0", "str1", "str_bad"],
+  "shared": {
+    "config_dir": "configs",
+    "arrange": "arrange1",
+    "workers": 16,
+    "resource": {
+      "chartered_permits": 2,
+      "oroberyl": 61000,
+      "arsenal_tickets": 6000,
+      "origeometry": 100
+    },
+    "initial_counters": {
+      "total": 5,
+      "no_6star": 42,
+      "no_5star_plus": 1,
+      "no_up": 5,
+      "guarantee_used": false,
+      "urgent_used": true
+    },
+    "preferences": {
+      "preset_name": "balanced",
+      "goal_weight": 0.35,
+      "utility_weight": 0.3,
+      "resource_weight": 0.2,
+      "risk_weight": 0.15,
+      "alpha": 1.0,
+      "current_up_value": 100.0,
+      "past_up_value": 70.0,
+      "normal_six_value": 45.0,
+      "five_star_value": 6.0,
+      "four_star_value": 1.0,
+      "utility_log_map": { "low": 0.6, "high": 1.4, "curve": 1.0 },
+      "utility_absolute_log_map": { "low": 0.6, "high": 1.4, "curve": 1.0 },
+      "utility_absolute_reference": 700.0,
+      "utility_mix_weight": 0.5,
+      "resource_log_map": { "low": 0.6, "high": 1.5, "curve": 1.0 },
+      "opportunity_reference": 60.0,
+      "risk_utility_weight": 0.6,
+      "tail_ratio": 0.1,
+      "future_resource_income": 0,
+      "baseline_samples": 64,
+      "baseline_seed": 20260525,
+      "past_up_character_names": [],
+      "owned_character_potentials": {},
+      "questionnaire_status": "pending",
+      "future_value_policy": "current"
+    },
+    "goals": [
+      { "kind": "current_up", "target": 1 }
+    ]
+  },
+  "scenarios": {
+    "str0": {
+      "banners": [
+        {
+          "rules": {
+            "protocol_version": "strategy-protocol-v1",
+            "kind": "structured",
+            "rule": {
+              "node_type": "group",
+              "match": "all",
+              "children": []
+            }
+          },
+          "check_in": false,
+          "use_shared_counters": true,
+          "resource_increment": {}
+        },
+        {
+          "rules": {
+            "protocol_version": "strategy-protocol-v1",
+            "kind": "structured",
+            "rule": {
+              "node_type": "group",
+              "match": "any",
+              "children": [
+                {
+                  "node_type": "group",
+                  "match": "all",
+                  "children": [
+                    { "node_type": "condition", "kind": "up_oprt", "operator": "==", "value": true },
+                    { "node_type": "condition", "kind": "draws", "operator": ">=", "value": 50 },
+                    { "node_type": "condition", "kind": "dossier", "operator": "==", "value": true }
+                  ]
+                },
+                {
+                  "node_type": "group",
+                  "match": "all",
+                  "children": [
+                    { "node_type": "condition", "kind": "urgent", "operator": "==", "value": true },
+                    { "node_type": "condition", "kind": "draws", "operator": "<", "value": 50 },
+                    { "node_type": "condition", "kind": "up_oprt", "operator": "==", "value": true }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "rules": {
+            "protocol_version": "strategy-protocol-v1",
+            "kind": "structured",
+            "rule": {
+              "node_type": "group",
+              "match": "any",
+              "children": [
+                {
+                  "node_type": "group",
+                  "match": "all",
+                  "children": [
+                    { "node_type": "condition", "kind": "oprt", "operator": "==", "value": true },
+                    { "node_type": "condition", "kind": "draws", "operator": ">=", "value": 50 },
+                    { "node_type": "condition", "kind": "dossier", "operator": "==", "value": true }
+                  ]
+                },
+                {
+                  "node_type": "group",
+                  "match": "all",
+                  "children": [
+                    { "node_type": "condition", "kind": "urgent", "operator": "==", "value": true },
+                    { "node_type": "condition", "kind": "draws", "operator": "<", "value": 50 },
+                    { "node_type": "condition", "kind": "oprt", "operator": "==", "value": true }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "rules": {
+            "protocol_version": "strategy-protocol-v1",
+            "kind": "structured",
+            "rule": {
+              "node_type": "group",
+              "match": "any",
+              "children": [
+                {
+                  "node_type": "group",
+                  "match": "all",
+                  "children": [
+                    { "node_type": "condition", "kind": "up_oprt", "operator": "==", "value": true },
+                    { "node_type": "condition", "kind": "draws", "operator": ">=", "value": 50 },
+                    { "node_type": "condition", "kind": "dossier", "operator": "==", "value": true }
+                  ]
+                },
+                {
+                  "node_type": "group",
+                  "match": "all",
+                  "children": [
+                    { "node_type": "condition", "kind": "urgent", "operator": "==", "value": true },
+                    { "node_type": "condition", "kind": "draws", "operator": "<", "value": 50 },
+                    { "node_type": "condition", "kind": "up_oprt", "operator": "==", "value": true }
+                  ]
+                }
+              ]
+            }
+          },
+          "use_origeometry": true,
+          "is_core": true
+        },
+        {
+          "rules": {
+            "protocol_version": "strategy-protocol-v1",
+            "kind": "structured",
+            "rule": {
+              "node_type": "group",
+              "match": "any",
+              "children": [
+                {
+                  "node_type": "group",
+                  "match": "all",
+                  "children": [
+                    { "node_type": "condition", "kind": "oprt", "operator": "==", "value": true },
+                    { "node_type": "condition", "kind": "draws", "operator": ">=", "value": 50 },
+                    { "node_type": "condition", "kind": "dossier", "operator": "==", "value": true }
+                  ]
+                },
+                {
+                  "node_type": "group",
+                  "match": "all",
+                  "children": [
+                    { "node_type": "condition", "kind": "urgent", "operator": "==", "value": true },
+                    { "node_type": "condition", "kind": "draws", "operator": "<", "value": 50 },
+                    { "node_type": "condition", "kind": "oprt", "operator": "==", "value": true }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "str1": {
+      "banners": [
+        {
+          "rules": {
+            "protocol_version": "strategy-protocol-v1",
+            "kind": "structured",
+            "rule": {
+              "node_type": "group",
+              "match": "all",
+              "children": []
+            }
+          },
+          "check_in": false,
+          "use_shared_counters": true,
+          "resource_increment": {}
+        },
+        {
+          "rules": {
+            "protocol_version": "strategy-protocol-v1",
+            "kind": "structured",
+            "rule": {
+              "node_type": "group",
+              "match": "all",
+              "children": [
+                { "node_type": "condition", "kind": "up_oprt", "operator": "==", "value": true }
+              ]
+            }
+          }
+        },
+        {
+          "rules": {
+            "protocol_version": "strategy-protocol-v1",
+            "kind": "structured",
+            "rule": {
+              "node_type": "group",
+              "match": "all",
+              "children": [
+                { "node_type": "condition", "kind": "oprt", "operator": "==", "value": true }
+              ]
+            }
+          }
+        },
+        {
+          "rules": {
+            "protocol_version": "strategy-protocol-v1",
+            "kind": "structured",
+            "rule": {
+              "node_type": "group",
+              "match": "any",
+              "children": [
+                {
+                  "node_type": "group",
+                  "match": "all",
+                  "children": [
+                    { "node_type": "condition", "kind": "up_oprt", "operator": "==", "value": true },
+                    { "node_type": "condition", "kind": "draws", "operator": ">=", "value": 50 },
+                    { "node_type": "condition", "kind": "dossier", "operator": "==", "value": true }
+                  ]
+                },
+                {
+                  "node_type": "group",
+                  "match": "all",
+                  "children": [
+                    { "node_type": "condition", "kind": "urgent", "operator": "==", "value": true },
+                    { "node_type": "condition", "kind": "draws", "operator": "<", "value": 50 },
+                    { "node_type": "condition", "kind": "up_oprt", "operator": "==", "value": true }
+                  ]
+                }
+              ]
+            }
+          },
+          "use_origeometry": true,
+          "is_core": true
+        },
+        {
+          "rules": {
+            "protocol_version": "strategy-protocol-v1",
+            "kind": "structured",
+            "rule": {
+              "node_type": "group",
+              "match": "all",
+              "children": [
+                { "node_type": "condition", "kind": "oprt", "operator": "==", "value": true }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "str_bad": {
+      "banners": [
+        {
+          "rules": {
+            "protocol_version": "strategy-protocol-v1",
+            "kind": "structured",
+            "rule": {
+              "node_type": "group",
+              "match": "all",
+              "children": []
+            }
+          },
+          "check_in": false,
+          "use_shared_counters": true,
+          "resource_increment": {}
+        },
+        {
+          "rules": {
+            "protocol_version": "strategy-protocol-v1",
+            "kind": "structured",
+            "rule": {
+              "node_type": "group",
+              "match": "any",
+              "children": [
+                { "node_type": "condition", "kind": "draws", "operator": ">=", "value": 20 },
+                { "node_type": "condition", "kind": "urgent", "operator": "==", "value": true }
+              ]
+            }
+          }
+        },
+        {
+          "rules": {
+            "protocol_version": "strategy-protocol-v1",
+            "kind": "structured",
+            "rule": {
+              "node_type": "group",
+              "match": "any",
+              "children": [
+                { "node_type": "condition", "kind": "draws", "operator": ">=", "value": 20 },
+                { "node_type": "condition", "kind": "urgent", "operator": "==", "value": true }
+              ]
+            }
+          }
+        },
+        {
+          "rules": {
+            "protocol_version": "strategy-protocol-v1",
+            "kind": "structured",
+            "rule": {
+              "node_type": "group",
+              "match": "any",
+              "children": [
+                { "node_type": "condition", "kind": "draws", "operator": ">=", "value": 20 },
+                { "node_type": "condition", "kind": "urgent", "operator": "==", "value": true }
+              ]
+            }
+          },
+          "use_origeometry": true,
+          "is_core": true
+        },
+        {
+          "rules": {
+            "protocol_version": "strategy-protocol-v1",
+            "kind": "structured",
+            "rule": {
+              "node_type": "group",
+              "match": "any",
+              "children": [
+                { "node_type": "condition", "kind": "draws", "operator": ">=", "value": 20 },
+                { "node_type": "condition", "kind": "urgent", "operator": "==", "value": true }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

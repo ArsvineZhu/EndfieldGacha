@@ -1,37 +1,44 @@
 # -*- coding: utf-8 -*-
-"""策略规划评估包：魔数编码策略、评分系统、多进程评估。"""
+"""策略规划评估包：结构化策略、评分系统、多进程评估。"""
 
 from core import Counters
-from .engine import Scheduler
-from .scoring import Resource
-from .strategy import (
-    URGENT,
-    DOSSIER,
-    SOFT_PITY,
-    UP_OPRT,
-    HARD_PITY,
-    POTENTIAL,
-    OPRT,
-    GT,
-    LT,
-    GE,
-    LE,
-)
 
+from .engine import Scheduler
+from .scoring import (
+    BaselineEstimator,
+    LogMapConfig,
+    Resource,
+    ScoringPreferences,
+    ScoringSystem,
+    StageTrace,
+    StrategyGoal,
+    StrategyScoreReport,
+    StrategyTrace,
+)
+from .strategy_protocol import STRATEGY_PROTOCOL_VERSION, StrategyProtocolAdapter
+from .strategy_v2 import (
+    StrategyCondition,
+    StrategyRuleEngine,
+    StrategyRuleSet,
+    is_structured_strategy,
+)
 
 __all__ = [
     "Counters",
+    "BaselineEstimator",
+    "LogMapConfig",
     "Resource",
+    "ScoringPreferences",
+    "ScoringSystem",
     "Scheduler",
-    "URGENT",
-    "DOSSIER",
-    "SOFT_PITY",
-    "UP_OPRT",
-    "OPRT",
-    "HARD_PITY",
-    "POTENTIAL",
-    "GT",
-    "LT",
-    "GE",
-    "LE",
+    "StageTrace",
+    "StrategyGoal",
+    "StrategyScoreReport",
+    "StrategyTrace",
+    "STRATEGY_PROTOCOL_VERSION",
+    "StrategyProtocolAdapter",
+    "StrategyCondition",
+    "StrategyRuleEngine",
+    "StrategyRuleSet",
+    "is_structured_strategy",
 ]

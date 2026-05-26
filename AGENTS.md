@@ -12,7 +12,7 @@
 
 - 角色/武器卡池抽卡模拟（三级保底机制）
 - Web界面与用户管理系统
-- 魔数编码策略调度与批量评估
+- 结构化策略调度与批量评估
 - 四维科学评分系统（目标、效率、风险、灵活性）
 - 概率分布统计与可视化
 
@@ -21,7 +21,7 @@
 ### 根目录导航（按用途分组）
 
 - **统一入口（推荐）**
-  - `run.py`：`python run.py [demo|eval|exam|server]` 一键运行
+  - `run.py`：`uv run run.py [demo|eval|exam|server]` 一键运行
 
 - **核心文件**
   - `core.py`：抽卡核心逻辑（角色池 / 武器池）
@@ -30,7 +30,10 @@
 
 - **策略包** `scheduler/`
   - `engine.py`：调度器主逻辑
-  - `strategy.py`：魔数编码策略与预定义常量
+  - `strategy_v2.py`：结构化策略规则系统（当前唯一受支持的策略实现）
+  - `strategy_protocol.py`：structured JSON 协议适配层
+  - `strategy.py`：旧魔数策略存档文件（不参与现行逻辑）
+  - `strategy_magic.py`：旧魔数策略存档入口（不参与现行逻辑）
   - `scoring.py`：资源与评分系统
   - `workers.py`：多进程 worker
 
@@ -51,7 +54,7 @@
 - **`BatchRandom`**：批量随机数生成器（支持种子复现）
 - **`GachaResult`**：抽卡结果数据类（名称、星级、配额、保底标记）
 - **`GlobalConfigLoader`**：全局配置加载器（单例模式）
-- **`CharGacha`**：角色卡池类（6星概率递增、UP保底120抽、6星保底85抽、5星保底10抽）
+- **`CharGacha`**：角色卡池类（6星概率递增、UP保底120抽、6星保底80抽、5星保底10抽）
 - **`WeaponGacha`**：武器卡池类（申领式抽卡、最后1抽替换机制）
 
 ### 服务模块 (`server.py`)
@@ -62,20 +65,33 @@
 
 ### 策略模块 (`scheduler/` 包)
 
-- **`strategy.py`**：包含 `GachaStrategy` 以及所有预定义魔数常量  
-  - `GachaStrategy`：魔数编码策略系统（32位整数编码条件）  
-  - 预定义魔数：`URGENT`（加急招募）、`DOSSIER`（情报书）、`SOFT_PITY`（软保底）、`UP_OPRT`（UP角色）、`HARD_PITY`（硬保底）、`POTENTIAL`（潜能）、`OPRT`（6星角色）  
-  - 比较运算符常量：`GT`、`LT`、`GE`、`LE`
+- **`strategy_v2.py`**：结构化策略判断系统
+  - `StrategyCondition` / `StrategyRuleSet`：规则条件与规则集
+  - `StrategyRuleEngine`：结构化规则解释器
+  - 支持嵌套布尔组，可表达 `((A or B) and C)` 形式
+  - 支持条件字段：`draws`、`current_up`、`six_star_count`、`resource_left`、`potential`
+  - 兼容旧语义字段名：`urgent`、`dossier`、`soft_pity`、`up_oprt`、`oprt`、`hard_pity`
+- **`strategy_protocol.py`**：网页端 structured JSON 协议适配层
+  - `STRATEGY_PROTOCOL_VERSION = "strategy-protocol-v1"`
+  - `StrategyProtocolAdapter.from_payload(...)`
+  - `StrategyProtocolAdapter.to_payload(...)`
+- **`strategy.py` / `strategy_magic.py`**：旧魔数策略存档
+  - 仅供查阅历史实现
+  - 不再参与当前前后端兼容、序列化或运行时执行
 - **`scoring.py`**：资源与科学评分系统  
   - `Resource`：抽卡资源归一化描述（合约证、黄票、武库配额、源石）  
-  - `NativeStatistics`：原生统计量数据结构，包含四类统计量
-  - `ScoringSystem`：四维评分系统（目标达成效用40%、资源利用效率20%、风险控制能力25%、策略灵活性15%）
+  - `ScoringPreferences`：评分偏好参数（模块权重、价值函数、LogMap、风险尾部参数、`O_ref`、历史UP名单、已有潜能记录、问卷状态）
+  - `StrategyGoal`：V2 目标系统（AND 逻辑，支持当期UP/剩余资源/阶段消耗上限）
+  - `StrategyTrace` / `StageTrace`：单次策略完整轨迹
+  - `StrategyScoreReport`：评分结果（原始分、四模块分、基准/机会/风险诊断、版本号、参数标签、缓存标签）
+  - `BaselineEstimator`：固定抽数状态价值估计器，使用文件缓存；命中邻近点时可做三次样条插值
+  - `ScoringSystem`：V2 评分系统（目标、收益、资源、风险四模块）
 - **`workers.py`**：调度用 worker 与辅助方法  
   - 单次抽卡处理：`process_gacha_result()`、`handle_urgent_gacha()`、`initialize_banner_state()` 等  
   - 多进程 worker 封装：`_worker_wrapper()`（供 `Scheduler.evaluate()` 使用）
 - **`engine.py`**：调度器主逻辑  
   - `Scheduler`：策略调度器（支持多卡池连续模拟、批量并行评估，内部使用上述子模块）  
-  - 对外仍 re-export 关键符号：可以继续从 `scheduler` 导入 `Scheduler`、`GachaStrategy`、`Resource` 及各魔数常量
+  - 对外 re-export `Scheduler`、结构化策略对象和评分系统对象
 
 ### 工具模块 (`tools/` 包)
 
@@ -109,12 +125,15 @@
 | `core.py` | `CharGacha` | `attempt(disable_guarantee=False)` | 角色卡池单次抽卡 |
 | `core.py` | `WeaponGacha` | `attempt(disable_guarantee=False)` | 武器卡池单次申领 |
 | `core.py` | 全局 | `get_accumulated_reward()` | 获取累计奖励列表 |
-| `scheduler.py` | `GachaStrategy` | `terminate(counters, resource)` | 检查策略终止条件 |
-| `scheduler.py` | `ScoringSystem` | `calculate_score(results)` | 计算综合评分（兼容旧版） |
-| `scheduler.py` | `ScoringSystem` | `calculate_raw_statistics(strategy_results)` | 计算原生统计量 |
-| `scheduler.py` | `ScoringSystem` | `calculate_comprehensive_score(raw_stats_list, mode)` | 计算四维综合评分 |
-| `scheduler.py` | `Scheduler` | `evaluate(scale=5000, workers=4)` | 执行单策略批量评估 |
-| `scheduler.py` | `Scheduler` | `evaluate_multiple_strategies(strategies, scale, workers, mode)` | 多策略批量评估 |
+| `scheduler.py` | `StrategyRuleEngine` | `should_stop(rule_set, draw_count, state)` | 检查结构化策略终止条件 |
+| `scheduler.py` | `ScoringSystem` | `score_traces(traces, preferences, goals, ...)` | 基于完整模拟轨迹计算 V2 评分 |
+| `scheduler.py` | `ScoringSystem` | `log_map(value, config)` | 对数映射函数 |
+| `scheduler.py` | `BaselineEstimator` | `estimate(config_name, counters, paid_draws, preferences)` | 估计固定抽数状态基准价值 `G(c,s;θ)`；结果写入文件缓存，必要时对状态近邻缓存点做三次样条插值 |
+| `scheduler.py` | `BaselineEstimator` | `estimate_six_star_distribution(config_name, counters, paid_draws, preferences)` | 估计 `E_6(c,s)`、`P(N_6=k\|c,s)`、`P(N_6>=k\|c,s)` 所需分布数据 |
+| `scheduler.py` | `StrategyRuleEngine` | `should_stop(rule_set, draw_count, state)` | 结构化策略终止判断 |
+| `scheduler.py` | `StrategyProtocolAdapter` | `from_payload(payload)` / `to_payload(strategy)` | 网页端 JSON 协议与后端规则对象之间转换 |
+| `scheduler.py` | `Scheduler` | `evaluate(scale=5000, workers=4, preferences=None, goals=None)` | 执行单策略批量评估并返回 `StrategyScoreReport` |
+| `scheduler.py` | `Scheduler` | `evaluate_multiple_strategies(strategies, scale, workers, ...)` | 多策略批量评估与排序 |
 | `server.py` | 全局 | `get_or_create_current_user()` | 获取或创建用户数据 |
 | `demo.py` | `GachaTestTool` | `stats_char_up_prob(test_times=50000)` | 统计UP角色所需抽数 |
 
@@ -132,7 +151,7 @@
 | 资源名称 | 变量名 | 说明 |
 |----------|--------|------|
 | 特许寻访凭证 | `chartered_permits` | 角色池单抽消耗1 |
-| 嵌晶玉 | `oroberyl` | 角色池单抽消耗75 |
+| 嵌晶玉 | `oroberyl` | 角色池单抽消耗500 |
 | 武库配额 | `arsenal_tickets` | 武器池申领消耗1980 |
 | 衍质源石 | `origeometry` | 可兑换为嵌晶玉(1:75)或武库配额(1:25) |
 | 加急招募 | `urgent_recruitment` | 10连抽次数 |
@@ -143,25 +162,25 @@
 
 ```bash
 # 安装项目依赖
-pip install -r requirements.txt
+uv sync
 
 # 统一入口（推荐）
-python run.py demo         # 抽卡演示
-python run.py eval         # 策略评估（调用evaluation.py）
-python run.py exam         # 概率验证（调用examination.py）
-python run.py server       # 启动 Web 服务
+uv run run.py demo         # 抽卡演示
+uv run run.py eval         # 策略评估（调用evaluation.py）
+uv run run.py exam         # 概率验证（调用examination.py）
+uv run run.py server       # 启动 Web 服务
 
 # 或直接运行
-python server.py           # Windows 快捷启动: .\start.ps1
-python -m tools.demo
-python -m tools.evaluation  # 直接运行评估脚本
-python -m tools.examination # 直接运行验证脚本
+uv run server.py           # Windows 快捷启动: .\start.ps1
+uv run python -m tools.demo
+uv run python -m tools.evaluation  # 直接运行评估脚本
+uv run python -m tools.examination # 直接运行验证脚本
 
 # 运行测试套件
-python -m pytest test/ -v
+uv run pytest test/ -v
 
 # 压缩前端静态资源（修改前端后执行）
-python app/utils/compress.py
+uv run python app/utils/compress.py
 ```
 
 ### 代码风格规范
@@ -211,7 +230,7 @@ results = weapon_gacha.attempt()  # 返回 GachaResult 列表（通常10个）
 
 ```python
 # 启动Web服务
-python server.py
+uv run server.py
 # 访问 http://localhost:5000
 
 # API接口示例
@@ -224,16 +243,25 @@ POST /api/gacha
 
 ### 策略评估调用
 
-**单策略评估（兼容旧版）**：
+**单策略评估**：
 ```python
-from scheduler import Scheduler, DOSSIER, OPRT, UP_OPRT
+from scheduler import Scheduler, StrategyCondition, StrategyRuleSet
 
 # 创建调度器
 scheduler = Scheduler(config_dir="configs", arrange="arrange1")
 
-# 定义策略序列
-scheduler.schedule([DOSSIER, OPRT])           # 策略1：获取情报书和6星角色
-scheduler.schedule([UP_OPRT], use_origeometry=True)  # 策略2：获取UP角色，使用源石
+# 定义策略
+scheduler.banner(
+    StrategyRuleSet(
+        match="any",
+        conditions=[
+            StrategyCondition(kind="current_up", operator=">=", value=1),
+            StrategyCondition(kind="draws", operator=">=", value=120),
+        ],
+        tags=["current-up-or-120-draws"],
+    ),
+    name="config_3",
+)
 
 # 执行批量评估（5000次模拟，4进程）
 scheduler.evaluate(scale=5000, workers=4)
@@ -241,50 +269,73 @@ scheduler.evaluate(scale=5000, workers=4)
 
 **多策略批量评估（新版功能）**：
 ```python
-from scheduler import Scheduler, DOSSIER, OPRT, UP_OPRT, URGENT
+from scheduler import Scheduler, StrategyCondition, StrategyRuleSet
 
 # 创建调度器
 scheduler = Scheduler(config_dir="configs", arrange="arrange1")
 
 # 定义多种策略
 strategies = [
-    [DOSSIER, OPRT],           # 策略1：情报书+6星角色
-    [UP_OPRT],                 # 策略2：专注UP角色
-    [URGENT, DOSSIER, UP_OPRT] # 策略3：综合策略
+    StrategyRuleSet(
+        match="any",
+        conditions=[
+            StrategyCondition(kind="current_up", operator=">=", value=1),
+            StrategyCondition(kind="draws", operator=">=", value=120),
+        ],
+    ),
+    StrategyRuleSet(
+        match="all",
+        conditions=[StrategyCondition(kind="draws", operator=">=", value=30)],
+    ),
+    StrategyRuleSet(
+        match="all",
+        conditions=[
+            StrategyRuleSet(
+                match="any",
+                conditions=[
+                    StrategyCondition(kind="dossier", operator="==", value=True),
+                    StrategyCondition(kind="oprt", operator="==", value=True),
+                ],
+            ),
+            StrategyCondition(kind="urgent", operator="==", value=True),
+        ],
+    ),
 ]
 
-# 执行多策略评估，支持相对/绝对双模式
+# 执行多策略评估并生成同组排序
 results = scheduler.evaluate_multiple_strategies(
     strategies=strategies,
     scale=5000,
     workers=4,
-    mode="relative"  # 可选"relative"或"absolute"
 )
 
 # 查看评估结果
 for i, result in enumerate(results):
     print(f"策略{i+1}评分:")
-    print(f"  目标达成效用: {result['u_score']*100:.1f}%")
-    print(f"  资源利用效率: {result['e_score']*100:.1f}%")
-    print(f"  风险控制能力: {result['r_score']*100:.1f}%")
-    print(f"  策略灵活性: {result['f_score']*100:.1f}%")
-    print(f"  综合评分: {result['total_score']:.1f} ({result['grade']})")
+    print(f"  原始分: {result.raw_score:.1f} ({result.grade})")
+    print(f"  目标分: {result.goal_score:.1f}")
+    print(f"  收益分: {result.utility_score:.1f}")
+    print(f"  资源分: {result.resource_score:.1f}")
+    print(f"  风险分: {result.risk_score:.1f}")
+    print(f"  排名: {result.rank} / 百分位: {result.percentile:.1f}")
 ```
 
-**原生统计量计算**：
+**轨迹评分计算**：
 ```python
-from scheduler import ScoringSystem
+from scheduler import BaselineEstimator, ScoringPreferences, ScoringSystem
 
-# 计算原生统计量
-raw_stats = ScoringSystem.calculate_raw_statistics(strategy_results)
+preferences = ScoringPreferences()
+estimator = BaselineEstimator(config_dir="configs", samples=64, base_seed=20260525)
 
-# 基于原生统计量计算综合评分
-comprehensive_scores = ScoringSystem.calculate_comprehensive_score(
-    raw_stats_list=[raw_stats],
-    mode="relative",  # 相对模式
-    weights=None,     # 使用默认权重
-    k_total=1000.0    # 初始总资源
+# traces 为完整 StrategyTrace 列表
+report = ScoringSystem.score_traces(
+    traces=traces,
+    preferences=preferences,
+    goals=None,
+    baseline_estimator=estimator,
 )
+
+print(report.raw_score, report.goal_completion_rate)
 ```
 
 ### 统计分析调用
@@ -325,7 +376,7 @@ configs/
   "char": {
     "base_prob": {"6": 0.008, "5": 0.08, "4": 0.912},
     "guarantee_5star_plus_draw": 10,      # 5星保底抽数
-    "guarantee_6star_draw": 85,           # 6星保底抽数（原AGENTS.md写80，实际为85）
+    "guarantee_6star_draw": 80,           # 6星保底抽数
     "6star_prob_increase_start": 65,      # 概率递增起始抽数
     "prob_increase": 0.05,                # 每次递增概率
     "up_guarantee_draw": 120,             # UP保底抽数
@@ -351,7 +402,7 @@ configs/
 | 问题现象 | 可能原因 | 解决方案 |
 |----------|----------|----------|
 | 配置文件不存在 | 路径错误或文件缺失 | 检查`configs/config_1/`目录是否存在，确认`arrangement`文件 |
-| 导入模块失败 | 依赖未安装或Python版本不匹配 | 运行`pip install -r requirements.txt`，确保Python 3.10+ |
+| 导入模块失败 | 依赖未安装或Python版本不匹配 | 运行`uv sync`，确保Python 3.10+ |
 | Web服务无法启动 | 端口占用或Flask依赖缺失 | 检查端口5000是否被占用，安装`Flask, Flask-Cors, waitress` |
 | 用户数据无法保存 | `users/`目录权限不足 | 确保`users/`目录可写，或手动创建该目录 |
 | 抽卡结果异常 | 配置概率设置有误 | 检查`gacha_rules.json`中的概率总和应为1，UP概率配置正确 |
@@ -365,14 +416,22 @@ configs/
 ### 自定义策略
 
 ```python
-# 使用魔数编码定义新策略
-CUSTOM_STRATEGY = (-1 << 31) | (0b0000001 << 24) | (GT << 16) | 100
-# 含义：当资源大于100时触发，停止条件为加急招募
+from scheduler import Scheduler, StrategyCondition, StrategyRuleSet
 
-# 在evaluation.py中添加策略函数
+
 def custom_strategy():
     scheduler = Scheduler(config_dir="configs", arrange="arrange1")
-    scheduler.schedule([CUSTOM_STRATEGY])
+    scheduler.banner(
+        StrategyRuleSet(
+            match="all",
+            conditions=[
+                StrategyCondition(kind="draws", operator=">=", value=50),
+                StrategyCondition(kind="resource_left", operator=">=", value=20),
+            ],
+            tags=["custom-structured-strategy"],
+        ),
+        name="config_3",
+    )
     scheduler.evaluate(scale=10000, workers=8)
 ```
 
@@ -380,7 +439,7 @@ def custom_strategy():
 
 1. 修改`app/templates/index.html`前端模板
 2. 更新`app/static/`中的CSS和JS文件
-3. 运行`python app/utils/compress.py`压缩静态资源
+3. 运行`uv run python app/utils/compress.py`压缩静态资源
 
 ### 数据分析扩展
 
@@ -430,7 +489,7 @@ def custom_strategy():
 |----------|------|------|
 | **核心抽卡模块** | `core.py` | 核心抽卡逻辑实现，包含角色/武器卡池类 |
 | **Web服务模块** | `server.py` | Flask Web服务器，提供用户管理和抽卡API |
-| **策略调度模块** | `scheduler/` | 魔数编码策略系统和科学评分系统，包含四维评分和多策略评估 |
+| **策略调度模块** | `scheduler/` | 结构化策略系统和科学评分系统，包含四维评分和多策略评估 |
 | **演示工具模块** | `tools/demo.py` | 抽卡演示与统计分析工具 |
 | **策略评估脚本** | `tools/evaluation.py` | 预置抽卡策略评估脚本 |
 | **概率验证工具** | `tools/examination.py` | 概率分布验证工具 |
@@ -444,3 +503,5 @@ def custom_strategy():
 
 ---
 *文档版本：2.2.2 | 最后更新：2026-03-11*
+
+

@@ -5,9 +5,9 @@
 ====================================================================
 实现角色/武器卡池的抽卡、保底、累计奖励机制
  - 模块名称: core
- - 版本: 1.2.0
+ - 版本: 2.0.0
  - 作者: Arsvine
- - 最后修改时间: 2026-03-10
+ - 最后修改时间: 2026-05-26
  - 编码: utf-8
  - 适用Python版本: 3.10+
 
@@ -18,6 +18,7 @@
 3. 实现角色卡池类CharGacha：支持6星/5星/UP保底、概率递增、累计抽卡奖励
 4. 实现武器卡池类WeaponGacha：支持申领式抽卡、保底替换、累计申领奖励
 5. 封装高精度概率计算、卡池数据预处理、计数器管理等底层逻辑
+   运行时抽样路径使用批量随机数与预计算阈值以降低模拟开销
 
 模块导出
 --------
@@ -29,13 +30,12 @@
 核心依赖
 --------
 - json: 配置文件解析
-- random.choice: 随机抽卡选择
+- random.Random: 实例级随机选择，避免全局状态干扰
 - time: 随机种子生成
-- collections.deque: 高效随机数序列管理
 - numpy.random: 批量随机数生成，提升性能
 - os: 配置文件路径处理
 - dataclasses.dataclass: 抽卡结果数据建模
-- decimal.Decimal: 高精度概率计算
+- decimal.Decimal: 配置概率高精度解析
 - typing: 类型注解（Dict/List/Tuple/Any）
 
 卡池机制说明
@@ -48,20 +48,21 @@
 异常处理
 --------
 1. 配置文件不存在：抛出FileNotFoundError
-2. 配置文件格式错误：抛出ValueError
-3. 概率计算基于Decimal高精度，避免浮点误差
+2. 配置文件格式错误或卡池配置非法：抛出ValueError
+3. 配置概率以 Decimal 解析，运行时使用预计算阈值进行抽样
 """
 
 import json
 import os
-from time import time
-from collections import deque
-from numpy import random as np_rand
-from random import choice
-from random import seed as rnd_seed
+from bisect import bisect_right
+from copy import deepcopy
 from dataclasses import dataclass
 from decimal import Decimal, getcontext
-from typing import Dict, List, Tuple, Any
+from random import Random
+from time import time
+from typing import Any, Dict, List, Tuple
+
+from numpy import random as np_rand
 
 __all__ = ["GachaResult", "Counters", "GlobalConfigLoader", "WeaponGacha", "CharGacha"]
 __version__ = "1.2.0"
@@ -72,8 +73,9 @@ class BatchRandom:
     """批量随机数生成器
 
     核心能力：
-    1. 预生成高精度随机数序列（Decimal类型），按需弹出
-    2. 统一随机状态，支持种子复现
+    1. 预生成浮点随机数序列，按需弹出
+    2. 提供 Decimal 兼容接口，供旧调用方复用
+    3. 统一随机状态，支持种子复现
     """
 
     def __init__(self, seed: int = -1, size: int = 1024):
@@ -91,38 +93,41 @@ class BatchRandom:
             seed = int(time() * 1_000_000) % (2**32)
         self.seed = seed
         self.np_rand = np_rand.RandomState(seed)  # 独立随机状态
-
-        # 原有随机数队列
-        self.__sequence = deque()
+        self.__sequence: List[float] = []
+        self._index = 0
         self.size = size
         self._randomize()
 
-    def _randomize(self) -> List[Decimal]:
-        """生成指定数量的随机数，覆盖内部序列"""
-        np_rands = self.np_rand.random(self.size)
-        rand_list = [Decimal(str(num)) for num in np_rands.tolist()]
-        self.__sequence.clear()
-        self.__sequence.extend(rand_list)
-        return rand_list
+    def _randomize(self) -> List[float]:
+        """生成指定数量的浮点随机数，覆盖内部序列。"""
+        self.__sequence = self.np_rand.random(self.size).tolist()
+        self._index = 0
+        return self.__sequence.copy()
 
     @staticmethod
     def batch(size: int = 1024) -> List[Decimal]:
-        """静态方法，直接生成指定数量的随机数"""
+        """静态方法，直接生成指定数量的 Decimal 随机数。"""
         if not isinstance(size, int) or size <= 0:
             raise ValueError(f"随机数数量必须是正整数，当前传入: {size}")
         np_rands = np_rand.random(size)
         return [Decimal(str(num)) for num in np_rands.tolist()]
 
+    def pop_float(self) -> float:
+        """从内部随机数序列中弹出一个浮点随机数。"""
+        if self._index >= len(self.__sequence):
+            self._randomize()
+        value = self.__sequence[self._index]
+        self._index += 1
+        return value
+
     def pop(self) -> Decimal:
-        """从内部随机数序列中弹出一个随机数"""
-        if not self.__sequence:
-            self._randomize()  # 自动补充随机数
-        return self.__sequence.popleft()
+        """从内部随机数序列中弹出一个 Decimal 随机数。"""
+        return Decimal(str(self.pop_float()))
 
     @property
     def sequence(self) -> List[Decimal]:
-        """返回内部随机数序列的副本"""
-        return list(self.__sequence).copy()
+        """返回剩余随机数序列的 Decimal 副本。"""
+        return [Decimal(str(num)) for num in self.__sequence[self._index :]]
 
 
 @dataclass
@@ -193,6 +198,46 @@ class Counters:
     no_up: int = 0  # 连续未出 UP 的抽卡次数
     guarantee_used: bool = False  # 是否已使用 UP 保底
     urgent_used: bool = False  # 是否已使用加急招募
+
+
+def _normalize_star_pool(
+    pool_data: Dict[str, List[Dict[str, Any]]], star: int, pool_name: str
+) -> Tuple[List[str], List[float], List[str]]:
+    star_key = str(star)
+    items = pool_data.get(star_key)
+    if not items:
+        raise ValueError(f"{pool_name}{star}星池不能为空")
+
+    up_names: List[str] = []
+    up_probs: List[float] = []
+    normal_names: List[str] = []
+    prob_acc = 0.0
+
+    for item in items:
+        name = item.get("name")
+        if not name:
+            raise ValueError(f"{pool_name}{star}星池存在缺少名称的条目")
+        try:
+            prob = float(item.get("up_prob", 0.0))
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"{pool_name}{star}星池的 UP 概率格式错误") from exc
+        if prob < 0:
+            raise ValueError(f"{pool_name}{star}星池的 UP 概率不能为负数")
+        if prob > 0:
+            prob_acc += prob
+            up_names.append(name)
+            up_probs.append(prob_acc)
+        else:
+            normal_names.append(name)
+
+    if prob_acc > 1.0 + 1e-12:
+        raise ValueError(f"{pool_name}{star}星 UP 概率累计不能超过 1")
+    if prob_acc < 1.0 - 1e-12 and not normal_names:
+        raise ValueError(f"{pool_name}{star}星普通池不能为空")
+    if up_probs:
+        up_probs[-1] = min(up_probs[-1], 1.0)
+
+    return up_names, up_probs, normal_names
 
 
 # ===================== 全局配置加载器=====================
@@ -333,7 +378,7 @@ class GlobalConfigLoader:
         return self.load_config(file_name)
 
     def get_rule_config(self, pool_type: str) -> Dict[str, Any]:
-        """获取抽卡规则配置，统一类型转换
+        """获取抽卡规则配置，返回隔离副本并统一类型转换
 
         Parameters
         ----------
@@ -343,9 +388,10 @@ class GlobalConfigLoader:
         Returns
         -------
         Dict[str, Any]
-            抽卡规则配置，包含概率、保底规则等
+            抽卡规则配置副本，包含概率、保底规则等。
+            返回值不会回写到内部 JSON 缓存。
         """
-        rules = self.load_config("gacha_rules.json")[pool_type]
+        rules = deepcopy(self.load_config("gacha_rules.json")[pool_type])
         # 类型转换：str键→int键，概率→Decimal
         rules["quota_rule"] = {int(k): int(v) for k, v in rules["quota_rule"].items()}
         rules["base_prob"] = {
@@ -491,11 +537,8 @@ class CharGacha:
             预生成随机数序列的大小，默认1024
         """
         self.config = config if config else GlobalConfigLoader()
-        self.rand = BatchRandom(
-            seed, size=size
-        )  # 用于生成随机数序列，支持性能优化和可复现性
-        if seed >= 0:
-            rnd_seed(seed)
+        self.rand = BatchRandom(seed, size=size)
+        self._picker = Random(self.rand.seed)
         # 加载配置
         self.pool_data = self.config.get_pool_data("char")
         self.rule_config = self.config.get_rule_config("char")
@@ -507,37 +550,40 @@ class CharGacha:
     def _precache_data(self):
         """预缓存UP/普通干员数据
 
-        从配置文件中加载并预处理干员数据，包括UP干员和普通干员的概率分布。
+        从配置文件中加载并预处理干员数据，包括：
+        - UP / 普通干员池拆分
+        - UP 概率累积阈值
+        - 运行时使用的基础概率与软保底参数
         """
         # noinspection DuplicatedCode
-        self.star_up_prob: Dict[int, Tuple[List[str], List[Decimal]]] = {}
+        self.star_up_prob: Dict[int, Tuple[List[str], List[float]]] = {}
         self.star_normal: Dict[int, List[str]] = {}
 
-        for star_str in ["6", "5", "4"]:
-            star = int(star_str)
-            items = self.pool_data[star_str]
-            up_names, up_probs, normal_names = [], [], []
-            prob_acc = Decimal("0.0")
-
-            for item in items:
-                prob = Decimal(str(item["up_prob"]))
-                if prob > 0:
-                    up_names.append(item["name"])
-                    prob_acc += prob
-                    up_probs.append(prob_acc)
-                else:
-                    normal_names.append(item["name"])
-
+        for star in (6, 5, 4):
+            up_names, up_probs, normal_names = _normalize_star_pool(
+                self.pool_data, star, "角色池"
+            )
             self.star_up_prob[star] = (up_names, up_probs)
             self.star_normal[star] = normal_names
 
-        # 读取概率递增参数
-        self.prob_increase = Decimal(str(self.rule_config["prob_increase"]))
-        self.prob_upper = Decimal(str(self.rule_config["prob_upper_limit"]))
-        # 读取UP角色名称
+        self.base_6star_prob = float(self.rule_config["base_prob"][6])
+        self.base_5star_prob = float(self.rule_config["base_prob"][5])
+        self.base_4star_prob = float(self.rule_config["base_prob"][4])
+        total_base_prob = self.base_5star_prob + self.base_4star_prob
+        self.base_5star_ratio = self.base_5star_prob / total_base_prob
+        self.prob_increase = float(self.rule_config["prob_increase"])
+        self.prob_upper = float(self.rule_config["prob_upper_limit"])
         self.up_char_name = self.rule_config["up_char_name"]
-        # 从配置读取6星概率递增起始次数（6星保底起始次数）
         self.six_star_increase_start = self.rule_config["6star_prob_increase_start"]
+        self.guarantee_5star_plus_draw = self.rule_config["guarantee_5star_plus_draw"]
+        self.guarantee_6star_draw = self.rule_config["guarantee_6star_draw"]
+        self.up_guarantee_draw = self.rule_config["up_guarantee_draw"]
+        self.quota_rule = self.rule_config["quota_rule"]
+        self._up_char_names = self.star_up_prob[6][0]
+        if not self._up_char_names:
+            raise ValueError("角色池6星 UP 目标不能为空")
+        if self.up_char_name not in self._up_char_names:
+            raise ValueError("角色池6星 UP 目标不存在于卡池配置中")
 
     def init_counters(self):
         """初始化计数器
@@ -563,13 +609,12 @@ class CharGacha:
         normal_names = self.star_normal[star]
 
         if up_names:
-            rand = self.rand.pop()
-            for idx, prob_acc in enumerate(up_probs):
-                if rand < prob_acc:
-                    return up_names[idx], star, True
-            return choice(normal_names), star, False
-        else:
-            return choice(normal_names), star, False
+            idx = bisect_right(up_probs, self.rand.pop_float())
+            if idx < len(up_names):
+                return up_names[idx], star, True
+            if not normal_names:
+                return up_names[-1], star, True
+        return self._picker.choice(normal_names), star, False
 
     def _get_up_char(self, star: int = 6) -> Tuple[str, int]:
         """获取UP干员（默认6星），等概率返回
@@ -584,11 +629,7 @@ class CharGacha:
         Tuple[str, int]
             返回一个元组，包含UP干员名称和星级
         """
-        if not hasattr(self, "_up_chars"):
-            self._up_chars = []
-            up_names, _ = self.star_up_prob[star]
-            self._up_chars.extend([(n, star) for n in up_names])
-        return choice(self._up_chars)
+        return self._picker.choice(self.star_up_prob[star][0]), star
 
     def attempt(self, disable_guarantee: bool = False) -> GachaResult:
         """
@@ -597,7 +638,9 @@ class CharGacha:
         Parameters
         ----------
         disable_guarantee : bool, optional
-            参数用于禁用保底机制，主要用于模拟抽卡分布时使用，默认False（即启用保底）
+            用于禁用保底机制，主要服务于分布模拟。
+            启用后本次抽样不会修改 no_6star / no_5star_plus / no_up /
+            guarantee_used，仅保留 total 计数的递增行为。
 
         Returns
         -------
@@ -615,125 +658,112 @@ class CharGacha:
         >>> result2 = char_gacha.attempt(disable_guarantee=True)
         """
         self.counters.total += 1
-        if disable_guarantee:
-            self.counters.no_6star = 0
-            self.counters.no_5star_plus = 0
-            self.counters.no_up = 0
-        else:
-            self.counters.no_6star += 1
-            self.counters.no_5star_plus += 1
-            self.counters.no_up += 1
+        effective_no_6star = 0 if disable_guarantee else self.counters.no_6star + 1
+        effective_no_5star_plus = 0 if disable_guarantee else self.counters.no_5star_plus + 1
+        effective_no_up = 0 if disable_guarantee else self.counters.no_up + 1
+        next_no_6star = self.counters.no_6star
+        next_no_5star_plus = self.counters.no_5star_plus
+        next_no_up = self.counters.no_up
+        next_guarantee_used = self.counters.guarantee_used
 
-        # 步骤1：计算当前6星概率（含递增）
-        base_6star_prob = self.rule_config["base_prob"][6]  # 基础0.8%
-        current_6star_prob = base_6star_prob
-        # 核心：从配置读取递增起始次数
-        if self.counters.no_6star > self.six_star_increase_start:
+        current_6star_prob = self.base_6star_prob
+        if effective_no_6star > self.six_star_increase_start:
             current_6star_prob += (
-                self.counters.no_6star - self.six_star_increase_start
+                effective_no_6star - self.six_star_increase_start
             ) * self.prob_increase
-            if current_6star_prob > self.prob_upper:
-                current_6star_prob = self.prob_upper
+            current_6star_prob = min(current_6star_prob, self.prob_upper)
 
-        # 步骤2：UP角色保底（连续120抽未出）- 最高优先级
         if (
-            not self.counters.guarantee_used
-            and self.counters.no_up >= self.rule_config["up_guarantee_draw"]
-            and not disable_guarantee
+            not disable_guarantee
+            and not self.counters.guarantee_used
+            and effective_no_up >= self.up_guarantee_draw
         ):
             result, star_int = self._get_up_char()
-            # 重置所有相关计数器
             self.counters.no_up = 0
             self.counters.no_6star = 0
             self.counters.no_5star_plus = 0
             self.counters.guarantee_used = True
-            quota = self.rule_config["quota_rule"][star_int]
+            quota = self.quota_rule[star_int]
             return GachaResult(
                 name=result, star=star_int, quota=quota, is_up_g=True
-            )  # UP保底触发，标记为True
+            )
 
-        # 步骤3：判定是否触发6星保底（连续80抽未出6星，这也太非了）
         if (
-            self.counters.no_6star >= self.rule_config["guarantee_6star_draw"]
-            and not disable_guarantee
+            not disable_guarantee
+            and effective_no_6star >= self.guarantee_6star_draw
         ):
-            # 6星保底：6星100%，5/4星0%
             result, star_int, is_up = self._get_char_by_star(6)
-            # 重置所有计数器
             self.counters.no_6star = 0
             self.counters.no_5star_plus = 0
-            if is_up:
-                self.counters.no_up = 0
-            quota = self.rule_config["quota_rule"][6]
+            self.counters.no_up = 0 if is_up else effective_no_up
+            quota = self.quota_rule[6]
             return GachaResult(
                 name=result, star=star_int, quota=quota, is_6_g=True
-            )  # 6星保底触发，标记为True
+            )
 
-        # 步骤4：判定是否触发5星保底（连续10抽未出5/6星）
         is_5star_guarantee = (
-            self.counters.no_5star_plus >= self.rule_config["guarantee_5star_plus_draw"]
-            and not disable_guarantee
+            not disable_guarantee
+            and effective_no_5star_plus >= self.guarantee_5star_plus_draw
         )
-        rand = self.rand.pop()
+        rand = self.rand.pop_float()
 
         if is_5star_guarantee:
-            # 5星保底：6星概率=当前6星概率（0.8%/递增后），5星=1-6星概率，4星0%
             if rand < current_6star_prob:
-                # 出6星：重置所有计数器
                 result, star_int, is_up = self._get_char_by_star(6)
-                self.counters.no_6star = 0
-                self.counters.no_5star_plus = 0
-                if is_up:
-                    self.counters.no_up = 0
+                if not disable_guarantee:
+                    next_no_6star = 0
+                    next_no_5star_plus = 0
+                    next_no_up = effective_no_up
+                    if is_up:
+                        next_no_up = 0
             else:
-                # 出5星：仅重置5星保底计数器
                 result, star_int, is_up = self._get_char_by_star(5)
-                self.counters.no_5star_plus = 0
-            quota = self.rule_config["quota_rule"][star_int]
+                if not disable_guarantee:
+                    next_no_6star = effective_no_6star
+                    next_no_5star_plus = 0
+                    next_no_up = effective_no_up
+            if not disable_guarantee:
+                self.counters.no_6star = next_no_6star
+                self.counters.no_5star_plus = next_no_5star_plus
+                self.counters.no_up = next_no_up
+                self.counters.guarantee_used = next_guarantee_used
+            quota = self.quota_rule[star_int]
             return GachaResult(
                 name=result, star=star_int, quota=quota, is_5_g=True
-            )  # 5星保底触发，标记为True
+            )
 
-        # 步骤5：无保底阶段（正常抽卡）：6星概率提升后，五星与四星按比例重新映射
-        base_5star_prob = self.rule_config["base_prob"][5]  # 基础8%
-        base_4star_prob = self.rule_config["base_prob"][4]  # 基础91.2%
-
-        # 计算剩余概率并按比例重新映射五星和四星概率
-        remaining_prob = Decimal("1.0") - current_6star_prob
-        if remaining_prob > 0:
-            # 计算五星和四星的基础概率比例
-            total_base_prob = base_5star_prob + base_4star_prob
-            base_5star_ratio = base_5star_prob / total_base_prob
-
-            # 重新计算五星和四星概率
-            adjusted_5star_prob = remaining_prob * base_5star_ratio
-            # adjusted_4star_prob = remaining_prob * (Decimal("1.0") - base_5star_ratio)
-        else:
-            # 剩余概率为0，所有概率都被六星挤占
-            adjusted_5star_prob = Decimal("0.0")
-            # adjusted_4star_prob = Decimal("0.0")
+        remaining_prob = max(0.0, 1.0 - current_6star_prob)
+        adjusted_5star_prob = remaining_prob * self.base_5star_ratio if remaining_prob > 0 else 0.0
 
         if rand < current_6star_prob:
-            # 出6星：重置所有计数器
             result, star_int, is_up = self._get_char_by_star(6)
-            self.counters.no_6star = 0
-            self.counters.no_5star_plus = 0
-            if is_up:
-                self.counters.no_up = 0
-                self.counters.guarantee_used = True  # 出6星UP时视同触发UP保底，永久失效
+            if not disable_guarantee:
+                next_no_6star = 0
+                next_no_5star_plus = 0
+                next_no_up = effective_no_up
+                if is_up:
+                    next_no_up = 0
+                    next_guarantee_used = True
         elif rand < current_6star_prob + adjusted_5star_prob:
-            # 出5星：重置5星保底计数器
             result, star_int, is_up = self._get_char_by_star(5)
-            self.counters.no_5star_plus = 0
+            if not disable_guarantee:
+                next_no_6star = effective_no_6star
+                next_no_5star_plus = 0
+                next_no_up = effective_no_up
         else:
-            # 出4星：计数器继续累积
             result, star_int, is_up = self._get_char_by_star(4)
-        quota = self.rule_config["quota_rule"][star_int]
+            if not disable_guarantee:
+                next_no_6star = effective_no_6star
+                next_no_5star_plus = effective_no_5star_plus
+                next_no_up = effective_no_up
 
-        # 改造返回值：新增保底标记
-        return GachaResult(
-            name=result, star=star_int, quota=quota
-        )  # 无保底，标记均为False
+        if not disable_guarantee:
+            self.counters.no_6star = next_no_6star
+            self.counters.no_5star_plus = next_no_5star_plus
+            self.counters.no_up = next_no_up
+            self.counters.guarantee_used = next_guarantee_used
+        quota = self.quota_rule[star_int]
+        return GachaResult(name=result, star=star_int, quota=quota)
 
     def get_accumulated_reward(self) -> List[Tuple[str, int]]:
         """获取累计奖励
@@ -751,7 +781,7 @@ class CharGacha:
         >>> char_gacha = CharGacha()
         >>> # 进行多次抽卡
         >>> for _ in range(30):
-        ...     char_gacha.attempt_once()
+        ...     char_gacha.attempt()
         >>> # 获取累计奖励
         >>> rewards = char_gacha.get_accumulated_reward()
         >>> print(f"累计奖励：{rewards}")
@@ -793,7 +823,7 @@ class WeaponGacha:
     >>> # 创建武器卡池实例
     >>> weapon_gacha = WeaponGacha()
     >>> # 进行单次申领（通常为10连抽）
-    >>> results = weapon_gacha.apply_once()
+    >>> results = weapon_gacha.attempt()
     >>> for result in results:
     ...     print(f"抽卡结果：{result.name}，{result.star}星")
     >>> # 获取累计奖励
@@ -819,8 +849,7 @@ class WeaponGacha:
         """
         self.config = config if config else GlobalConfigLoader()
         self.rand = BatchRandom(seed, size=size)  # 武器卡池使用独立的随机数生成器实例
-        if seed >= 0:
-            rnd_seed(seed)
+        self._picker = Random(self.rand.seed)
         self.pool_data = self.config.get_pool_data("weapon")
         self.rule_config = self.config.get_rule_config("weapon")
         self._precache_data()
@@ -829,31 +858,34 @@ class WeaponGacha:
     def _precache_data(self):
         """预缓存UP/普通武器数据
 
-        从配置文件中加载并预处理武器数据，包括UP武器和普通武器的概率分布。
+        从配置文件中加载并预处理武器数据，包括：
+        - UP / 普通武器池拆分
+        - UP 概率累积阈值
+        - 运行时使用的基础概率与保底参数
         """
         # noinspection DuplicatedCode
-        self.star_up_prob: Dict[int, Tuple[List[str], List[Decimal]]] = {}
+        self.star_up_prob: Dict[int, Tuple[List[str], List[float]]] = {}
         self.star_normal: Dict[int, List[str]] = {}
 
-        for star_str in ["6", "5", "4"]:
-            star = int(star_str)
-            items = self.pool_data[star_str]
-            up_names, up_probs, normal_names = [], [], []
-            prob_acc = Decimal("0.0")
-
-            for item in items:
-                prob = Decimal(str(item["up_prob"]))
-                if prob > 0:
-                    up_names.append(item["name"])
-                    prob_acc += prob
-                    up_probs.append(prob_acc)
-                else:
-                    normal_names.append(item["name"])
-
+        for star in (6, 5, 4):
+            up_names, up_probs, normal_names = _normalize_star_pool(
+                self.pool_data, star, "武器池"
+            )
             self.star_up_prob[star] = (up_names, up_probs)
             self.star_normal[star] = normal_names
 
         self.up_weapon_name = self.rule_config["up_weapon_name"]
+        self.base_6star_prob = float(self.rule_config["base_prob"][6])
+        self.base_65star_threshold = self.base_6star_prob + float(self.rule_config["base_prob"][5])
+        self.apply_draws = self.rule_config["apply_draws"]
+        self.quota_rule = self.rule_config["quota_rule"]
+        self.guarantee_6star_apply = self.rule_config["guarantee_6star_apply"]
+        self.up_guarantee_apply = self.rule_config["up_guarantee_apply"]
+        self.per_apply_must_have = self.rule_config["per_apply_must_have"]
+        if not self.star_up_prob[6][0]:
+            raise ValueError("武器池6星 UP 目标不能为空")
+        if self.up_weapon_name not in self.star_up_prob[6][0]:
+            raise ValueError("武器池6星 UP 目标不存在于卡池配置中")
 
     def init_counters(self):
         """初始化计数器
@@ -879,13 +911,12 @@ class WeaponGacha:
         normal_names = self.star_normal[star]
 
         if up_names:
-            rand = self.rand.pop()
-            for idx, prob_acc in enumerate(up_probs):
-                if rand < prob_acc:
-                    return up_names[idx], star
-            return choice(normal_names), star
-        else:
-            return choice(normal_names), star
+            idx = bisect_right(up_probs, self.rand.pop_float())
+            if idx < len(up_names):
+                return up_names[idx], star
+            if not normal_names:
+                return up_names[-1], star
+        return self._picker.choice(normal_names), star
 
     def _get_only_up_weapon(self) -> Tuple[str, int]:
         """获取纯UP武器（6星，最高优先级）
@@ -910,14 +941,15 @@ class WeaponGacha:
         normal_names = self.star_normal[6]
 
         # 2. 按概率判定是否出UP
-        rand = self.rand.pop()
         if up_names:  # 有UP武器时
-            for idx, prob_acc in enumerate(up_probs):
-                if rand < prob_acc:
-                    return up_names[idx], 6, True  # 出UP武器，标记为True
+            idx = bisect_right(up_probs, self.rand.pop_float())
+            if idx < len(up_names):
+                return up_names[idx], 6, True  # 出UP武器，标记为True
+            if not normal_names:
+                return up_names[-1], 6, True
 
         # 3. 未出UP则出6星通用武器
-        return choice(normal_names), 6, False
+        return self._picker.choice(normal_names), 6, False
 
     def _get_only_5star_weapon(self) -> Tuple[str, int]:
         """获取5星通用武器（最低优先级）
@@ -927,7 +959,7 @@ class WeaponGacha:
         Tuple[str, int]
             返回一个元组，包含5星通用武器名称和星级（固定为5星）
         """
-        return choice(self.star_normal[5]), 5
+        return self._picker.choice(self.star_normal[5]), 5
 
     def attempt(self, disable_guarantee: bool = False) -> List[GachaResult]:
         """武器卡池单次申领：8次UP保底仅生效一次 + 固定最后1抽替换 + 优先级UP>6星>5星
@@ -935,7 +967,9 @@ class WeaponGacha:
         Parameters
         ----------
         disable_guarantee : bool, optional
-            参数用于禁用保底机制，主要用于模拟抽卡分布时使用，默认False（即启用保底）
+            用于禁用保底机制，主要服务于分布模拟。
+            启用后本次申领不会修改 no_6star / no_up / guarantee_used，
+            仅保留 total 计数的递增行为。
 
         Returns
         -------
@@ -947,7 +981,7 @@ class WeaponGacha:
         >>> from core import WeaponGacha
         >>> weapon_gacha = WeaponGacha()
         >>> # 进行单次申领
-        >>> results = weapon_gacha.attempt_once()
+        >>> results = weapon_gacha.attempt()
         >>> for i, result in enumerate(results):
         ...     print(f"第{i+1}抽：{result.name}，{result.star}星")
         """
@@ -961,92 +995,89 @@ class WeaponGacha:
         # noinspection PyUnusedLocal
         is_up_guarantee = False  # 是否触发 UP 保底
 
-        # 步骤 1：基础抽卡（按配置次数抽卡，记录抽卡结果）
-        for _ in range(self.rule_config["apply_draws"]):
-            rand = self.rand.pop()
-            if rand < self.rule_config["base_prob"][6]:
+        next_no_6star = self.counters.no_6star
+        next_no_up = self.counters.no_up
+        next_guarantee_used = self.counters.guarantee_used
+
+        for _ in range(self.apply_draws):
+            rand = self.rand.pop_float()
+            if rand < self.base_6star_prob:
                 res, star = self._get_weapon_by_star(6)
                 has_5star_plus = True
                 has_6star = True
-                self.counters.no_6star = 0  # 出6星重置6星保底计数
+                if not disable_guarantee:
+                    next_no_6star = 0
                 if res == self.up_weapon_name:
-                    self.counters.no_up = 0  # 出UP武器重置UP保底计数
                     has_up = True
-                    self.counters.guarantee_used = (
-                        True  # 出6星UP视同触发UP保底，永久失效
-                    )
-            elif (
-                rand
-                < self.rule_config["base_prob"][6] + self.rule_config["base_prob"][5]
-            ):
+                    if not disable_guarantee:
+                        next_no_up = 0
+                        next_guarantee_used = True
+            elif rand < self.base_65star_threshold:
                 res, star = self._get_weapon_by_star(5)
                 has_5star_plus = True
             else:
                 res, star = self._get_weapon_by_star(4)
-            quota = self.rule_config["quota_rule"][star]
+            quota = self.quota_rule[star]
             results.append(GachaResult(name=res, star=star, quota=quota))
 
-        # 步骤2：保底判定 + 固定替换最后1抽（优先级UP>6星>5星，UP保底仅生效一次）
         replace_weapon = None
         replace_quota = 0
-        # 优先级1：UP武器保底（最高）- 仅未使用过且触发条件满足时生效
         is_up_guarantee = (
-            not self.counters.guarantee_used
+            not disable_guarantee
+            and not self.counters.guarantee_used
             and not has_up
-            and self.counters.no_up >= self.rule_config["up_guarantee_apply"] - 1
-            and not disable_guarantee
+            and self.counters.no_up >= self.up_guarantee_apply - 1
         )
         if is_up_guarantee:
             replace_weapon, star = self._get_only_up_weapon()
-            replace_quota = self.rule_config["quota_rule"][star]
-            self.counters.guarantee_used = True  # 标记UP保底已使用，永久失效
-            self.counters.no_up = 0
-            self.counters.no_6star = 0  # 出UP必出6星，同步重置6星计数器
+            replace_quota = self.quota_rule[star]
+            next_guarantee_used = True
+            next_no_up = 0
+            next_no_6star = 0
             has_6star = True
             has_up = True
 
-        # 优先级2：6星武器保底（中）- 未触发UP保底时生效
         elif (
-            not has_6star
-            and self.counters.no_6star >= self.rule_config["guarantee_6star_apply"] - 1
-            and not disable_guarantee
+            not disable_guarantee
+            and not has_6star
+            and self.counters.no_6star >= self.guarantee_6star_apply - 1
         ):
             replace_weapon, star, is_up = self._get_only_6star_weapon()
-            replace_quota = self.rule_config["quota_rule"][star]
-            self.counters.no_6star = 0
+            replace_quota = self.quota_rule[star]
+            next_no_6star = 0
             has_6star = True
             is_6_guarantee = True
             if is_up:
-                self.counters.no_up = 0  # 出6星UP武器时同步重置UP计数器
+                next_no_up = 0
                 has_up = True
 
-        # 优先级3：5星武器保底（最低）- 未触发前两级保底时生效
         elif (
-            not has_5star_plus
-            and self.rule_config["per_apply_must_have"]
-            and not disable_guarantee
+            not disable_guarantee
+            and not has_5star_plus
+            and self.per_apply_must_have
         ):
             replace_weapon, star = self._get_only_5star_weapon()
-            replace_quota = self.rule_config["quota_rule"][star]
+            replace_quota = self.quota_rule[star]
             is_5_guarantee = True
 
-        # 执行替换：固定替换最后1抽（有替换内容时）
         if replace_weapon:
-            # noinspection PyUnboundLocalVariable
             results[-1] = GachaResult(
                 name=replace_weapon,
-                star=star,  # type: ignore
+                star=star,  # type: ignore[name-defined]
                 quota=replace_quota,
                 is_up_g=is_up_guarantee,
                 is_6_g=is_6_guarantee,
                 is_5_g=is_5_guarantee,
             )
 
-        # 步骤3：更新计数器（未出对应武器则计数+1；UP保底已使用则不再累计UP计数）
-        if not has_up and not self.counters.guarantee_used and not disable_guarantee:
-            self.counters.no_up += 1
-        if not has_6star and not disable_guarantee:
-            self.counters.no_6star += 1
+        if not disable_guarantee:
+            if not has_up and not next_guarantee_used:
+                next_no_up = self.counters.no_up + 1
+            if not has_6star:
+                next_no_6star = self.counters.no_6star + 1
+            self.counters.no_up = next_no_up
+            self.counters.no_6star = next_no_6star
+            self.counters.guarantee_used = next_guarantee_used
 
         return results
 
@@ -1066,7 +1097,7 @@ class WeaponGacha:
         >>> weapon_gacha = WeaponGacha()
         >>> # 进行多次申领
         >>> for _ in range(10):
-        ...     weapon_gacha.attempt_once()
+        ...     weapon_gacha.attempt()
         >>> # 获取累计奖励
         >>> rewards = weapon_gacha.get_accumulated_reward()
         >>> print(f"累计奖励：{rewards}")
