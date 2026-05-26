@@ -55,7 +55,7 @@ line-ending = "lf"
 
 [tool.pyright]
 pythonVersion = "3.10"
-include = ["gacha_core", "server", "scheduler", "tools"]
+include = ["gacha_core", "web", "scheduler", "cli"]
 exclude = [
     "**/__pycache__",
     "**/node_modules",

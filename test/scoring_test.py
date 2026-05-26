@@ -9,18 +9,21 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from gacha_core import Counters, GlobalConfigLoader
-from scheduler import Resource, Scheduler
-from scheduler.scoring import (
-    BaselineEstimator,
+from scheduler import Scheduler
+from scheduler.baseline import BaselineEstimator
+from scheduler.models import (
     LogMapConfig,
+    Resource,
     ScoringPreferences,
-    ScoringSystem,
     SixStarDistributionEstimate,
     StageTrace,
     StrategyGoal,
     StrategyScoreReport,
     StrategyTrace,
+    calculate_trace_utility,
+    log_map,
 )
+from scheduler.scoring import ScoringSystem
 from scheduler.strategy_protocol import STRATEGY_PROTOCOL_VERSION, StrategyProtocolAdapter
 from scheduler.strategy_rules import StrategyCondition, StrategyRuleEngine, StrategyRuleSet
 
@@ -74,10 +77,10 @@ def make_trace(
 def test_log_map_boundaries():
     config = LogMapConfig(low=0.5, high=2.0, curve=1.0)
 
-    assert ScoringSystem.log_map(0.1, config) == 0.0
-    assert ScoringSystem.log_map(0.5, config) == 0.0
-    assert ScoringSystem.log_map(2.0, config) == 100.0
-    assert 0.0 < ScoringSystem.log_map(1.0, config) < 100.0
+    assert log_map(0.1, config) == 0.0
+    assert log_map(0.5, config) == 0.0
+    assert log_map(2.0, config) == 100.0
+    assert 0.0 < log_map(1.0, config) < 100.0
 
 
 def test_value_function_applies_potential_multiplier_and_linear_low_stars():
@@ -93,7 +96,7 @@ def test_value_function_applies_potential_multiplier_and_linear_low_stars():
         resource_left=80,
     )
 
-    value = ScoringSystem.calculate_trace_utility(trace, prefs)
+    value = calculate_trace_utility(trace, prefs)
 
     expected = (
         prefs.current_up_value * prefs.potential_multiplier(1)
@@ -507,7 +510,7 @@ def test_owned_potential_records_use_incremental_value():
         resource_left=90,
     )
 
-    value = ScoringSystem.calculate_trace_utility(trace, prefs)
+    value = calculate_trace_utility(trace, prefs)
     expected = prefs.current_up_value * (
         prefs.potential_multiplier(1) - prefs.potential_multiplier(0)
     )

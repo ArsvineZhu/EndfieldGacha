@@ -6,8 +6,8 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-import server.routes as routes_module
-from server.app import create_app
+import web  # noqa: E402 — load before routes to allow monkeypatching sub-module imports
+import web.user  # noqa: E402
 
 
 def _build_user_info() -> dict:
@@ -35,9 +35,6 @@ def _build_user_info() -> dict:
 
 
 def test_urgent_recruitment_api_guarantees_at_least_one_5star_plus(monkeypatch):
-    app = create_app(dev_mode=True)
-    client = app.test_client()
-
     store = {"user_id": "u-test", "user_info": _build_user_info()}
 
     def fake_get_or_create_current_user(_request):
@@ -47,8 +44,14 @@ def test_urgent_recruitment_api_guarantees_at_least_one_5star_plus(monkeypatch):
         store["user_id"] = user_id
         store["user_info"] = copy.deepcopy(user_info)
 
-    monkeypatch.setattr(routes_module, "get_or_create_current_user", fake_get_or_create_current_user)
-    monkeypatch.setattr(routes_module, "save_user", fake_save_user)
+    # Patch BEFORE importing routes sub-modules (via create_app)
+    monkeypatch.setattr(web.user, "get_or_create_current_user", fake_get_or_create_current_user)
+    monkeypatch.setattr(web.user, "save_user", fake_save_user)
+
+    from web.app import create_app
+
+    app = create_app(dev_mode=True)
+    client = app.test_client()
 
     for _ in range(200):
         store["user_info"]["resources"]["urgent_recruitment"] = 1
@@ -60,4 +63,3 @@ def test_urgent_recruitment_api_guarantees_at_least_one_5star_plus(monkeypatch):
         assert "results" in payload
         assert len(payload["results"]) == 10
         assert max(item["star"] for item in payload["results"]) >= 5
-

@@ -1,7 +1,7 @@
 import importlib.util
 from pathlib import Path
 
-COMPRESS_PATH = Path(__file__).resolve().parents[1] / "app" / "utils" / "compress.py"
+COMPRESS_PATH = Path(__file__).resolve().parents[1] / "build" / "compress.py"
 SPEC = importlib.util.spec_from_file_location("compress_module", COMPRESS_PATH)
 compress = importlib.util.module_from_spec(SPEC)
 assert SPEC and SPEC.loader

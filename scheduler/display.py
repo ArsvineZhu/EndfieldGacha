@@ -25,7 +25,7 @@ from rich.progress import (
 from rich.table import Table
 from rich.text import Text
 
-from scheduler.scoring import StrategyScoreReport, StrategyTrace
+from scheduler.models import StrategyScoreReport, StrategyTrace
 from scheduler.strategy_rules import StrategyRuleEngine, is_structured_strategy
 
 console = Console()

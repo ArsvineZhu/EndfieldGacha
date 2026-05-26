@@ -213,6 +213,9 @@ __marimo__/
 # Codex
 .codex/
 
+# Claude
+.claude/
+
 # Vscode
 .vscode/
 
@@ -227,6 +230,7 @@ test_*
 
 # User data db
 userdata.db
+data/*.db
 
 # Backup files
 *.bak

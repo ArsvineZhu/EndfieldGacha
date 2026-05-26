@@ -10,7 +10,7 @@ from math import ceil
 from typing import Any, Dict, List, Tuple
 
 from gacha_core import CharGacha, Counters, GlobalConfigLoader
-from scheduler.scoring import (
+from scheduler.models import (
     Resource,
     StageTrace,
     StrategyTrace,

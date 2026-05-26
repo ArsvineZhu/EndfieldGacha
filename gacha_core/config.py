@@ -7,13 +7,20 @@ from copy import deepcopy
 from decimal import Decimal, getcontext
 from typing import Any, Dict, List
 
-CHAR_BANNER_SCHEMA_VERSION = "char-banner"
-CHAR_POOL_BASE_SCHEMA_VERSION = "char-pool-base"
-GLOBAL_CONSTANTS_SCHEMA_VERSION = "global-constants"
-WEAPON_BANNER_SCHEMA_VERSION = "weapon-banner"
-WEAPON_BANNERS_SCHEMA_VERSION = "weapon-banners"
-WEAPON_POOL_BASE_SCHEMA_VERSION = "weapon-pool-base"
-BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+from ._schemas import (
+    BASE_DIR,
+    CHAR_BANNER_SCHEMA_VERSION,
+    CHAR_POOL_BASE_SCHEMA_VERSION,
+    GLOBAL_CONSTANTS_SCHEMA_VERSION,
+    WEAPON_BANNER_SCHEMA_VERSION,
+    WEAPON_BANNERS_SCHEMA_VERSION,
+    WEAPON_POOL_BASE_SCHEMA_VERSION,
+    _deep_merge,
+    _normalize_banner_id,
+    _normalize_name_list,
+    _normalize_optional_name_list,
+    _normalize_weapon_entries,
+)
 
 
 class GlobalConfigLoader:
@@ -66,25 +73,12 @@ class GlobalConfigLoader:
         getcontext().prec = self.constants.get("default_precision", 6)
 
     def _load_constants(self) -> Dict[str, Any]:
-        """加载全局常量配置（constants.json + 当前目录覆盖）
-
-        Returns
-        -------
-        Dict[str, Any]
-            包含全局常量的字典
-
-        Raises
-        ------
-        FileNotFoundError
-            当 constants.json 或 gacha_rules.json 配置文件不存在时
-        ValueError
-            当配置文件格式错误时
-        """
+        """加载全局常量配置（constants.json + 当前目录覆盖）"""
         base_payload = self._load_root_config("constants.json")
         if base_payload.get("schema_version") != GLOBAL_CONSTANTS_SCHEMA_VERSION:
             raise ValueError("constants.json 缺少有效的 schema_version")
         local_rules = self.load_config("gacha_rules.json")
-        merged = self._deep_merge(deepcopy(base_payload), local_rules)
+        merged = _deep_merge(deepcopy(base_payload), local_rules)
         if "char" not in merged or "weapon" not in merged:
             raise ValueError("gacha_rules.json 与 constants.json 合并后缺少 char/weapon 规则")
         return merged
@@ -98,32 +92,8 @@ class GlobalConfigLoader:
             return {}
         return deepcopy(payload)
 
-    @staticmethod
-    def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
-        for key, value in override.items():
-            if (
-                key in base
-                and isinstance(base[key], dict)
-                and isinstance(value, dict)
-            ):
-                base[key] = GlobalConfigLoader._deep_merge(base[key], value)
-            else:
-                base[key] = deepcopy(value)
-        return base
-
     def _get_config_path(self, file_name: str) -> str:
-        """获取配置文件路径
-
-        Parameters
-        ----------
-        file_name : str
-            配置文件名称
-
-        Returns
-        -------
-        str
-            配置文件的完整路径
-        """
+        """获取配置文件路径"""
         return os.path.join(BASE_DIR, self._current_path, file_name)
 
     def _get_root_config_path(self, file_name: str) -> str:
@@ -177,64 +147,6 @@ class GlobalConfigLoader:
         except json.JSONDecodeError:
             raise ValueError(f"配置文件 {file_name} 格式错误")
 
-    @staticmethod
-    def _normalize_name_list(payload: Any, field_name: str) -> List[str]:
-        if not isinstance(payload, list) or not payload:
-            raise ValueError(f"{field_name} 必须是非空数组")
-        names: List[str] = []
-        for item in payload:
-            if not isinstance(item, str) or not item.strip():
-                raise ValueError(f"{field_name} 中存在非法名称")
-            names.append(item.strip())
-        if len(set(names)) != len(names):
-            raise ValueError(f"{field_name} 中存在重复名称")
-        return names
-
-    @staticmethod
-    def _normalize_optional_name_list(payload: Any, field_name: str) -> List[str]:
-        if payload is None:
-            return []
-        if not isinstance(payload, list):
-            raise ValueError(f"{field_name} 必须是数组")
-        names: List[str] = []
-        for item in payload:
-            if not isinstance(item, str) or not item.strip():
-                raise ValueError(f"{field_name} 中存在非法名称")
-            names.append(item.strip())
-        if len(set(names)) != len(names):
-            raise ValueError(f"{field_name} 中存在重复名称")
-        return names
-
-    @staticmethod
-    def _normalize_weapon_entries(
-        payload: Any, field_name: str, *, allow_empty: bool
-    ) -> List[Dict[str, str]]:
-        if payload is None:
-            if allow_empty:
-                return []
-            raise ValueError(f"{field_name} 不能为空")
-        if not isinstance(payload, list):
-            raise ValueError(f"{field_name} 必须是数组")
-        if not payload and not allow_empty:
-            raise ValueError(f"{field_name} 不能为空")
-        entries: List[Dict[str, str]] = []
-        names: set[str] = set()
-        for item in payload:
-            if not isinstance(item, dict):
-                raise ValueError(f"{field_name} 中存在非法条目")
-            name = item.get("name")
-            weapon_type = item.get("type")
-            if not isinstance(name, str) or not name.strip():
-                raise ValueError(f"{field_name} 中存在非法武器名")
-            if not isinstance(weapon_type, str) or not weapon_type.strip():
-                raise ValueError(f"{field_name} 中存在非法武器类型")
-            name = name.strip()
-            if name in names:
-                raise ValueError(f"{field_name} 中存在重复武器: {name}")
-            names.add(name)
-            entries.append({"name": name, "type": weapon_type.strip()})
-        return entries
-
     def _load_char_pool_base(self) -> Dict[str, Any]:
         cache_key = "normalized::char_pool_base"
         if cache_key in self._cache:
@@ -253,15 +165,15 @@ class GlobalConfigLoader:
             if not isinstance(profile_name, str) or not isinstance(profile, dict):
                 raise ValueError("char_pool_base.json.shared_pools 存在非法条目")
             normalized_profiles[profile_name] = {
-                "six_star_normal": self._normalize_optional_name_list(
+                "six_star_normal": _normalize_optional_name_list(
                     profile.get("six_star_normal", []),
                     f"shared_pools.{profile_name}.six_star_normal",
                 ),
-                "five_star": self._normalize_name_list(
+                "five_star": _normalize_name_list(
                     profile.get("five_star"),
                     f"shared_pools.{profile_name}.five_star",
                 ),
-                "four_star": self._normalize_name_list(
+                "four_star": _normalize_name_list(
                     profile.get("four_star"),
                     f"shared_pools.{profile_name}.four_star",
                 ),
@@ -280,7 +192,7 @@ class GlobalConfigLoader:
             return self._cache[cache_key]
 
         raw_payload = self.load_config("char_banner.json")
-        payload = self._deep_merge(self._get_banner_defaults("char"), raw_payload)
+        payload = _deep_merge(self._get_banner_defaults("char"), raw_payload)
         if payload.get("schema_version") != CHAR_BANNER_SCHEMA_VERSION:
             raise ValueError("char_banner.json 缺少有效的 schema_version")
 
@@ -297,17 +209,17 @@ class GlobalConfigLoader:
         if not isinstance(featured, dict):
             raise ValueError("char_banner.json.featured 必须是对象")
 
-        current_up = self._normalize_optional_name_list(
+        current_up = _normalize_optional_name_list(
             featured.get("current_up", []), "featured.current_up"
         )
-        past_up = self._normalize_optional_name_list(
+        past_up = _normalize_optional_name_list(
             featured.get("past_up", []), "featured.past_up"
         )
         raw_featured = raw_payload.get("featured", {})
         if not isinstance(raw_featured, dict):
             raw_featured = {}
         if "normal" in raw_featured:
-            normal = self._normalize_optional_name_list(
+            normal = _normalize_optional_name_list(
                 featured.get("normal", []), "featured.normal"
             )
         else:
@@ -386,17 +298,17 @@ class GlobalConfigLoader:
             if not isinstance(profile_name, str) or not isinstance(profile, dict):
                 raise ValueError("weapon_pool_base.json.shared_pools 存在非法条目")
             normalized_profiles[profile_name] = {
-                "six_star_normal": self._normalize_weapon_entries(
+                "six_star_normal": _normalize_weapon_entries(
                     profile.get("six_star_normal"),
                     f"shared_pools.{profile_name}.six_star_normal",
                     allow_empty=False,
                 ),
-                "five_star": self._normalize_weapon_entries(
+                "five_star": _normalize_weapon_entries(
                     profile.get("five_star"),
                     f"shared_pools.{profile_name}.five_star",
                     allow_empty=False,
                 ),
-                "four_star": self._normalize_weapon_entries(
+                "four_star": _normalize_weapon_entries(
                     profile.get("four_star"),
                     f"shared_pools.{profile_name}.four_star",
                     allow_empty=False,
@@ -408,12 +320,6 @@ class GlobalConfigLoader:
         }
         self._cache[cache_key] = normalized
         return normalized
-
-    @staticmethod
-    def _normalize_banner_id(payload: Any, field_name: str) -> str:
-        if not isinstance(payload, str) or not payload.strip():
-            raise ValueError(f"{field_name} 必须是非空字符串")
-        return payload.strip()
 
     def _load_weapon_banners(self) -> Dict[str, Any]:
         cache_key = "normalized::weapon_banners"
@@ -430,14 +336,13 @@ class GlobalConfigLoader:
         if not isinstance(raw_banners, list) or not raw_banners:
             raise ValueError("weapon_banners.json.banners 必须是非空数组")
 
-        defaults = self._get_banner_defaults("weapon")
         normalized_banners: List[Dict[str, Any]] = []
         seen_ids: set[str] = set()
         for index, raw_banner in enumerate(raw_banners):
             if not isinstance(raw_banner, dict):
                 raise ValueError("weapon_banners.json.banners 中存在非法条目")
-            banner = self._deep_merge(defaults, raw_banner)
-            banner_id = self._normalize_banner_id(banner.get("id"), f"banners[{index}].id")
+            banner = _deep_merge(self._get_banner_defaults("weapon"), raw_banner)
+            banner_id = _normalize_banner_id(banner.get("id"), f"banners[{index}].id")
             if banner_id in seen_ids:
                 raise ValueError(f"weapon_banners.json.banners 中存在重复 id: {banner_id}")
             seen_ids.add(banner_id)
@@ -451,7 +356,7 @@ class GlobalConfigLoader:
             featured = banner.get("featured")
             if not isinstance(featured, dict):
                 raise ValueError(f"banners[{index}].featured 必须是对象")
-            current_up = self._normalize_weapon_entries(
+            current_up = _normalize_weapon_entries(
                 featured.get("current_up"),
                 f"banners[{index}].featured.current_up",
                 allow_empty=True,
@@ -487,7 +392,7 @@ class GlobalConfigLoader:
             if not isinstance(pool_overrides, dict):
                 raise ValueError("weapon banner pool_overrides 必须是对象")
 
-            six_star_add = self._normalize_weapon_entries(
+            six_star_add = _normalize_weapon_entries(
                 pool_overrides.get("six_star_add", []),
                 f"banners[{index}].pool_overrides.six_star_add",
                 allow_empty=True,
@@ -530,7 +435,7 @@ class GlobalConfigLoader:
         default_banner_id = payload.get("default_banner_id")
         if default_banner_id is None:
             default_banner_id = normalized_banners[0]["id"]
-        default_banner_id = self._normalize_banner_id(default_banner_id, "default_banner_id")
+        default_banner_id = _normalize_banner_id(default_banner_id, "default_banner_id")
         if default_banner_id not in seen_ids:
             raise ValueError("default_banner_id 必须指向已声明的 weapon banner")
 
@@ -655,7 +560,6 @@ class GlobalConfigLoader:
             rules = deepcopy(self.constants[pool_type])
         except KeyError as exc:
             raise KeyError(f"缺少 {pool_type} 抽卡规则配置") from exc
-        # 类型转换：str键→int键，概率→Decimal
         rules["quota_rule"] = {int(k): int(v) for k, v in rules["quota_rule"].items()}
         rules["base_prob"] = {
             int(k): Decimal(str(v)) for k, v in rules["base_prob"].items()
@@ -671,8 +575,6 @@ class GlobalConfigLoader:
     def get_text(self, key: str) -> str:
         """获取文本常量(基本废弃)
 
-        注意：text_constants字段已从配置文件中移除，现在返回硬编码值
-
         Parameters
         ----------
         key : str
@@ -683,7 +585,6 @@ class GlobalConfigLoader:
         str
             对应的文本常量值
         """
-        # 硬编码的文本常量值（原text_constants字段内容）
         text_constants = {
             "char_quota_name": "武库配额",
             "weapon_quota_name": "集成配额",
@@ -698,45 +599,24 @@ class GlobalConfigLoader:
             "per_second_text": "每秒",
         }
 
-        # 特殊处理：卡池名称从pool_info获取
         if key == "char_pool_name":
             return self._load_char_banner().get("pool_name", "")
         elif key == "weapon_pool_name":
             return self._load_weapon_banner().get("pool_name", "")
 
-        # 返回硬编码的文本常量
         if key in text_constants:
             return text_constants[key]
 
-        # 如果键不存在，返回空字符串
         return ""
 
     def get_default(self, key: str) -> Any:
-        """获取默认值（已弃用，使用get_default_precision代替）
-
-        Parameters
-        ----------
-        key : str
-            默认值的键名
-
-        Returns
-        -------
-        Any
-            对应的默认值
-        """
-        # 兼容旧代码，default_precision现在直接在根层级
+        """获取默认值（已弃用，使用get_default_precision代替）"""
         if key == "default_precision":
             return self.constants.get("default_precision", 6)
         return None
 
     def get_default_precision(self) -> int:
-        """获取默认精度
-
-        Returns
-        -------
-        int
-            默认精度值
-        """
+        """获取默认精度"""
         return self.constants.get("default_precision", 6)
 
     def get_pool_info(self, pool_type: str) -> Dict[str, Any]:
@@ -767,4 +647,3 @@ class GlobalConfigLoader:
                 "close_time": banner.get("close_time", ""),
             }
         return {"name": "", "open_time": "", "close_time": ""}
-

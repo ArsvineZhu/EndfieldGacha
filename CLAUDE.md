@@ -9,35 +9,63 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `uv run run.py eval` — strategy evaluation
 - `uv run run.py exam` — probability verification
 - `uv run run.py server` — start web server (port 5000)
-- `uv run server.py --dev` — web dev mode (no static compression)
-- `uv run server.py --waitress --port 5000` — production mode
+- `uv run run.py server --dev` — dev mode (no static compression)
+- `uv run run.py server --waitress --port 5000` — production mode
 - `uv run pytest test/ -v` — run all tests
 - `uv run pytest test/scoring_test.py -v -k test_name` — run a single test
 - `uv run ruff check .` — lint
 - `uv run pyright` — type check
-- `uv run python app/utils/compress.py` — compress static files
+- `uv run python build/compress.py` — compress static files
 
 ## Project Structure
 
-Python 3.10+ project using uv. Web server: Flask (dev) or Waitress (prod). Visualization: rich (CLI), matplotlib (charts).
-
-### Core Modules
-
-- **`gacha_core/`** — CharGacha and WeaponGacha simulation. Key classes: `BatchRandom` (numpy-based batch RNG), `GachaResult`, `Counters` (pity/state counters), `GlobalConfigLoader` (reads configs/ JSON files, assembles pool data from base + banner configs). `CharGacha.attempt()` returns a single `GachaResult`; `WeaponGacha.attempt()` returns `List[GachaResult]` (10 per apply).
-
-- **`scheduler/`** — Strategy planning and evaluation system.
-  - `strategy_rules.py`: `StrategyCondition` (kind, operator, value) and `StrategyRuleSet` (match="all"|"any", nested conditions). The rules engine evaluates draw state to determine when to stop.
-  - `strategy_protocol.py`: Converts between frontend JSON payloads (strategy-protocol-v1) and backend `StrategyRuleSet`. Only supports "structured" kind; rejects legacy_magic and list payloads.
-  - `workers.py`: `StrategyRuntime` wraps rules for simulation. Single-thread simulation loop with resource management, urgent gacha handling, and per-banner state tracking.
-  - `scoring.py`: ScoringSystem v2.3.0 — four dimensions (goal, utility, resource, risk). `BaselineEstimator` uses Monte Carlo with file caching and cubic spline interpolation for near-state estimates. `ScoringPreferences` configures weights, value mapping, and risk parameters.
-  - `engine.py`: `Scheduler` orchestrates multi-banner plans. `evaluate()` runs parallel simulations via multiprocessing.Pool. `evaluate_multiple_strategies()` compares strategies side by side.
-  - `display.py`: Rich-formatted console output (tables, panels, progress bars).
-
-- **`server/`** — Flask application. SQLite user data in `userdata.db`. User identity: MD5 of IP + UA. Routes: gacha, urgent recruitment, recharge, exchange, history, pool info, rewards. Routes are long (inline resource logic in `routes.py`).
-
-- **`tools/`** — `demo.py` (demonstrations), `evaluation.py` (reads `evaluation_examples.json`), `examination.py` (probability verification with guarantees disabled).
-
-- **`configs/`** — JSON configs: `constants.json` (shared defaults), `char_pool_base.json` / `weapon_pool_base.json` (shared rosters), `config_N/char_banner.json` / `weapon_banners.json` / `gacha_rules.json` (per-banner overrides). `arrangement` file determines default config directory (first line). `gacha_rules.json` merges into `constants.json` at runtime.
+```
+EndfieldGacha/
+├── run.py                  # Unified CLI entrypoint
+├── gacha_core/             # Gacha simulation engine
+│   ├── char.py             # CharGacha — character banner logic
+│   ├── weapon.py           # WeaponGacha — weapon issue logic
+│   ├── config.py           # GlobalConfigLoader — config I/O & banner building
+│   ├── models.py           # GachaResult, Counters data classes
+│   ├── randomizer.py       # BatchRandom (numpy-based batch RNG)
+│   ├── pool_utils.py       # _normalize_star_pool helper
+│   └── _schemas.py         # Schema constants + normalization utilities
+├── scheduler/              # Strategy planning, simulation & scoring
+│   ├── engine.py           # Scheduler orchestrator
+│   ├── scoring.py          # ScoringSystem v2.3.0 (goal/utility/resource/risk)
+│   ├── baseline.py         # BaselineEstimator (MC + cache + spline)
+│   ├── cache.py            # JsonFileCache utility
+│   ├── models.py           # Data models (Resource, StageTrace, ScoreReport, etc.)
+│   ├── workers.py          # Simulation runtime + multiprocessing worker
+│   ├── display.py          # Rich-formatted console output
+│   ├── strategy_rules.py   # StrategyCondition / StrategyRuleSet engine
+│   └── strategy_protocol.py# strategy-protocol-v1 adapter
+├── web/                    # Flask web application
+│   ├── app.py              # App factory
+│   ├── routes.py           # API routes (gacha, recharge, exchange, info)
+│   ├── resource.py         # Recharge/exchange logic
+│   ├── user.py             # SQLite user storage (IP+UA based identity)
+│   ├── templates/          # HTML templates
+│   └── static/             # CSS, JS, manifest
+├── cli/                    # CLI tools
+│   ├── demo.py             # GachaTestTool (demo + statistics)
+│   ├── evaluation.py       # Strategy evaluation runner
+│   ├── examination.py      # Probability distribution verification
+│   └── evaluation_examples.json
+├── build/                  # Build utilities
+│   └── compress.py         # JS/CSS minification + hashing
+├── configs/                # JSON configuration files
+│   ├── constants.json      # Global defaults
+│   ├── char_pool_base.json # Shared character rosters
+│   ├── weapon_pool_base.json # Shared weapon rosters
+│   ├── arrangement         # Banner order + default config dir
+│   └── config_N/           # Per-banner configs (char_banner, weapon_banners, gacha_rules)
+├── data/                   # Runtime data (gitignored)
+├── doc/                    # Documentation
+├── scripts/                # Startup scripts (bat/ps1/sh)
+├── test/                   # pytest tests
+└── legacy/                 # Archived old code & configs
+```
 
 ### Key Implementation Notes
 
