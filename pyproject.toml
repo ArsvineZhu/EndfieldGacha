@@ -1,6 +1,6 @@
 [project]
 name = "endfield-gacha"
-version = "2.2.2"
+version = "2.0.0"
 description = "Arknights Endfield gacha simulation and strategy evaluation toolkit"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -55,7 +55,7 @@ line-ending = "lf"
 
 [tool.pyright]
 pythonVersion = "3.10"
-include = ["core.py", "server", "scheduler", "tools"]
+include = ["gacha_core", "server", "scheduler", "tools"]
 exclude = [
     "**/__pycache__",
     "**/node_modules",

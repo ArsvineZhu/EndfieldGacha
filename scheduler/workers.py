@@ -9,14 +9,14 @@ from copy import deepcopy
 from math import ceil
 from typing import Any, Dict, List, Tuple
 
-from core import CharGacha, Counters, GlobalConfigLoader
+from gacha_core import CharGacha, Counters, GlobalConfigLoader
 from scheduler.scoring import (
     Resource,
     StageTrace,
     StrategyTrace,
     resource_to_standard_draws,
 )
-from scheduler.strategy_v2 import (
+from scheduler.strategy_rules import (
     StrategyRuleEngine,
     StrategyRuleSet,
 )
@@ -180,7 +180,9 @@ def _simulator(
         stage_paid_draws = 0
         stage_bonus_draws = 0
         stage_results: List[Dict[str, Any]] = []
-        up_names = set(gacha.star_up_prob.get(6, ([], []))[0])
+        featured_names = config.get_char_featured_names()
+        up_names = set(featured_names["current_up"])
+        past_up_names = set(featured_names["past_up"])
         start_counters = deepcopy(gacha.counters)
         state["resource_left"] = resource_to_standard_draws(resource)
 
@@ -211,7 +213,9 @@ def _simulator(
             result = gacha.attempt()
             total_paid_draws += 1
             stage_paid_draws += 1
-            stage_results.append(_result_to_record(result, selected_config, up_names))
+            stage_results.append(
+                _result_to_record(result, selected_config, up_names, past_up_names)
+            )
             state, potential = process_gacha_result(result, gacha, state, potential)
             state["resource_left"] = resource_to_standard_draws(resource)
 
@@ -228,7 +232,9 @@ def _simulator(
                     total_bonus_draws += 1
                     stage_bonus_draws += 1
                     stage_results.append(
-                        _result_to_record(urgent_result, selected_config, up_names)
+                        _result_to_record(
+                            urgent_result, selected_config, up_names, past_up_names
+                        )
                     )
                 state["resource_left"] = resource_to_standard_draws(resource)
 
@@ -263,7 +269,12 @@ def _simulator(
     )
 
 
-def _result_to_record(result: Any, config_name: str, up_names: set[str]) -> Dict[str, Any]:
+def _result_to_record(
+    result: Any,
+    config_name: str,
+    up_names: set[str],
+    past_up_names: set[str],
+) -> Dict[str, Any]:
     return {
         "name": result.name,
         "star": result.star,
@@ -272,7 +283,7 @@ def _result_to_record(result: Any, config_name: str, up_names: set[str]) -> Dict
         "is_6_g": result.is_6_g,
         "is_5_g": result.is_5_g,
         "is_current_up": result.name in up_names,
-        "is_past_up": False,
+        "is_past_up": result.name in past_up_names,
         "config_name": config_name,
     }
 
@@ -285,3 +296,5 @@ __all__ = [
     "process_gacha_result",
     "_worker_wrapper",
 ]
+
+

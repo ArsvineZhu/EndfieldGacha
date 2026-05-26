@@ -36,7 +36,7 @@
 {
   "node_type": "group",
   "match": "all",
-  "version": "strategy-v2",
+  "version": "strategy-structured",
   "tags": ["example"],
   "children": []
 }
@@ -46,7 +46,7 @@
 |---|---|---|
 | `node_type` | string | 固定为 `group` |
 | `match` | string | `all` 或 `any` |
-| `version` | string | 默认 `strategy-v2` |
+| `version` | string | 默认 `strategy-structured` |
 | `tags` | array[string] | 可选标签 |
 | `children` | array | 子节点，元素可为 `group` 或 `condition` |
 
@@ -181,4 +181,3 @@
 - `Scheduler.banner(...)` and `Scheduler.evaluate_multiple_strategies(...)` both call the adapter automatically
 
 `StrategyRuleEngine.describe(...)` is a separate display helper and returns `type` keys, not protocol payload keys.
-

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""V2 评分系统与资源模型。"""
+"""评分系统与资源模型。"""
 
 from __future__ import annotations
 
@@ -15,9 +15,9 @@ from math import ceil, log, sqrt
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
-from core import CharGacha, Counters, GlobalConfigLoader
+from gacha_core import CharGacha, Counters, GlobalConfigLoader
 
-SCORING_V2_VERSION = "2.3.0"
+SCORING_VERSION = "2.3.0"
 SCORING_CACHE_VERSION = "score-cache-v1"
 
 
@@ -197,7 +197,7 @@ class ScoringPreferences:
     @property
     def parameter_tags(self) -> List[str]:
         return [
-            f"scoring:{SCORING_V2_VERSION}",
+            f"scoring:{SCORING_VERSION}",
             f"preset:{self.preset_name}",
             f"o_ref:{self.opportunity_reference}",
             f"u_ref:{self.utility_absolute_reference}",
@@ -365,7 +365,7 @@ class BaselineEstimator:
         self.config_dir = config_dir
         self.samples = samples
         self.base_seed = base_seed
-        self.cache_path = cache_path or os.path.join("logs", "scoring_v2_cache.json")
+        self.cache_path = cache_path or os.path.join("logs", "scoring_cache.json")
         self._baseline_cache = JsonFileCache(self.cache_path, "baseline")
         self._distribution_cache = JsonFileCache(self.cache_path, "six_star_distribution")
 
@@ -409,7 +409,7 @@ class BaselineEstimator:
                     "paid_draws": paid_draws,
                     "samples": self.samples,
                     "seed": self.base_seed,
-                    "version": SCORING_V2_VERSION,
+                    "version": SCORING_VERSION,
                     "counters_signature": list(self._counters_signature(counters)),
                     "preferences_signature": self._signature_to_jsonable(
                         preferences.theta_signature
@@ -421,20 +421,22 @@ class BaselineEstimator:
 
         config = GlobalConfigLoader(f"{self.config_dir}/{config_name}")
         sample_values: List[float] = []
+        featured_names = config.get_char_featured_names()
+        current_up_names = set(featured_names["current_up"])
+        past_up_names = set(featured_names["past_up"])
         for index in range(self.samples):
             seed = self._build_seed(cache_key, index)
             gacha = CharGacha(config=config, seed=seed)
             gacha.counters = deepcopy(counters)
             results: List[Dict[str, Any]] = []
-            up_names = set(gacha.star_up_prob.get(6, ([], []))[0])
             for _ in range(paid_draws):
                 result = gacha.attempt()
                 results.append(
                     {
                         "name": result.name,
                         "star": result.star,
-                        "is_current_up": result.name in up_names,
-                        "is_past_up": result.name in preferences.past_up_character_names,
+                        "is_current_up": result.name in current_up_names,
+                        "is_past_up": result.name in past_up_names,
                     }
                 )
             sample_values.append(
@@ -450,7 +452,7 @@ class BaselineEstimator:
                 "paid_draws": paid_draws,
                 "samples": self.samples,
                 "seed": self.base_seed,
-                "version": SCORING_V2_VERSION,
+                "version": SCORING_VERSION,
                 "counters_signature": list(self._counters_signature(counters)),
                 "preferences_signature": self._signature_to_jsonable(
                     preferences.theta_signature
@@ -520,7 +522,7 @@ class BaselineEstimator:
             "stderr": round(stderr, 8),
             "samples": self.samples,
             "seed": self.base_seed,
-            "version": SCORING_V2_VERSION,
+            "version": SCORING_VERSION,
         }
         self._distribution_cache.set(cache_key, payload)
         return SixStarDistributionEstimate(
@@ -664,7 +666,7 @@ class BaselineEstimator:
 
 
 class ScoringSystem:
-    """V2 评分系统。"""
+    """评分系统。"""
 
     GRADE_THRESHOLDS: List[Tuple[float, str, str]] = [
         (90.0, "S", "极佳"),
@@ -909,7 +911,7 @@ class ScoringSystem:
             grade_name=grade_name,
             baseline_samples=baseline_estimator.samples,
             baseline_seed=baseline_estimator.base_seed,
-            scoring_version=SCORING_V2_VERSION,
+            scoring_version=SCORING_VERSION,
             parameter_tags=preferences.parameter_tags,
             cache_tags=cache_tags,
             traces=traces if include_traces else None,
@@ -1102,15 +1104,25 @@ class ScoringSystem:
         traces: List[StrategyTrace], preferences: ScoringPreferences
     ) -> None:
         known_past_up_names = set(preferences.past_up_character_names)
+        featured_cache: Dict[str, set[str]] = {}
         for trace in traces:
             for stage in trace.stages:
+                stage_past_up_names = featured_cache.get(stage.config_name)
+                if stage_past_up_names is None:
+                    try:
+                        config = GlobalConfigLoader(os.path.join("configs", stage.config_name))
+                        stage_past_up_names = set(config.get_char_featured_names()["past_up"])
+                    except (FileNotFoundError, ValueError):
+                        stage_past_up_names = set()
+                    featured_cache[stage.config_name] = stage_past_up_names
                 for result in stage.results:
                     if result.get("star") != 6:
                         result["is_past_up"] = False
                         continue
                     result["is_past_up"] = (
                         not result.get("is_current_up", False)
-                        and result.get("name") in known_past_up_names
+                        and result.get("name")
+                        in (stage_past_up_names | known_past_up_names)
                     )
 
 
@@ -1127,5 +1139,6 @@ __all__ = [
     "StrategyScoreReport",
     "StrategyTrace",
     "resource_to_standard_draws",
-    "SCORING_V2_VERSION",
+    "SCORING_VERSION",
 ]
+

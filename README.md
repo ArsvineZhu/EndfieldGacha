@@ -2,11 +2,13 @@
 
 **更新日期**：2026-05-26
 
+**项目版本**：`2.0.0`
+
 [中文](README.md) | [English](README_en.md)
 
 ---
 
-《明日方舟：终末地》寻访与申领模拟工具。当前仓库实现了角色池、武器池、Web 服务、策略评估、V2 评分系统和统计工具，所有说明以实际代码为准。
+《明日方舟：终末地》寻访与申领模拟工具。当前仓库实现了角色池、武器池、Web 服务、策略评估、评分系统和统计工具，所有说明以实际代码为准。
 
 ## 当前能力
 
@@ -24,7 +26,7 @@
 ```text
 EndfieldGacha/
 ├── run.py
-├── core.py
+├── gacha_core/
 ├── server.py
 ├── server/
 ├── scheduler/
@@ -32,6 +34,7 @@ EndfieldGacha/
 ├── app/
 ├── configs/
 ├── doc/
+├── legacy/
 ├── test/
 ├── pic/
 └── ref.md
@@ -53,17 +56,17 @@ uv run server.py --waitress --port 5000
 ```
 
 `run.py` 是统一入口；`server.py` 是 Web 服务命令行包装器。默认 Web 端口为 `5000`。
+Web 端当前默认读取 `configs/config_7`，也就是复刻池配置。
 
 ## 核心实现
 
-### `core.py`
+### `gacha_core/`
 
-- `BatchRandom`：批量随机数生成器，支持种子复现
-- `GlobalConfigLoader`：加载 `gacha_rules.json`、`char_pool.json`、`weapon_pool.json`
-- `CharGacha`：角色池抽卡逻辑
-- `WeaponGacha`：武器池申领逻辑
-- `GachaResult`：抽卡结果数据类
-- `Counters`：抽卡计数状态
+- `gacha_core/randomizer.py`：`BatchRandom`
+- `gacha_core/config.py`：`GlobalConfigLoader`
+- `gacha_core/char.py`：`CharGacha`
+- `gacha_core/weapon.py`：`WeaponGacha`
+- `gacha_core/models.py`：`GachaResult`、`Counters`
 
 ### 角色池
 
@@ -88,15 +91,15 @@ uv run server.py --waitress --port 5000
 
 ### 结构化策略
 
-- `scheduler/strategy_v2.py` 只支持结构化规则树
+- `scheduler/strategy_rules.py` 只支持结构化规则树
 - `scheduler/strategy_protocol.py` 使用 `strategy-protocol-v1`
 - 旧版魔数策略保留为存档文件，不再作为协议输入
 - `Scheduler.banner(...)` 和 `Scheduler.evaluate_multiple_strategies(...)` 会自动做协议适配
 
-### V2 评分
+### 评分系统
 
 - 评分主实现位于 `scheduler/scoring.py`
-- 当前版本号：`SCORING_V2_VERSION = 2.3.0`
+- 当前版本号：`SCORING_VERSION = 2.3.0`
 - 四个评分维度为目标、收益、资源、风险
 - `BaselineEstimator` 使用文件缓存，并可对近邻状态做三次样条插值
 - 当前评分仅面向角色池，不纳入武器池
@@ -119,21 +122,26 @@ uv run server.py --waitress --port 5000
 
 当前代码实际读取的配置文件只有：
 
-- `configs/config_*/char_pool.json`
-- `configs/config_*/weapon_pool.json`
+- `configs/constants.json`
+- `configs/char_pool_base.json`
+- `configs/config_*/char_banner.json`
+- `configs/weapon_pool_base.json`
+- `configs/config_*/weapon_banners.json`
 - `configs/config_*/gacha_rules.json`
 - `configs/arrangement`
 - `configs/arrange1`
 
-`configs/config_1` 是默认加载目录；`arrangement` 的第一行也可决定默认配置。
+角色池和武器池都只接受显式 banner 配置；旧 `char_pool.json` / `weapon_pool.json` 只保留在 `legacy/configs/` 归档目录。`configs/config_1` 是默认加载目录；`arrangement` 的第一行也可决定默认配置。`gacha_rules.json` 只保留当期奖励覆盖，通用规则与 banner 默认值都来自 `constants.json`。`char_banner.json` 的 `featured.normal` 一旦显式给出，就会覆盖共享 6 星普通池；`weapon_banners.json` 则允许同一配置目录声明多个武器池，运行时默认读取 `default_banner_id` 指向的条目。
 
 ## 文档导航
 
 - [中文机制说明](doc/mechanics.md)
 - [English mechanics](doc/mechanics_en.md)
 - [策略协议](doc/strategy_protocol.md)
-- [评分系统记录](doc/implementation_records/2026-05-26-scoring-v2-followup.md)
-- [旧评分设计归档](doc/策略评分系统设计方案legacy.md)
+- [角色池配置迁移记录](doc/implementation_records/2026-05-26-char-config.md)
+- [运行时包拆分记录](doc/implementation_records/2026-05-26-runtime-package-split.md)
+- [评分系统记录](doc/implementation_records/2026-05-26-scoring-followup.md)
+- [旧评分设计归档](legacy/doc/策略评分系统设计方案.md)
 - [开发参考](ref.md)
 
 ## 开发命令
@@ -149,6 +157,5 @@ uv run python app/utils/compress.py
 
 - 当前代码没有独立的“重复角色 / 重复武器兑换”系统实现，重复结果只会更新收藏与资源计数
 - `configs/config_1` 中的当前示例卡池名为 `「熔火灼痕」` 和 `「熔铸申领」`
-- `gacha_rules.json` 里没有 `constants.json` 这样的额外配置文件
+- `gacha_rules.json` 仅保存当期差异；默认规则来自 `configs/constants.json`
 - 旧版 `legacy_magic` 策略不再被协议层接受
-

@@ -10,7 +10,7 @@ from datetime import datetime
 
 from flask import jsonify, render_template, request, session
 
-from core import CharGacha, GlobalConfigLoader, WeaponGacha
+from gacha_core import CharGacha, GlobalConfigLoader, WeaponGacha
 
 from .resource import (
     consume_char_gacha_resources,
@@ -25,7 +25,7 @@ from .user import (
 )
 
 # 全局配置实例
-DEFAULT_CONFIG = GlobalConfigLoader("configs/config_1")
+DEFAULT_CONFIG = GlobalConfigLoader("configs/config_6")
 
 
 def create_routes(app):
@@ -408,7 +408,7 @@ def create_routes(app):
         pool_type = request.args.get("pool_type", "char")
 
         if pool_type == "char":
-            # 使用 core.py 中的 get_accumulated_reward 方法获取角色池奖励
+            # 使用角色卡池实现中的 get_accumulated_reward 方法获取角色池奖励
             char_gacha = CharGacha(DEFAULT_CONFIG)
             char_gacha.counters.total = user_info["char_gacha"]["total"]
             reward_tuples = char_gacha.get_accumulated_reward()
@@ -432,7 +432,7 @@ def create_routes(app):
                             "count": count,
                         }
         else:  # weapon
-            # 使用 core.py 中的 get_accumulated_reward 方法获取武器池奖励
+            # 使用武器卡池实现中的 get_accumulated_reward 方法获取武器池奖励
             weapon_gacha = WeaponGacha(DEFAULT_CONFIG)
             weapon_gacha.counters.total = user_info["weapon_gacha"]["total"]
             reward_tuples = weapon_gacha.get_accumulated_reward()
@@ -550,12 +550,13 @@ def create_routes(app):
 
         try:
             pool_data = DEFAULT_CONFIG.get_pool_data(pool_type)
-            # GlobalConfigLoader的constants属性就是gacha_rules.json的内容
-            gacha_rules = DEFAULT_CONFIG.constants
+            pool_info = DEFAULT_CONFIG.get_pool_info(pool_type)
         except FileNotFoundError as e:
             return jsonify({"error": f"配置文件不存在: {str(e)}"}), 404
         except (KeyError, json.JSONDecodeError) as e:
             return jsonify({"error": f"配置文件格式错误: {str(e)}"}), 500
+        except ValueError as e:
+            return jsonify({"error": f"配置校验失败: {str(e)}"}), 500
 
         # 提取概率提升的物品（up_prob > 0 的物品）
         boosted_items = []
@@ -570,14 +571,29 @@ def create_routes(app):
                         }
                     )
 
-        # 从gacha_rules配置中读取卡池名称
-        pool_info = gacha_rules.get("pool_info", {})
-        if pool_type == "char":
-            pool_name = pool_info.get("char_pool_name", "特许寻访")
-        else:
-            pool_name = pool_info.get("weapon_pool_name", "武库申领")
+        pool_name = pool_info.get("name", "特许寻访" if pool_type == "char" else "武库申领")
+        response = {"pool_name": pool_name, "boosted_items": boosted_items}
+        if pool_type == "weapon":
+            response["available_banners"] = [
+                {
+                    "id": banner["id"],
+                    "pool_name": banner.get("pool_name", ""),
+                    "open_time": banner.get("open_time", ""),
+                    "close_time": banner.get("close_time", ""),
+                    "boosted_items": [
+                        {
+                            "name": item["name"],
+                            "star": 6,
+                            "type": item.get("type", ""),
+                        }
+                        for item in banner.get("featured", {}).get("current_up", [])
+                    ],
+                }
+                for banner in DEFAULT_CONFIG.get_weapon_banners()
+            ]
+            response["default_banner_id"] = DEFAULT_CONFIG.get_active_weapon_banner_id()
 
-        return jsonify({"pool_name": pool_name, "boosted_items": boosted_items})
+        return jsonify(response)
 
     # 添加静态资源映射函数
     @app.context_processor
@@ -602,3 +618,4 @@ def create_routes(app):
         return dict(get_static_url=get_static_url)
 
     return app
+

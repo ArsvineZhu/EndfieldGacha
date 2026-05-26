@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """策略规划评估包：结构化策略、评分系统、多进程评估。"""
 
-from core import Counters
+from gacha_core import Counters
 
 from .engine import Scheduler
 from .scoring import (
@@ -16,7 +16,7 @@ from .scoring import (
     StrategyTrace,
 )
 from .strategy_protocol import STRATEGY_PROTOCOL_VERSION, StrategyProtocolAdapter
-from .strategy_v2 import (
+from .strategy_rules import (
     StrategyCondition,
     StrategyRuleEngine,
     StrategyRuleSet,
@@ -42,3 +42,5 @@ __all__ = [
     "StrategyRuleSet",
     "is_structured_strategy",
 ]
+
+

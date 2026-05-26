@@ -18,14 +18,14 @@
 
 ## 2. 核心模块
 
-### `core.py`
+### `gacha_core/`
 
 | 符号 | 说明 |
 |---|---|
 | `BatchRandom` | 批量随机数生成器，支持种子复现 |
 | `GachaResult` | 抽卡结果数据类 |
 | `Counters` | 抽卡状态计数器 |
-| `GlobalConfigLoader` | 读取 `gacha_rules.json`、`char_pool.json`、`weapon_pool.json` |
+| `GlobalConfigLoader` | 读取 `constants.json`、`gacha_rules.json`、`char_pool_base.json`、`char_banner.json`、`weapon_pool_base.json`、`weapon_banners.json` |
 | `CharGacha` | 角色池抽卡逻辑 |
 | `WeaponGacha` | 武器池申领逻辑 |
 
@@ -67,7 +67,7 @@ rewards = weapon_gacha.get_accumulated_reward()
 
 | 方法 | 说明 |
 |---|---|
-| `get_pool_data(pool_type)` | 读取 `char_pool.json` / `weapon_pool.json` |
+| `get_pool_data(pool_type)` | 读取角色/武器卡池数据（两类卡池都由 base pool + banner 配置组装） |
 | `get_rule_config(pool_type)` | 读取抽卡规则，并转换数值类型 |
 | `get_pool_info(pool_type)` | 返回当前配置集的卡池名和时间信息 |
 | `get_text(key)` | 返回硬编码文案和卡池名 |
@@ -97,12 +97,12 @@ rewards = weapon_gacha.get_accumulated_reward()
 - `Resource`
 - `LogMapConfig`
 
-### `scheduler/strategy_v2.py`
+### `scheduler/strategy_rules.py`
 
 #### 结构化节点
 
 - `StrategyCondition(kind, operator, value)`
-- `StrategyRuleSet(match="all"|"any", conditions=[...], version="strategy-v2", tags=[])`
+- `StrategyRuleSet(match="all"|"any", conditions=[...], version="strategy-structured", tags=[])`
 
 #### 当前支持的字段
 
@@ -139,7 +139,7 @@ rewards = weapon_gacha.get_accumulated_reward()
 
 | 符号 | 说明 |
 |---|---|
-| `SCORING_V2_VERSION` | 当前为 `2.3.0` |
+| `SCORING_VERSION` | 当前为 `2.3.0` |
 | `SCORING_CACHE_VERSION` | 当前为 `score-cache-v1` |
 | `Resource` | 抽卡资源模型 |
 | `StrategyGoal` | AND 目标定义 |
@@ -148,13 +148,13 @@ rewards = weapon_gacha.get_accumulated_reward()
 | `ScoringPreferences` | 评分偏好参数 |
 | `StrategyScoreReport` | 评分输出结果 |
 | `BaselineEstimator` | 基准价值估计器 |
-| `ScoringSystem` | V2 评分主系统 |
+| `ScoringSystem` | 评分主系统 |
 
 #### 当前实现事实
 
 - `ScoringSystem.score_traces(...)` 至少需要一个目标
 - 当前评分只面向角色池，不纳入武器池
-- `BaselineEstimator` 默认缓存文件是 `logs/scoring_v2_cache.json`
+- `BaselineEstimator` 默认缓存文件是 `logs/scoring_cache.json`
 - 近邻插值使用三次样条
 - `ScoringPreferences` 支持历史 UP 名单、已有潜能记录和问卷状态
 
@@ -219,15 +219,19 @@ rewards = weapon_gacha.get_accumulated_reward()
 
 ### 实际存在的配置文件
 
-- `configs/config_*/char_pool.json`
-- `configs/config_*/weapon_pool.json`
+- `configs/constants.json`
+- `configs/char_pool_base.json`
+- `configs/config_*/char_banner.json`
+- `configs/weapon_pool_base.json`
+- `configs/config_*/weapon_banners.json`
 - `configs/config_*/gacha_rules.json`
 - `configs/arrangement`
 - `configs/arrange1`
 
 ### 重要事实
 
-- 仓库里没有 `constants.json`
+- `gacha_rules.json` 以覆盖方式合并到 `constants.json`
+- `constants.json.banner_defaults` 为角色池和武器池提供共享 banner 默认值
 - `config_1` 是默认示例配置
 - `arrange1` 用于调度器默认顺序
 - `arrangement` 的第一行决定默认加载目录
@@ -248,4 +252,3 @@ rewards = weapon_gacha.get_accumulated_reward()
 - 新增文档前先确认代码中是否真的存在对应接口
 - 旧的游戏机制描述如果无法在代码里找到实现，应写成“未实现”而不是“已实现”
 - 更新文档后，至少执行一次 `ruff`、`pyright` 和相关测试
-

@@ -26,7 +26,7 @@ from rich.table import Table
 from rich.text import Text
 
 from scheduler.scoring import StrategyScoreReport, StrategyTrace
-from scheduler.strategy_v2 import StrategyRuleEngine, is_structured_strategy
+from scheduler.strategy_rules import StrategyRuleEngine, is_structured_strategy
 
 console = Console()
 
@@ -372,3 +372,4 @@ class SchedulerDisplay:
 
 
 __all__ = ["SchedulerDisplay"]
+

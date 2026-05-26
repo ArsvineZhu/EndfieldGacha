@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-from .strategy_v2 import StrategyCondition, StrategyRuleEngine, StrategyRuleSet
+from .strategy_rules import StrategyCondition, StrategyRuleEngine, StrategyRuleSet
 
 STRATEGY_PROTOCOL_VERSION = "strategy-protocol-v1"
 
@@ -81,7 +81,7 @@ class StrategyProtocolAdapter:
             return StrategyRuleSet(
                 match=node.get("match", "all"),
                 conditions=children,
-                version=node.get("version", "strategy-v2"),
+                version=node.get("version", "strategy-structured"),
                 tags=list(node.get("tags", [])),
             )
 
@@ -106,3 +106,4 @@ class StrategyProtocolAdapter:
 
 
 __all__ = ["STRATEGY_PROTOCOL_VERSION", "StrategyProtocolAdapter"]
+

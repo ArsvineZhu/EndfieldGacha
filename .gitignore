@@ -210,6 +210,9 @@ __marimo__/
 # Trae
 .trae/
 
+# Codex
+.codex/
+
 # Vscode
 .vscode/
 

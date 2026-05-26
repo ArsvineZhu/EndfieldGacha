@@ -11,7 +11,7 @@ if __name__ == "__main__":
 
 from dataclasses import dataclass
 
-from core import CharGacha, GlobalConfigLoader, WeaponGacha
+from gacha_core import CharGacha, GlobalConfigLoader, WeaponGacha
 
 
 @dataclass(frozen=True)
@@ -1013,3 +1013,4 @@ if __name__ == "__main__":
     # 说明：统计当期UP6星角色；计入累积奖励；“加急招募”的十连抽若获得当期UP6星角色也计入
     # 结论：456.14抽（样本量100000）
     # tool.stats_char_potential(20000, gragh=True)
+

@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from multiprocessing import Pool, cpu_count
 from typing import Any, Dict, List, Optional, Tuple
 
-from core import Counters
+from gacha_core import Counters
 from scheduler.display import SchedulerDisplay
 from scheduler.scoring import (
     BaselineEstimator,
@@ -424,3 +424,4 @@ class Scheduler:
 
 
 __all__ = ["BannerPlan", "Scheduler"]
+

@@ -1,0 +1,15 @@
+{
+  "schema_version": "char-banner",
+  "pool_name": "「轻飘飘的信使」",
+  "open_time": "2026-02-07 12:00:00 (UTC+8)",
+  "close_time": "2026-02-24 06:00:00 (UTC+8)",
+  "featured": {
+    "current_up": [
+      "洁尔佩塔"
+    ],
+    "past_up": [
+      "莱万汀",
+      "伊冯"
+    ]
+  }
+}

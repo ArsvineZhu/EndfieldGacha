@@ -22,7 +22,7 @@ import json
 from pathlib import Path
 from typing import Any, Dict
 
-from core import Counters
+from gacha_core import Counters
 from scheduler import (
     Resource,
     Scheduler,
@@ -133,3 +133,4 @@ def str_bad(scale: int = 5000, config_path: str | None = None):
 
 if __name__ == "__main__":
     run_all()
+

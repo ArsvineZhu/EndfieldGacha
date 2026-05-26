@@ -10,7 +10,7 @@
 
 ### 1.1 入口与消耗
 
-- 对应类：`core.CharGacha`
+- 对应类：`gacha_core.CharGacha`
 - 单次抽卡
 - 消耗 1 个 `chartered_permits`，或 500 个 `oroberyl`
 
@@ -51,7 +51,7 @@
 
 ### 2.1 入口与消耗
 
-- 对应类：`core.WeaponGacha`
+- 对应类：`gacha_core.WeaponGacha`
 - 每次申领固定为 10 抽
 - 消耗 1980 个 `arsenal_tickets`
 
@@ -119,13 +119,16 @@
 
 当前代码只读取以下文件：
 
-- `configs/config_*/char_pool.json`
-- `configs/config_*/weapon_pool.json`
+- `configs/constants.json`
+- `configs/char_pool_base.json`
+- `configs/config_*/char_banner.json`
+- `configs/weapon_pool_base.json`
+- `configs/config_*/weapon_banners.json`
 - `configs/config_*/gacha_rules.json`
 - `configs/arrangement`
 - `configs/arrange1`
 
-仓库中没有 `constants.json`，也没有单独的“全局常量配置”文件。
+`configs/constants.json` 提供通用概率、保底、配额和默认奖励；`config_*/gacha_rules.json` 只覆盖当期差异项。
 
 ---
 
@@ -135,4 +138,5 @@
 - 角色池与武器池都使用 `BatchRandom` 做随机数预生成
 - `disable_guarantee=True` 会禁用保底计数更新，适合做纯概率分布验证
 - Web 服务中的 `compress_static_files()` 会在启动前压缩静态资源
+
 

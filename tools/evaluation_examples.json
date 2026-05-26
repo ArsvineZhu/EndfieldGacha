@@ -1,6 +1,10 @@
 {
   "default_scale": 2000,
-  "run_order": ["str0", "str1", "str_bad"],
+  "run_order": [
+    "str0",
+    "str1",
+    "str_bad"
+  ],
   "shared": {
     "config_dir": "configs",
     "arrange": "arrange1",
@@ -31,11 +35,23 @@
       "normal_six_value": 45.0,
       "five_star_value": 6.0,
       "four_star_value": 1.0,
-      "utility_log_map": { "low": 0.6, "high": 1.4, "curve": 1.0 },
-      "utility_absolute_log_map": { "low": 0.6, "high": 1.4, "curve": 1.0 },
+      "utility_log_map": {
+        "low": 0.6,
+        "high": 1.4,
+        "curve": 1.0
+      },
+      "utility_absolute_log_map": {
+        "low": 0.6,
+        "high": 1.4,
+        "curve": 1.0
+      },
       "utility_absolute_reference": 700.0,
       "utility_mix_weight": 0.5,
-      "resource_log_map": { "low": 0.6, "high": 1.5, "curve": 1.0 },
+      "resource_log_map": {
+        "low": 0.6,
+        "high": 1.5,
+        "curve": 1.0
+      },
       "opportunity_reference": 60.0,
       "risk_utility_weight": 0.6,
       "tail_ratio": 0.1,
@@ -48,7 +64,10 @@
       "future_value_policy": "current"
     },
     "goals": [
-      { "kind": "current_up", "target": 1 }
+      {
+        "kind": "current_up",
+        "target": 1
+      }
     ]
   },
   "scenarios": {
@@ -80,18 +99,48 @@
                   "node_type": "group",
                   "match": "all",
                   "children": [
-                    { "node_type": "condition", "kind": "up_oprt", "operator": "==", "value": true },
-                    { "node_type": "condition", "kind": "draws", "operator": ">=", "value": 50 },
-                    { "node_type": "condition", "kind": "dossier", "operator": "==", "value": true }
+                    {
+                      "node_type": "condition",
+                      "kind": "up_oprt",
+                      "operator": "==",
+                      "value": true
+                    },
+                    {
+                      "node_type": "condition",
+                      "kind": "draws",
+                      "operator": ">=",
+                      "value": 50
+                    },
+                    {
+                      "node_type": "condition",
+                      "kind": "dossier",
+                      "operator": "==",
+                      "value": true
+                    }
                   ]
                 },
                 {
                   "node_type": "group",
                   "match": "all",
                   "children": [
-                    { "node_type": "condition", "kind": "urgent", "operator": "==", "value": true },
-                    { "node_type": "condition", "kind": "draws", "operator": "<", "value": 50 },
-                    { "node_type": "condition", "kind": "up_oprt", "operator": "==", "value": true }
+                    {
+                      "node_type": "condition",
+                      "kind": "urgent",
+                      "operator": "==",
+                      "value": true
+                    },
+                    {
+                      "node_type": "condition",
+                      "kind": "draws",
+                      "operator": "<",
+                      "value": 50
+                    },
+                    {
+                      "node_type": "condition",
+                      "kind": "up_oprt",
+                      "operator": "==",
+                      "value": true
+                    }
                   ]
                 }
               ]
@@ -110,18 +159,48 @@
                   "node_type": "group",
                   "match": "all",
                   "children": [
-                    { "node_type": "condition", "kind": "oprt", "operator": "==", "value": true },
-                    { "node_type": "condition", "kind": "draws", "operator": ">=", "value": 50 },
-                    { "node_type": "condition", "kind": "dossier", "operator": "==", "value": true }
+                    {
+                      "node_type": "condition",
+                      "kind": "oprt",
+                      "operator": "==",
+                      "value": true
+                    },
+                    {
+                      "node_type": "condition",
+                      "kind": "draws",
+                      "operator": ">=",
+                      "value": 50
+                    },
+                    {
+                      "node_type": "condition",
+                      "kind": "dossier",
+                      "operator": "==",
+                      "value": true
+                    }
                   ]
                 },
                 {
                   "node_type": "group",
                   "match": "all",
                   "children": [
-                    { "node_type": "condition", "kind": "urgent", "operator": "==", "value": true },
-                    { "node_type": "condition", "kind": "draws", "operator": "<", "value": 50 },
-                    { "node_type": "condition", "kind": "oprt", "operator": "==", "value": true }
+                    {
+                      "node_type": "condition",
+                      "kind": "urgent",
+                      "operator": "==",
+                      "value": true
+                    },
+                    {
+                      "node_type": "condition",
+                      "kind": "draws",
+                      "operator": "<",
+                      "value": 50
+                    },
+                    {
+                      "node_type": "condition",
+                      "kind": "oprt",
+                      "operator": "==",
+                      "value": true
+                    }
                   ]
                 }
               ]
@@ -140,18 +219,48 @@
                   "node_type": "group",
                   "match": "all",
                   "children": [
-                    { "node_type": "condition", "kind": "up_oprt", "operator": "==", "value": true },
-                    { "node_type": "condition", "kind": "draws", "operator": ">=", "value": 50 },
-                    { "node_type": "condition", "kind": "dossier", "operator": "==", "value": true }
+                    {
+                      "node_type": "condition",
+                      "kind": "up_oprt",
+                      "operator": "==",
+                      "value": true
+                    },
+                    {
+                      "node_type": "condition",
+                      "kind": "draws",
+                      "operator": ">=",
+                      "value": 50
+                    },
+                    {
+                      "node_type": "condition",
+                      "kind": "dossier",
+                      "operator": "==",
+                      "value": true
+                    }
                   ]
                 },
                 {
                   "node_type": "group",
                   "match": "all",
                   "children": [
-                    { "node_type": "condition", "kind": "urgent", "operator": "==", "value": true },
-                    { "node_type": "condition", "kind": "draws", "operator": "<", "value": 50 },
-                    { "node_type": "condition", "kind": "up_oprt", "operator": "==", "value": true }
+                    {
+                      "node_type": "condition",
+                      "kind": "urgent",
+                      "operator": "==",
+                      "value": true
+                    },
+                    {
+                      "node_type": "condition",
+                      "kind": "draws",
+                      "operator": "<",
+                      "value": 50
+                    },
+                    {
+                      "node_type": "condition",
+                      "kind": "up_oprt",
+                      "operator": "==",
+                      "value": true
+                    }
                   ]
                 }
               ]
@@ -172,18 +281,48 @@
                   "node_type": "group",
                   "match": "all",
                   "children": [
-                    { "node_type": "condition", "kind": "oprt", "operator": "==", "value": true },
-                    { "node_type": "condition", "kind": "draws", "operator": ">=", "value": 50 },
-                    { "node_type": "condition", "kind": "dossier", "operator": "==", "value": true }
+                    {
+                      "node_type": "condition",
+                      "kind": "oprt",
+                      "operator": "==",
+                      "value": true
+                    },
+                    {
+                      "node_type": "condition",
+                      "kind": "draws",
+                      "operator": ">=",
+                      "value": 50
+                    },
+                    {
+                      "node_type": "condition",
+                      "kind": "dossier",
+                      "operator": "==",
+                      "value": true
+                    }
                   ]
                 },
                 {
                   "node_type": "group",
                   "match": "all",
                   "children": [
-                    { "node_type": "condition", "kind": "urgent", "operator": "==", "value": true },
-                    { "node_type": "condition", "kind": "draws", "operator": "<", "value": 50 },
-                    { "node_type": "condition", "kind": "oprt", "operator": "==", "value": true }
+                    {
+                      "node_type": "condition",
+                      "kind": "urgent",
+                      "operator": "==",
+                      "value": true
+                    },
+                    {
+                      "node_type": "condition",
+                      "kind": "draws",
+                      "operator": "<",
+                      "value": 50
+                    },
+                    {
+                      "node_type": "condition",
+                      "kind": "oprt",
+                      "operator": "==",
+                      "value": true
+                    }
                   ]
                 }
               ]
@@ -216,7 +355,12 @@
               "node_type": "group",
               "match": "all",
               "children": [
-                { "node_type": "condition", "kind": "up_oprt", "operator": "==", "value": true }
+                {
+                  "node_type": "condition",
+                  "kind": "up_oprt",
+                  "operator": "==",
+                  "value": true
+                }
               ]
             }
           }
@@ -229,7 +373,12 @@
               "node_type": "group",
               "match": "all",
               "children": [
-                { "node_type": "condition", "kind": "oprt", "operator": "==", "value": true }
+                {
+                  "node_type": "condition",
+                  "kind": "oprt",
+                  "operator": "==",
+                  "value": true
+                }
               ]
             }
           }
@@ -246,18 +395,48 @@
                   "node_type": "group",
                   "match": "all",
                   "children": [
-                    { "node_type": "condition", "kind": "up_oprt", "operator": "==", "value": true },
-                    { "node_type": "condition", "kind": "draws", "operator": ">=", "value": 50 },
-                    { "node_type": "condition", "kind": "dossier", "operator": "==", "value": true }
+                    {
+                      "node_type": "condition",
+                      "kind": "up_oprt",
+                      "operator": "==",
+                      "value": true
+                    },
+                    {
+                      "node_type": "condition",
+                      "kind": "draws",
+                      "operator": ">=",
+                      "value": 50
+                    },
+                    {
+                      "node_type": "condition",
+                      "kind": "dossier",
+                      "operator": "==",
+                      "value": true
+                    }
                   ]
                 },
                 {
                   "node_type": "group",
                   "match": "all",
                   "children": [
-                    { "node_type": "condition", "kind": "urgent", "operator": "==", "value": true },
-                    { "node_type": "condition", "kind": "draws", "operator": "<", "value": 50 },
-                    { "node_type": "condition", "kind": "up_oprt", "operator": "==", "value": true }
+                    {
+                      "node_type": "condition",
+                      "kind": "urgent",
+                      "operator": "==",
+                      "value": true
+                    },
+                    {
+                      "node_type": "condition",
+                      "kind": "draws",
+                      "operator": "<",
+                      "value": 50
+                    },
+                    {
+                      "node_type": "condition",
+                      "kind": "up_oprt",
+                      "operator": "==",
+                      "value": true
+                    }
                   ]
                 }
               ]
@@ -274,7 +453,12 @@
               "node_type": "group",
               "match": "all",
               "children": [
-                { "node_type": "condition", "kind": "oprt", "operator": "==", "value": true }
+                {
+                  "node_type": "condition",
+                  "kind": "oprt",
+                  "operator": "==",
+                  "value": true
+                }
               ]
             }
           }
@@ -305,8 +489,18 @@
               "node_type": "group",
               "match": "any",
               "children": [
-                { "node_type": "condition", "kind": "draws", "operator": ">=", "value": 20 },
-                { "node_type": "condition", "kind": "urgent", "operator": "==", "value": true }
+                {
+                  "node_type": "condition",
+                  "kind": "draws",
+                  "operator": ">=",
+                  "value": 20
+                },
+                {
+                  "node_type": "condition",
+                  "kind": "urgent",
+                  "operator": "==",
+                  "value": true
+                }
               ]
             }
           }
@@ -319,8 +513,18 @@
               "node_type": "group",
               "match": "any",
               "children": [
-                { "node_type": "condition", "kind": "draws", "operator": ">=", "value": 20 },
-                { "node_type": "condition", "kind": "urgent", "operator": "==", "value": true }
+                {
+                  "node_type": "condition",
+                  "kind": "draws",
+                  "operator": ">=",
+                  "value": 20
+                },
+                {
+                  "node_type": "condition",
+                  "kind": "urgent",
+                  "operator": "==",
+                  "value": true
+                }
               ]
             }
           }
@@ -333,8 +537,18 @@
               "node_type": "group",
               "match": "any",
               "children": [
-                { "node_type": "condition", "kind": "draws", "operator": ">=", "value": 20 },
-                { "node_type": "condition", "kind": "urgent", "operator": "==", "value": true }
+                {
+                  "node_type": "condition",
+                  "kind": "draws",
+                  "operator": ">=",
+                  "value": 20
+                },
+                {
+                  "node_type": "condition",
+                  "kind": "urgent",
+                  "operator": "==",
+                  "value": true
+                }
               ]
             }
           },
@@ -349,8 +563,18 @@
               "node_type": "group",
               "match": "any",
               "children": [
-                { "node_type": "condition", "kind": "draws", "operator": ">=", "value": 20 },
-                { "node_type": "condition", "kind": "urgent", "operator": "==", "value": true }
+                {
+                  "node_type": "condition",
+                  "kind": "draws",
+                  "operator": ">=",
+                  "value": 20
+                },
+                {
+                  "node_type": "condition",
+                  "kind": "urgent",
+                  "operator": "==",
+                  "value": true
+                }
               ]
             }
           }

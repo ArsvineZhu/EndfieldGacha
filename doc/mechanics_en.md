@@ -10,7 +10,7 @@ This document describes the behavior actually implemented in the repository. If 
 
 ### 1.1 Entry and Cost
 
-- Class: `core.CharGacha`
+- Class: `gacha_core.CharGacha`
 - Mode: single pull
 - Cost: 1 `chartered_permits` or 500 `oroberyl`
 
@@ -51,7 +51,7 @@ In `configs/config_1`, Type_C is `莱万汀的信物`.
 
 ### 2.1 Entry and Cost
 
-- Class: `core.WeaponGacha`
+- Class: `gacha_core.WeaponGacha`
 - Mode: fixed 10-pull issue
 - Cost: 1980 `arsenal_tickets`
 
@@ -116,13 +116,16 @@ The code does not implement a separate duplicate-operator or duplicate-weapon ex
 
 The code only reads:
 
-- `configs/config_*/char_pool.json`
-- `configs/config_*/weapon_pool.json`
+- `configs/constants.json`
+- `configs/char_pool_base.json`
+- `configs/config_*/char_banner.json`
+- `configs/weapon_pool_base.json`
+- `configs/config_*/weapon_banners.json`
 - `configs/config_*/gacha_rules.json`
 - `configs/arrangement`
 - `configs/arrange1`
 
-There is no `constants.json` file in the repository layout.
+`configs/constants.json` provides shared probability, pity, quota, and default reward settings; `config_*/gacha_rules.json` only overrides per-banner differences.
 
 ---
 
@@ -132,4 +135,5 @@ There is no `constants.json` file in the repository layout.
 - Both banners use `BatchRandom` for pre-generated random numbers
 - `disable_guarantee=True` is for pure probability validation
 - The web app compresses static assets before startup unless development mode is requested
+
 

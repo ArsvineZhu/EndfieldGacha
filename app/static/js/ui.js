@@ -88,10 +88,10 @@
         if (currentCollection === 'weapons') {
             const starFilter = document.getElementById('star-filter');
             const typeFilter = document.getElementById('type-filter');
-            
+
             const selectedStar = starFilter ? starFilter.value : '';
             const selectedType = typeFilter ? typeFilter.value : '';
-            
+
             filteredItems = {};
             Object.entries(items).forEach(([name, info]) => {
                 const matchesStar = !selectedStar || info.star.toString() === selectedStar;
@@ -123,12 +123,12 @@
                     // 创建星级section
                     const starSection = document.createElement('div');
                     starSection.className = `star-section star-${star}`;
-                    
+
                     // 确定标题文本
-                    const titleText = currentCollection === 'chars' 
-                        ? `${star}星干员` 
+                    const titleText = currentCollection === 'chars'
+                        ? `${star}星干员`
                         : `${star}星武器`;
-                    
+
                     starSection.innerHTML = `<h3>${titleText}</h3>`;
 
                     // 创建item容器
@@ -142,8 +142,8 @@
                             const item = document.createElement('div');
                             item.className = `collection-item star-${info.star}`;
                             // 显示武器类型（如果有）
-                            const displayName = currentCollection === 'weapons' && info.type 
-                                ? `${name} (${info.type})` 
+                            const displayName = currentCollection === 'weapons' && info.type
+                                ? `${name} (${info.type})`
                                 : name;
                             item.innerHTML = `${displayName}<span class="count">${info.count}</span>`;
                             itemContainer.appendChild(item);
@@ -208,7 +208,7 @@
             charsByStar[star].sort((a, b) => a.name.localeCompare(b.name)).forEach(({ name, info }) => {
                 const charCard = document.createElement('div');
                 charCard.className = `char-card star-${info.star}`;
-                
+
                 // 生成潜能显示的五个小长方形
                 let potentialIndicators = '';
                 const potential = Math.min(info.count, 5);
@@ -216,7 +216,7 @@
                     const isActive = i < potential;
                     potentialIndicators += `<div class="potential-indicator ${isActive ? 'active' : ''}"></div>`;
                 }
-                
+
                 charCard.innerHTML = `
                     <div class="char-name">${name}</div>
                     <div class="potential-bar">${potentialIndicators}</div>
@@ -231,7 +231,7 @@
 
     function updatePoolInfoUI(data, poolType) {
         const poolTypeLabel = poolType === 'char' ? '特许寻访' : '武库申领';
-        document.getElementById('pool-name').textContent = `${poolTypeLabel} · ${data.pool_name}`;
+        document.getElementById('pool-name').textContent = `${poolTypeLabel} ${data.pool_name}`;
 
         const boostedItems = document.getElementById('boosted-items');
         boostedItems.innerHTML = '';
@@ -287,7 +287,6 @@
             const cachedData = CacheUtil.get(cacheKey);
             if (cachedData) {
                 updatePoolInfoUI(cachedData, poolType);
-                return;
             }
         }
 
@@ -345,11 +344,11 @@
 
         if (operations && operations.length > 0) {
             const reversedOperations = [...operations].reverse();
-            
+
             // 将连续的单抽分组
             const groupedOperations = [];
             let currentSingleDrawGroup = null;
-            
+
             reversedOperations.forEach((operation) => {
                 if (operation.type === 'GET_ONE') {
                     // 如果是单抽
@@ -373,7 +372,7 @@
                     // 处理单抽分组
                     const singleDrawsContainer = document.createElement('div');
                     singleDrawsContainer.style.cssText = 'display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px;';
-                    
+
                     groupOrOp.operations.forEach((operation) => {
                         const groupDiv = document.createElement('div');
                         groupDiv.className = 'history-group';
@@ -408,19 +407,19 @@
                         groupDiv.appendChild(resultsDiv);
                         singleDrawsContainer.appendChild(groupDiv);
                     });
-                    
+
                     container.appendChild(singleDrawsContainer);
                 } else {
                     // 处理普通操作（非单抽）
                     const groupDiv = document.createElement('div');
                     groupDiv.className = `history-group ${groupOrOp.type === 'URGENT' ? 'urgent' : ''}`;
-                    
+
                     // 加急寻访添加特殊边框效果
                     let borderStyle = '1px solid rgba(255,255,255,0.1)';
                     if (groupOrOp.type === 'URGENT') {
                         borderStyle = '2px solid #27ae60';
                     }
-                    
+
                     groupDiv.style.cssText = `margin-bottom:20px;padding:15px;background:rgba(255,255,255,0.05);border-radius:8px;border:${borderStyle}`;
 
                     // 解析时间
@@ -432,12 +431,12 @@
                     const groupTitle = document.createElement('div');
                     groupTitle.className = 'history-group-title';
                     groupTitle.style.cssText = 'color:#aaa;font-size:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;';
-                    
+
                     let titleContent = operationName;
                     if (groupOrOp.type === 'URGENT') {
                         titleContent = `<span style="color:#27ae60;font-weight:bold;">${operationName}</span>`;
                     }
-                    
+
                     groupTitle.innerHTML = `
                         <span>${titleContent}</span>
                         <span style="font-size:12px;">${timeStr}</span>

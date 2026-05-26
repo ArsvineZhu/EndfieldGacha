@@ -1,0 +1,15 @@
+{
+  "schema_version": "char-banner",
+  "pool_name": "「熔火灼痕」",
+  "open_time": "2026-01-22 12:00:00 (UTC+8)",
+  "close_time": "2026-02-07 06:00:00 (UTC+8)",
+  "featured": {
+    "current_up": [
+      "莱万汀"
+    ],
+    "past_up": [
+      "洁尔佩塔",
+      "伊冯"
+    ]
+  }
+}

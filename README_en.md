@@ -2,11 +2,13 @@
 
 **Updated**: 2026-05-26
 
+**Project version**: `2.0.0`
+
 [中文](README.md) | [English](README_en.md)
 
 ---
 
-Endfield Gacha is a simulator for *Arknights: Endfield* headhunting and issue systems. The current repository implements the character banner, weapon banner, web service, structured strategy evaluation, V2 scoring, and statistical tools. This document follows the actual code.
+Endfield Gacha is a simulator for *Arknights: Endfield* headhunting and issue systems. The current repository implements the character banner, weapon banner, web service, structured strategy evaluation, scoring, and statistical tools. This document follows the actual code.
 
 ## What is implemented
 
@@ -24,7 +26,7 @@ Endfield Gacha is a simulator for *Arknights: Endfield* headhunting and issue sy
 ```text
 EndfieldGacha/
 ├── run.py
-├── core.py
+├── gacha_core/
 ├── server.py
 ├── server/
 ├── scheduler/
@@ -32,6 +34,7 @@ EndfieldGacha/
 ├── app/
 ├── configs/
 ├── doc/
+├── legacy/
 ├── test/
 ├── pic/
 └── ref.md
@@ -53,17 +56,17 @@ uv run server.py --waitress --port 5000
 ```
 
 `run.py` is the unified CLI entrypoint. `server.py` is the web server wrapper. The default web port is `5000`.
+The web UI now defaults to `configs/config_7`, which is the replica pool configuration.
 
 ## Core implementation
 
-### `core.py`
+### `gacha_core/`
 
-- `BatchRandom`: batch random-number generator with reproducible seeds
-- `GlobalConfigLoader`: loads `gacha_rules.json`, `char_pool.json`, and `weapon_pool.json`
-- `CharGacha`: character banner logic
-- `WeaponGacha`: weapon issue logic
-- `GachaResult`: result dataclass
-- `Counters`: pull counters
+- `gacha_core/randomizer.py`: `BatchRandom`
+- `gacha_core/config.py`: `GlobalConfigLoader`
+- `gacha_core/char.py`: `CharGacha`
+- `gacha_core/weapon.py`: `WeaponGacha`
+- `gacha_core/models.py`: `GachaResult`, `Counters`
 
 ### Character banner
 
@@ -88,18 +91,18 @@ uv run server.py --waitress --port 5000
 
 ### Structured strategy
 
-- `scheduler/strategy_v2.py` only supports structured rule trees
+- `scheduler/strategy_rules.py` only supports structured rule trees
 - `scheduler/strategy_protocol.py` uses `strategy-protocol-v1`
 - legacy magic strategies remain as archives and are not accepted by the protocol layer
 - `Scheduler.banner(...)` and `Scheduler.evaluate_multiple_strategies(...)` automatically adapt supported payloads
 
-### V2 scoring
+### Scoring
 
 - Main scoring implementation: `scheduler/scoring.py`
-- Current scoring version: `SCORING_V2_VERSION = 2.3.0`
+- Current scoring version: `SCORING_VERSION = 2.3.0`
 - Four scoring dimensions: goal, utility, resource, and risk
 - `BaselineEstimator` uses file caching and near-state cubic-spline interpolation
-- The current V2 scoring path is character-banner only
+- The current scoring path is character-banner only
 
 ### Web service
 
@@ -119,21 +122,26 @@ uv run server.py --waitress --port 5000
 
 The code actually reads:
 
-- `configs/config_*/char_pool.json`
-- `configs/config_*/weapon_pool.json`
+- `configs/constants.json`
+- `configs/char_pool_base.json`
+- `configs/config_*/char_banner.json`
+- `configs/weapon_pool_base.json`
+- `configs/config_*/weapon_banners.json`
 - `configs/config_*/gacha_rules.json`
 - `configs/arrangement`
 - `configs/arrange1`
 
-`configs/config_1` is the default config directory, and the first line of `configs/arrangement` can also define the default.
+`configs/config_1` is the default config directory, and the first line of `configs/arrangement` can also define the default. Both banner types use explicit banner files; legacy `char_pool.json` and `weapon_pool.json` are archived under `legacy/configs/`. `gacha_rules.json` only stores reward overrides; shared rules and banner defaults come from `configs/constants.json`. If `featured.normal` is explicitly present in `char_banner.json`, it replaces the shared 6-star normal roster for that banner. `weapon_banners.json` can declare multiple weapon banners in one config directory, and the runtime reads the entry pointed to by `default_banner_id` unless a specific banner id is requested.
 
 ## Documentation map
 
 - [Chinese mechanics](doc/mechanics.md)
 - [English mechanics](doc/mechanics_en.md)
 - [Strategy protocol](doc/strategy_protocol.md)
-- [Scoring follow-up record](doc/implementation_records/2026-05-26-scoring-v2-followup.md)
-- [Legacy scoring design archive](doc/策略评分系统设计方案legacy.md)
+- [Character config migration record](doc/implementation_records/2026-05-26-char-config.md)
+- [Runtime package split record](doc/implementation_records/2026-05-26-runtime-package-split.md)
+- [Scoring follow-up record](doc/implementation_records/2026-05-26-scoring-followup.md)
+- [Legacy scoring design archive](legacy/doc/策略评分系统设计方案.md)
 - [Developer reference](ref.md)
 
 ## Development commands
@@ -149,6 +157,7 @@ uv run python app/utils/compress.py
 
 - The code does not implement separate duplicate-operator or duplicate-weapon exchange systems; duplicates only update collection and resource counters
 - The current sample banners in `configs/config_1` are `「熔火灼痕」` and `「熔铸申领」`
-- There is no extra `constants.json` file in the actual config layout
+- `gacha_rules.json` only keeps per-config overrides; shared defaults come from `configs/constants.json`
 - The protocol layer no longer accepts `legacy_magic` payloads
+
 

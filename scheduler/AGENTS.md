@@ -1,11 +1,11 @@
 # Scheduler Module Knowledge Base
 
 **Generated:** 2026-05-26
-**Module:** Strategy scheduling and V2 scoring
+**Module:** Strategy scheduling and scoring
 
 ## Overview
 
-`scheduler/` contains the structured strategy system, the V2 scoring system, and the multi-process evaluation engine.
+`scheduler/` contains the structured strategy system, the scoring system, and the multi-process evaluation engine.
 
 ## Structure
 
@@ -15,9 +15,7 @@ scheduler/
 ├── engine.py
 ├── scoring.py
 ├── strategy_protocol.py
-├── strategy_v2.py
-├── strategy.py
-├── strategy_magic.py
+├── strategy_rules.py
 ├── workers.py
 └── display.py
 ```
@@ -26,9 +24,9 @@ scheduler/
 
 | Task | Location | Notes |
 |---|---|---|
-| Build a structured strategy | `strategy_v2.py` | `StrategyCondition` / `StrategyRuleSet` |
+| Build a structured strategy | `strategy_rules.py` | `StrategyCondition` / `StrategyRuleSet` |
 | Parse or serialize the web strategy payload | `strategy_protocol.py` | `strategy-protocol-v1`, structured only |
-| Review legacy magic strategy code | `strategy.py` / `strategy_magic.py` | Historical archive only |
+| Review legacy magic strategy code | `legacy/scheduler/strategy.py` / `legacy/scheduler/strategy_magic.py` | Historical archive only |
 | Run multi-strategy evaluation | `engine.py` | `Scheduler.evaluate_multiple_strategies()` |
 | Adjust scoring behaviour | `scoring.py` | `ScoringSystem`, `BaselineEstimator`, `ScoringPreferences` |
 | Inspect worker runtime | `workers.py` | Structured runtime only |
@@ -40,9 +38,10 @@ scheduler/
 - `strategy_protocol.py` rejects `legacy_magic` payloads and old list-style strategy input
 - `workers.py` wraps `StrategyRuleEngine` through `StrategyRuntime`
 - `Scheduler.banner(...)` and `Scheduler.evaluate_multiple_strategies(...)` both normalize supported payloads through the adapter
-- `SCORING_V2_VERSION` is `2.3.0`
-- `BaselineEstimator` defaults to `logs/scoring_v2_cache.json`
+- `SCORING_VERSION` is `2.3.0`
+- `BaselineEstimator` defaults to `logs/scoring_cache.json`
 - `ScoringSystem.score_traces(...)` only supports character-banner scoring at present
+- Character score tagging now reads explicit `char_banner.json` labels through `GlobalConfigLoader`
 
 ## Conventions
 
