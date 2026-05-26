@@ -1,12 +1,10 @@
 # 策略数据协议
 
-- 协议版本：`strategy-protocol-v1`
-- 目标：为网页端策略编辑器提供稳定的 structured JSON 输入输出格式。
-- 当前状态：仅支持结构化策略；旧版魔数策略文件仅保留为存档，不再接受为协议输入。
+**更新日期**：2026-05-26
 
-## 1. 顶层结构
+本协议由 `scheduler/strategy_protocol.py` 实现，当前只接受结构化策略树。
 
-顶层对象统一使用：
+## 1. 顶层格式
 
 ```json
 {
@@ -18,17 +16,21 @@
 
 ### 顶层字段
 
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `protocol_version` | string | 是 | 当前固定为 `strategy-protocol-v1` |
-| `kind` | string | 是 | 当前固定为 `structured` |
-| `rule` | object | 是 | 结构化策略规则树 |
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `protocol_version` | string | 固定为 `strategy-protocol-v1` |
+| `kind` | string | 固定为 `structured` |
+| `rule` | object | 结构化策略树根节点 |
 
-## 2. 结构化策略
+`StrategyProtocolAdapter.from_payload(...)` 会拒绝：
 
-结构化策略是一棵布尔规则树。
+- `list` 类型的旧策略输入
+- `kind == "legacy_magic"` 的旧协议
+- 不支持的 `protocol_version`
 
-### 2.1 规则组节点
+## 2. 节点结构
+
+### 2.1 规则组
 
 ```json
 {
@@ -40,33 +42,33 @@
 }
 ```
 
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `node_type` | string | 是 | 固定为 `group` |
-| `match` | string | 是 | `all` 表示与，`any` 表示或 |
-| `version` | string | 否 | 当前默认 `strategy-v2` |
-| `tags` | string[] | 否 | 前端可附带标签，后端保留 |
-| `children` | array | 是 | 子节点列表，元素可以是 `group` 或 `condition` |
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `node_type` | string | 固定为 `group` |
+| `match` | string | `all` 或 `any` |
+| `version` | string | 默认 `strategy-v2` |
+| `tags` | array[string] | 可选标签 |
+| `children` | array | 子节点，元素可为 `group` 或 `condition` |
 
 ### 2.2 条件节点
 
 ```json
 {
   "node_type": "condition",
-  "kind": "dossier",
-  "operator": "==",
-  "value": true
+  "kind": "draws",
+  "operator": ">=",
+  "value": 120
 }
 ```
 
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `node_type` | string | 是 | 固定为 `condition` |
-| `kind` | string | 是 | 条件字段名 |
-| `operator` | string | 是 | 比较运算符 |
-| `value` | number / boolean / string | 是 | 比较值 |
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `node_type` | string | 固定为 `condition` |
+| `kind` | string | 条件字段名 |
+| `operator` | string | 比较运算符 |
+| `value` | number / boolean / string | 比较值 |
 
-### 2.3 支持的比较运算符
+## 3. 支持的运算符
 
 - `==`
 - `!=`
@@ -76,9 +78,9 @@
 - `<=`
 - `in`
 
-### 2.4 当前支持的条件字段
+## 4. 支持的字段
 
-#### 数值字段
+### 数值字段
 
 - `draws`
 - `current_up`
@@ -87,7 +89,7 @@
 - `potential`
 - `hard_pity`
 
-#### 布尔字段
+### 布尔字段
 
 - `urgent`
 - `dossier`
@@ -95,7 +97,7 @@
 - `up_oprt`
 - `oprt`
 
-#### 兼容别名
+### 兼容别名
 
 - `draw_count` -> `draws`
 - `urgent_recruitment` -> `urgent`
@@ -104,9 +106,9 @@
 - `up_operator_count` -> `current_up`
 - `six_star_obtained_count` -> `six_star_count`
 
-## 3. 结构化策略示例
+## 5. 示例
 
-### 3.1 `(获得情报书 or 抽到六星) and 获得加急寻访`
+### 5.1 `(dossier or oprt) and urgent`
 
 ```json
 {
@@ -145,7 +147,7 @@
 }
 ```
 
-### 3.2 `获得当期 UP >= 1 or 抽数 >= 120`
+### 5.2 `current_up >= 1 or draws >= 120`
 
 ```json
 {
@@ -172,14 +174,11 @@
 }
 ```
 
-## 4. 后端适配行为
+## 6. Backend behaviour
 
-后端入口 `StrategyProtocolAdapter` 负责：
+- `StrategyProtocolAdapter.from_payload(...)` converts a structured payload into `StrategyRuleSet`
+- `StrategyProtocolAdapter.to_payload(...)` serializes `StrategyRuleSet` or `StrategyCondition` back to the same protocol
+- `Scheduler.banner(...)` and `Scheduler.evaluate_multiple_strategies(...)` both call the adapter automatically
 
-1. `from_payload(payload)`：
-   - 把前端 JSON 转成 `StrategyRuleSet`
-   - 拒绝旧版 `legacy_magic` 或裸 list 输入
-2. `to_payload(strategy)`：
-   - 把后端结构化规则对象转回 structured JSON 协议
+`StrategyRuleEngine.describe(...)` is a separate display helper and returns `type` keys, not protocol payload keys.
 
-调度器 `Scheduler.banner(...)`、`Scheduler.evaluate_multiple_strategies(...)` 已自动调用该适配层，因此网页端可以直接提交本协议对象。

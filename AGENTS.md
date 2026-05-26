@@ -1,507 +1,81 @@
-# Endfield Gacha 项目知识库
-
-**生成时间**: 2026-03-11
-**版本**: 2.2.2
-**核心栈**: Python 3.10+, Flask, numpy, matplotlib
-
-## 项目概述
-
-《明日方舟：终末地》寻访与申领系统模拟工具，支持抽卡逻辑模拟、统计分析、策略评估和Web交互。模块化设计，支持多配置集、用户数据持久化和科学评分体系。
-
-**核心功能**:
-
-- 角色/武器卡池抽卡模拟（三级保底机制）
-- Web界面与用户管理系统
-- 结构化策略调度与批量评估
-- 四维科学评分系统（目标、效率、风险、灵活性）
-- 概率分布统计与可视化
-
-## 模块索引
-
-### 根目录导航（按用途分组）
-
-- **统一入口（推荐）**
-  - `run.py`：`uv run run.py [demo|eval|exam|server]` 一键运行
-
-- **核心文件**
-  - `core.py`：抽卡核心逻辑（角色池 / 武器池）
-  - `server.py`：Web 服务入口（Flask）
-  - `start.ps1`：Windows 一键启动 Web 服务
-
-- **策略包** `scheduler/`
-  - `engine.py`：调度器主逻辑
-  - `strategy_v2.py`：结构化策略规则系统（当前唯一受支持的策略实现）
-  - `strategy_protocol.py`：structured JSON 协议适配层
-  - `strategy.py`：旧魔数策略存档文件（不参与现行逻辑）
-  - `strategy_magic.py`：旧魔数策略存档入口（不参与现行逻辑）
-  - `scoring.py`：资源与评分系统
-  - `workers.py`：多进程 worker
-
-- **工具包** `tools/`
-  - `demo.py`：抽卡演示与统计
-  - `evaluation.py`：策略评估脚本
-  - `examination.py`：概率分布验证
-
-- **配置 / 数据 / 文档**
-  - `configs/`：卡池与规则配置
-  - `users/`：用户数据（运行时自动创建）
-  - `doc/`：机制说明文档
-  - `pic/`：图片资源
-  - `test/`：测试代码
-
-### 核心模块 (`core.py`)
-
-- **`BatchRandom`**：批量随机数生成器（支持种子复现）
-- **`GachaResult`**：抽卡结果数据类（名称、星级、配额、保底标记）
-- **`GlobalConfigLoader`**：全局配置加载器（单例模式）
-- **`CharGacha`**：角色卡池类（6星概率递增、UP保底120抽、6星保底80抽、5星保底10抽）
-- **`WeaponGacha`**：武器卡池类（申领式抽卡、最后1抽替换机制）
-
-### 服务模块 (`server.py`)
-
-- Flask Web服务器，提供完整用户管理、资源管理、抽卡历史记录
-- **关键函数**：`get_or_create_current_user()`（基于IP和User-Agent生成用户ID）
-- **数据存储**：`users/`目录下每个用户独立JSON文件
-
-### 策略模块 (`scheduler/` 包)
-
-- **`strategy_v2.py`**：结构化策略判断系统
-  - `StrategyCondition` / `StrategyRuleSet`：规则条件与规则集
-  - `StrategyRuleEngine`：结构化规则解释器
-  - 支持嵌套布尔组，可表达 `((A or B) and C)` 形式
-  - 支持条件字段：`draws`、`current_up`、`six_star_count`、`resource_left`、`potential`
-  - 兼容旧语义字段名：`urgent`、`dossier`、`soft_pity`、`up_oprt`、`oprt`、`hard_pity`
-- **`strategy_protocol.py`**：网页端 structured JSON 协议适配层
-  - `STRATEGY_PROTOCOL_VERSION = "strategy-protocol-v1"`
-  - `StrategyProtocolAdapter.from_payload(...)`
-  - `StrategyProtocolAdapter.to_payload(...)`
-- **`strategy.py` / `strategy_magic.py`**：旧魔数策略存档
-  - 仅供查阅历史实现
-  - 不再参与当前前后端兼容、序列化或运行时执行
-- **`scoring.py`**：资源与科学评分系统  
-  - `Resource`：抽卡资源归一化描述（合约证、黄票、武库配额、源石）  
-  - `ScoringPreferences`：评分偏好参数（模块权重、价值函数、LogMap、风险尾部参数、`O_ref`、历史UP名单、已有潜能记录、问卷状态）
-  - `StrategyGoal`：V2 目标系统（AND 逻辑，支持当期UP/剩余资源/阶段消耗上限）
-  - `StrategyTrace` / `StageTrace`：单次策略完整轨迹
-  - `StrategyScoreReport`：评分结果（原始分、四模块分、基准/机会/风险诊断、版本号、参数标签、缓存标签）
-  - `BaselineEstimator`：固定抽数状态价值估计器，使用文件缓存；命中邻近点时可做三次样条插值
-  - `ScoringSystem`：V2 评分系统（目标、收益、资源、风险四模块）
-- **`workers.py`**：调度用 worker 与辅助方法  
-  - 单次抽卡处理：`process_gacha_result()`、`handle_urgent_gacha()`、`initialize_banner_state()` 等  
-  - 多进程 worker 封装：`_worker_wrapper()`（供 `Scheduler.evaluate()` 使用）
-- **`engine.py`**：调度器主逻辑  
-  - `Scheduler`：策略调度器（支持多卡池连续模拟、批量并行评估，内部使用上述子模块）  
-  - 对外 re-export `Scheduler`、结构化策略对象和评分系统对象
-
-### 工具模块 (`tools/` 包)
-
-- **`demo.py`**：抽卡演示与统计工具（`stats_char_up_prob()`、`stats_char_quota()`等）
-- **`evaluation.py`**：策略评估脚本（预置多种抽卡策略）
-- **`examination.py`**：概率分布验证工具
-
-### 前端模块 (`app/`)
-
-- **`templates/`**：HTML模板文件
-- **`static/`**：压缩后的CSS、JS、图片资源（使用`app/utils/compress.py`压缩）
-- **`utils/compress.py`**：静态资源压缩和混淆工具
-
-### 数据模块
-
-- **`configs/`**：多套卡池配置（config_1 到 config_7），包含：
-  - `char_pool.json`：角色卡池数据
-  - `weapon_pool.json`：武器卡池数据
-  - `gacha_rules.json`：抽卡规则配置
-  - `constants.json`：全局常量配置
-- **`users/`**：用户数据存储（JSON格式）
-- **`pic/`**：图片资源文件
-- **`doc/`**：游戏机制说明文档
-
-## 快速参考
-
-### 关键类与方法
-
-| 模块 | 类/函数 | 关键方法 | 说明 |
-|------|---------|----------|------|
-| `core.py` | `CharGacha` | `attempt(disable_guarantee=False)` | 角色卡池单次抽卡 |
-| `core.py` | `WeaponGacha` | `attempt(disable_guarantee=False)` | 武器卡池单次申领 |
-| `core.py` | 全局 | `get_accumulated_reward()` | 获取累计奖励列表 |
-| `scheduler.py` | `StrategyRuleEngine` | `should_stop(rule_set, draw_count, state)` | 检查结构化策略终止条件 |
-| `scheduler.py` | `ScoringSystem` | `score_traces(traces, preferences, goals, ...)` | 基于完整模拟轨迹计算 V2 评分 |
-| `scheduler.py` | `ScoringSystem` | `log_map(value, config)` | 对数映射函数 |
-| `scheduler.py` | `BaselineEstimator` | `estimate(config_name, counters, paid_draws, preferences)` | 估计固定抽数状态基准价值 `G(c,s;θ)`；结果写入文件缓存，必要时对状态近邻缓存点做三次样条插值 |
-| `scheduler.py` | `BaselineEstimator` | `estimate_six_star_distribution(config_name, counters, paid_draws, preferences)` | 估计 `E_6(c,s)`、`P(N_6=k\|c,s)`、`P(N_6>=k\|c,s)` 所需分布数据 |
-| `scheduler.py` | `StrategyRuleEngine` | `should_stop(rule_set, draw_count, state)` | 结构化策略终止判断 |
-| `scheduler.py` | `StrategyProtocolAdapter` | `from_payload(payload)` / `to_payload(strategy)` | 网页端 JSON 协议与后端规则对象之间转换 |
-| `scheduler.py` | `Scheduler` | `evaluate(scale=5000, workers=4, preferences=None, goals=None)` | 执行单策略批量评估并返回 `StrategyScoreReport` |
-| `scheduler.py` | `Scheduler` | `evaluate_multiple_strategies(strategies, scale, workers, ...)` | 多策略批量评估与排序 |
-| `server.py` | 全局 | `get_or_create_current_user()` | 获取或创建用户数据 |
-| `demo.py` | `GachaTestTool` | `stats_char_up_prob(test_times=50000)` | 统计UP角色所需抽数 |
-
-### 配置路径
-
-| 配置类型 | 默认路径 | 说明 |
-|----------|----------|------|
-| 默认配置 | `configs/config_1/` | 主配置目录 |
-| 配置顺序 | `configs/arrangement` | 默认配置顺序（config_1 到 config_7） |
-| 调度配置 | `configs/arrange1` | 调度器专用配置顺序（config_3 到 config_7） |
-| 用户数据 | `users/{user_id}.json` | 用户数据文件（MD5哈希命名） |
-
-### 资源类型
-
-| 资源名称 | 变量名 | 说明 |
-|----------|--------|------|
-| 特许寻访凭证 | `chartered_permits` | 角色池单抽消耗1 |
-| 嵌晶玉 | `oroberyl` | 角色池单抽消耗500 |
-| 武库配额 | `arsenal_tickets` | 武器池申领消耗1980 |
-| 衍质源石 | `origeometry` | 可兑换为嵌晶玉(1:75)或武库配额(1:25) |
-| 加急招募 | `urgent_recruitment` | 10连抽次数 |
-
-## 开发工作流
-
-### 常用命令
-
-```bash
-# 安装项目依赖
-uv sync
-
-# 统一入口（推荐）
-uv run run.py demo         # 抽卡演示
-uv run run.py eval         # 策略评估（调用evaluation.py）
-uv run run.py exam         # 概率验证（调用examination.py）
-uv run run.py server       # 启动 Web 服务
-
-# 或直接运行
-uv run server.py           # Windows 快捷启动: .\start.ps1
-uv run python -m tools.demo
-uv run python -m tools.evaluation  # 直接运行评估脚本
-uv run python -m tools.examination # 直接运行验证脚本
-
-# 运行测试套件
-uv run pytest test/ -v
-
-# 压缩前端静态资源（修改前端后执行）
-uv run python app/utils/compress.py
-```
-
-### 代码风格规范
-
-#### 命名约定
-
-- 类名：大驼峰（PascalCase），如 `CharGacha`、`GlobalConfigLoader`
-- 函数/方法/变量名：小写下划线（snake_case），如 `attempt()`、`up_prob`
-- 常量：全大写下划线，如 `DEFAULT_CONFIG`、`__version__`
-
-#### 通用规范
-
-- 导入顺序：标准库 → 第三方库 → 本地模块，组间空行分隔
-- 禁止通配符导入，优先使用绝对路径导入
-- 公共方法必须带完整类型注解和docstring
-- 4空格缩进，UTF-8编码，单行不超过120字符
-- 抛出明确异常类型，避免空`except`块
-- 概率计算使用`Decimal`避免浮点误差
-
-### AI助手工作规则
-
-- 优先参考本AGENTS.md文档获取项目结构和API信息
-- 不得新增卡池类型，当前仅支持角色/武器两种卡池
-- 修改代码后需运行对应测试验证功能正确性
-- 文档修改需同步更新相关引用（README、ref.md等）
-- 所有代码修改必须符合现有代码风格规范
-- 无自定义规则，遵循本规范即可
-
-## 调用模式
-
-### 基础抽卡调用
-
-```python
-# 角色卡池单抽
-from core import CharGacha, GlobalConfigLoader
-config = GlobalConfigLoader("configs/config_1")
-gacha = CharGacha(config, size=1024)
-result = gacha.attempt()  # 返回 GachaResult 对象
-
-# 武器卡池申领
-from core import WeaponGacha
-weapon_gacha = WeaponGacha(config, size=1024)
-results = weapon_gacha.attempt()  # 返回 GachaResult 列表（通常10个）
-```
-
-### Web服务调用
-
-```python
-# 启动Web服务
-uv run server.py
-# 访问 http://localhost:5000
-
-# API接口示例
-POST /api/gacha
-{
-    "pool_type": "char",  # "char" 或 "weapon"
-    "count": 1           # 抽卡次数（角色池单次，武器池固定为申领次数）
-}
-```
-
-### 策略评估调用
-
-**单策略评估**：
-```python
-from scheduler import Scheduler, StrategyCondition, StrategyRuleSet
-
-# 创建调度器
-scheduler = Scheduler(config_dir="configs", arrange="arrange1")
-
-# 定义策略
-scheduler.banner(
-    StrategyRuleSet(
-        match="any",
-        conditions=[
-            StrategyCondition(kind="current_up", operator=">=", value=1),
-            StrategyCondition(kind="draws", operator=">=", value=120),
-        ],
-        tags=["current-up-or-120-draws"],
-    ),
-    name="config_3",
-)
-
-# 执行批量评估（5000次模拟，4进程）
-scheduler.evaluate(scale=5000, workers=4)
-```
-
-**多策略批量评估（新版功能）**：
-```python
-from scheduler import Scheduler, StrategyCondition, StrategyRuleSet
-
-# 创建调度器
-scheduler = Scheduler(config_dir="configs", arrange="arrange1")
-
-# 定义多种策略
-strategies = [
-    StrategyRuleSet(
-        match="any",
-        conditions=[
-            StrategyCondition(kind="current_up", operator=">=", value=1),
-            StrategyCondition(kind="draws", operator=">=", value=120),
-        ],
-    ),
-    StrategyRuleSet(
-        match="all",
-        conditions=[StrategyCondition(kind="draws", operator=">=", value=30)],
-    ),
-    StrategyRuleSet(
-        match="all",
-        conditions=[
-            StrategyRuleSet(
-                match="any",
-                conditions=[
-                    StrategyCondition(kind="dossier", operator="==", value=True),
-                    StrategyCondition(kind="oprt", operator="==", value=True),
-                ],
-            ),
-            StrategyCondition(kind="urgent", operator="==", value=True),
-        ],
-    ),
-]
-
-# 执行多策略评估并生成同组排序
-results = scheduler.evaluate_multiple_strategies(
-    strategies=strategies,
-    scale=5000,
-    workers=4,
-)
-
-# 查看评估结果
-for i, result in enumerate(results):
-    print(f"策略{i+1}评分:")
-    print(f"  原始分: {result.raw_score:.1f} ({result.grade})")
-    print(f"  目标分: {result.goal_score:.1f}")
-    print(f"  收益分: {result.utility_score:.1f}")
-    print(f"  资源分: {result.resource_score:.1f}")
-    print(f"  风险分: {result.risk_score:.1f}")
-    print(f"  排名: {result.rank} / 百分位: {result.percentile:.1f}")
-```
-
-**轨迹评分计算**：
-```python
-from scheduler import BaselineEstimator, ScoringPreferences, ScoringSystem
-
-preferences = ScoringPreferences()
-estimator = BaselineEstimator(config_dir="configs", samples=64, base_seed=20260525)
-
-# traces 为完整 StrategyTrace 列表
-report = ScoringSystem.score_traces(
-    traces=traces,
-    preferences=preferences,
-    goals=None,
-    baseline_estimator=estimator,
-)
-
-print(report.raw_score, report.goal_completion_rate)
-```
-
-### 统计分析调用
-
-```python
-from demo import GachaTestTool
-
-tool = GachaTestTool()
-# 统计UP角色所需抽数（50000次测试）
-tool.stats_char_up_prob(test_times=50000, gragh=True)
-
-# 统计120抽角色池配额分布
-tool.stats_char_quota(draw_times=50000, gragh=True)
-```
-
-## 配置文件指南
-
-### 配置目录结构
-
-```
-configs/
-├── arrangement           # 默认配置顺序：config_1 到 config_7
-├── arrange1             # 调度器专用配置顺序：config_3 到 config_7
-├── config_1/            # 配置集1
-│   ├── char_pool.json   # 角色卡池数据
-│   ├── weapon_pool.json # 武器卡池数据
-│   ├── gacha_rules.json # 抽卡规则配置
-│   └── constants.json   # 全局常量配置
-└── config_2/ ... config_7/  # 其他配置集
-```
-
-### 关键配置项
-
-**`gacha_rules.json` - 抽卡规则**：
-
-```json
-{
-  "char": {
-    "base_prob": {"6": 0.008, "5": 0.08, "4": 0.912},
-    "guarantee_5star_plus_draw": 10,      # 5星保底抽数
-    "guarantee_6star_draw": 80,           # 6星保底抽数
-    "6star_prob_increase_start": 65,      # 概率递增起始抽数
-    "prob_increase": 0.05,                # 每次递增概率
-    "up_guarantee_draw": 120,             # UP保底抽数
-    "quota_rule": {"6": 2000, "5": 200, "4": 20}  # 配额发放规则
-  }
-}
-```
-
-**`char_pool.json` - 角色卡池**：
-
-```json
-{
-  "6": [
-    {"name": "洁尔佩塔", "remove_after": 4, "up_prob": 0.0},
-    {"name": "莱万汀", "remove_after": 3, "up_prob": 0.5},  # UP角色
-    {"name": "伊冯", "remove_after": 5, "up_prob": 0.0}
-  ]
-}
-```
-
-## 故障排除
-
-| 问题现象 | 可能原因 | 解决方案 |
-|----------|----------|----------|
-| 配置文件不存在 | 路径错误或文件缺失 | 检查`configs/config_1/`目录是否存在，确认`arrangement`文件 |
-| 导入模块失败 | 依赖未安装或Python版本不匹配 | 运行`uv sync`，确保Python 3.10+ |
-| Web服务无法启动 | 端口占用或Flask依赖缺失 | 检查端口5000是否被占用，安装`Flask, Flask-Cors, waitress` |
-| 用户数据无法保存 | `users/`目录权限不足 | 确保`users/`目录可写，或手动创建该目录 |
-| 抽卡结果异常 | 配置概率设置有误 | 检查`gacha_rules.json`中的概率总和应为1，UP概率配置正确 |
-
-## 扩展点
-
-### 系统扩展说明
-
-**注意**：本系统已经稳定，**不再添加新的卡池类型**。当前仅支持角色卡池和武器卡池两种类型，符合《明日方舟：终末地》游戏机制。
-
-### 自定义策略
-
-```python
-from scheduler import Scheduler, StrategyCondition, StrategyRuleSet
-
-
-def custom_strategy():
-    scheduler = Scheduler(config_dir="configs", arrange="arrange1")
-    scheduler.banner(
-        StrategyRuleSet(
-            match="all",
-            conditions=[
-                StrategyCondition(kind="draws", operator=">=", value=50),
-                StrategyCondition(kind="resource_left", operator=">=", value=20),
-            ],
-            tags=["custom-structured-strategy"],
-        ),
-        name="config_3",
-    )
-    scheduler.evaluate(scale=10000, workers=8)
-```
-
-### 界面定制
-
-1. 修改`app/templates/index.html`前端模板
-2. 更新`app/static/`中的CSS和JS文件
-3. 运行`uv run python app/utils/compress.py`压缩静态资源
-
-### 数据分析扩展
-
-1. 在`demo.py`中添加新的统计方法
-2. 集成更多可视化库（如`plotly`、`seaborn`）
-3. 添加数据导出功能（CSV、Excel格式）
-
-## 注意事项
-
-1. **随机种子**：`BatchRandom`支持种子复现，便于测试和调试
-2. **配置缓存**：`GlobalConfigLoader`使用缓存机制，避免重复读取文件
-3. **资源兑换**：衍质源石可兑换为嵌晶玉(1:75)或武库配额(1:25)
-4. **保底优先级**：武器池保底优先级：UP保底 > 6星保底 > 5星保底
-5. **评分系统**：四维评分体系（目标达成效用40%、资源利用效率20%、风险控制能力25%、策略灵活性15%），支持相对/绝对双模式
-6. **评分等级**：S级(90-100)、A级(80-89)、B级(70-79)、C级(60-69)、D级(50-59)、E级(0-49)
-7. **价值权重**：使用3:2:1权重评估角色价值（当期UP:往期UP:常驻6星）
-
-## 相关文档引用
-
-### 项目文档
-
-| 文档文件 | 路径 | 说明 |
-|----------|------|------|
-| **README.md** | `README.md` | 项目主说明文档，包含项目介绍、技术架构、快速入门指南、统计结论、开发者指南 |
-| **README_en.md** | `README_en.md` | 英文版README文档 |
-| **ref.md** | `ref.md` | 开发者参考文档，包含详细的技术实现说明和算法分析 |
-
-### 机制说明文档
-
-| 文档文件 | 路径 | 说明 |
-|----------|------|------|
-| **游戏机制说明（中文）** | `doc/mechanics.md` | 《明日方舟：终末地》寻访与申领机制原理解释 |
-| **游戏机制说明（英文）** | `doc/mechanics_en.md` | 英文版游戏机制说明文档 |
-
-### 配置文件文档
-
-| 配置文件 | 路径 | 说明 |
-|----------|------|------|
-| **角色卡池配置** | `configs/config_1/char_pool.json` | 角色卡池数据配置（角色列表、UP概率、移除规则） |
-| **武器卡池配置** | `configs/config_1/weapon_pool.json` | 武器卡池数据配置（武器列表、类型、UP概率） |
-| **抽卡规则配置** | `configs/config_1/gacha_rules.json` | 抽卡规则配置（概率、保底规则、奖励机制） |
-| **全局常量配置** | `configs/config_1/constants.json` | 全局常量配置（文本常量、默认值、目录名称） |
-
-### 代码文档
-
-| 模块文件 | 路径 | 说明 |
-|----------|------|------|
-| **核心抽卡模块** | `core.py` | 核心抽卡逻辑实现，包含角色/武器卡池类 |
-| **Web服务模块** | `server.py` | Flask Web服务器，提供用户管理和抽卡API |
-| **策略调度模块** | `scheduler/` | 结构化策略系统和科学评分系统，包含四维评分和多策略评估 |
-| **演示工具模块** | `tools/demo.py` | 抽卡演示与统计分析工具 |
-| **策略评估脚本** | `tools/evaluation.py` | 预置抽卡策略评估脚本 |
-| **概率验证工具** | `tools/examination.py` | 概率分布验证工具 |
-
-### 使用建议
-
-1. **AI助手查阅**：优先参考本AGENTS.md文档，获取结构化项目信息
-2. **开发者参考**：查看README.md的"开发者指南"章节和ref.md文档
-3. **配置定制**：参考配置文件文档了解各配置项含义
-4. **算法理解**：阅读游戏机制说明文档了解抽卡规则背景
-
----
-*文档版本：2.2.2 | 最后更新：2026-03-11*
-
+# Endfield Gacha AGENTS
+
+**Updated:** 2026-05-26
+
+This file is a repository guide for agents and contributors. It reflects the current codebase, not the historical state.
+
+## Stack
+
+- Python 3.10+
+- Flask
+- numpy
+- matplotlib
+- scipy
+- rich
+
+## Validation commands
+
+| What | Command |
+|---|---|
+| Install dependencies | `uv sync` |
+| Run tests | `uv run pytest test/ -v` |
+| Lint | `uv run ruff check .` |
+| Typecheck | `uv run pyright` |
+| Compress web assets | `uv run python app/utils/compress.py` |
+
+## Entry points
+
+| Command | Purpose |
+|---|---|
+| `uv run run.py` | Show help |
+| `uv run run.py demo` | Demo and statistics |
+| `uv run run.py eval` | Strategy evaluation |
+| `uv run run.py exam` | Probability verification |
+| `uv run run.py server` | Start the web app |
+| `uv run server.py --dev` | Start web app in dev mode |
+| `uv run server.py --waitress --port 5000` | Start Waitress server |
+
+## Repository facts
+
+- Only two banner types are implemented: character and weapon
+- `core.py` contains the simulation engine and configuration loader
+- `server/` contains the Flask app factory, routes, user storage, and resource helpers
+- `scheduler/` contains structured strategy evaluation and the V2 scoring system
+- `tools/` contains demo, evaluation, and verification scripts
+- `configs/` contains the actual JSON configuration sets
+- `config_1` is the default example config
+- `configs/arrangement` and `configs/arrange1` control config order
+- There is no `constants.json` file in the real config layout
+- User state is stored in SQLite `userdata.db`; the old JSON-only description is no longer accurate
+
+## Scheduler facts
+
+- `scheduler/strategy_v2.py` is the only supported runtime strategy format
+- `scheduler/strategy_protocol.py` only accepts `strategy-protocol-v1` structured payloads
+- `legacy_magic` payloads and old list-style strategy input are rejected
+- `scheduler/scoring.py` currently reports `SCORING_V2_VERSION = 2.3.0`
+- V2 scoring currently targets the character banner only
+
+## Web facts
+
+- User ID is derived from IP + User-Agent
+- Recharge tiers are `6 / 30 / 98 / 198 / 328 / 648`
+- `origeometry` can be exchanged for `oroberyl` or `arsenal_tickets`
+- Character draws award `arsenal_tickets`
+- Weapon issues always consume 1980 `arsenal_tickets`
+
+## Config and tooling facts
+
+- `ruff` config: line-length=120, select=E/F/I, test files ignore E402
+- `pyright`: typeCheckingMode=basic, only checks `core.py`, `server`, `scheduler`, `tools` (excludes `test/`)
+- `tools/evaluation.py` reads strategies and parameters from `tools/evaluation_examples.json`
+- `run.py server` always runs static compression; use `server.py --dev` for a no-compress dev workflow
+- Per-module `AGENTS.md` files live in `scheduler/`, `server/`, `tools/`, `app/`, `configs/`
+
+## Editing guidance
+
+- Do not add a third banner type
+- Keep public APIs type-annotated and documented
+- Update docs when code behaviour changes
+- After code changes, always run `ruff` and `pyright`
 

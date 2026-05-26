@@ -1,221 +1,135 @@
-# Endfield Gacha Mechanisms Official Introduction | 终末地卡池机制官方介绍
+# Endfield Gacha Mechanics
 
-**文 / A**：[**中文**](mechanics.md "中文版卡池机制文档") | [**English**](mechanics_en.md "English version gacha mechanisms document")
+**Updated**: 2026-05-26
 
----
-
-[Chartered Headhunting (Char Gacha)](#chartered-headhunting-char-gacha)
-[Arsenal Issue (Weapon Gacha)](#arsenal-issue-weapon-gacha)
-[Duplicate Acquisition Rules](#duplicate-acquisition-rules)
-[Resource Exchange Rules](#resource-exchange-rules)
-[Official Gacha Screenshots](#official-gacha-screenshots)
+This document describes the behavior actually implemented in the repository. If it conflicts with older notes, the code wins.
 
 ---
 
-## Chartered Headhunting (Char Gacha)
+## 1. Character Banner
 
-### Basic Rules
+### 1.1 Entry and Cost
 
-Chartered Headhunting uses **single pull** mode, each pull consumes 1 `Chartered HH Permit` or 75 `Oroberyl`.
+- Class: `core.CharGacha`
+- Mode: single pull
+- Cost: 1 `chartered_permits` or 500 `oroberyl`
 
-### Banner Rotation & Operator Removal Rules
+### 1.2 Base Rates
 
-- Each Chartered Headhunting banner runs for a fixed period, featuring 1 rate-up 6★ operator
-- 6★ operators will be removed from the banner after the specified number of banner rotations, and will not enter the Standard Recruitment pool
-- Rate-up operators are usually removed after 3 banner rotations, other 6★ operators are removed after 3-5 rotations
+- 6★: 0.8%
+- 5★: 8%
+- 4★: 91.2%
 
-#### 6★ Operator List (Current Banner: 2nd post-launch)
+Within a rarity, operators are split according to the `up_prob` values in the configuration. In `configs/config_1`, the sample banner name is `「熔火灼痕」` and the featured 6★ operator is `莱万汀`.
 
-| Operator Name | Type | Removal After | Rate-up Probability |
-|---------------|------|---------------|---------------------|
-| Gilberta（洁尔佩塔） | Current Rate-up | After 3 banners | 50% of all 6★ drops |
-| Laevatain（莱万汀） | Previous Rate-up | After 3 banners | Split evenly among remaining 50% |
-| Yvonne | Next Rate-up | After 4 banners | Split evenly among remaining 50% |
-| Ember | Permanent | After 5 banners | Split evenly among remaining 50% |
-| Li Feng | Permanent | After 5 banners | Split evenly among remaining 50% |
-| Aldera | Permanent | After 5 banners | Split evenly among remaining 50% |
-| Bieli | Permanent | After 5 banners | Split evenly among remaining 50% |
-| Jun Wei | Permanent | After 5 banners | Split evenly among remaining 50% |
+### 1.3 Pity Rules
 
-### Probability Rules
+- 5★ pity: every 10 pulls guarantees 5★+.
+- 6★ soft pity: starts from pull 66, increases by 5% per pull, capped at 100%.
+- 6★ hard pity: guaranteed on pull 80.
+- Featured 6★ hard pity: guaranteed on pull 120, controlled by the `guarantee_used` state flag.
 
-Initial probability distribution (Pull 1-65, no pity triggered):
+### 1.4 Rewards and Counters
 
-- 6★ Operator: 0.8%
-- 5★ Operator: 8%
-- 4★ Operator: 91.2%
-- Operators of the same rarity have equal pull probability
-- Rate-up operator accounts for 50% of all 6★ operator drop rates
+Every character pull awards Arsenal Tickets:
 
-### Pity Mechanism
+- 6★: 2000
+- 5★: 200
+- 4★: 20
 
-#### 1. 5★ Pity (Cross-banner inherited)
+The current implementation of `get_accumulated_reward()` returns:
 
-Every 10 pulls guarantees at least 1 5★ or higher operator:
+- 30 pulls: `加急招募`
+- 60 pulls: `寻访情报书`
+- every 240 pulls: the configured Type_C token reward
 
-- If no 5★+ operator obtained in 9 consecutive pulls, the 10th pull will definitely be 5★+
-- Pity counter is inherited across all Chartered Headhunting banners
-
-#### 2. 6★ Soft Pity (Probability Increase, Cross-banner inherited)
-
-- If no 6★ operator obtained in first 65 pulls, 6★ probability increases by 5% per pull starting from pull 66
-- 6★ Probability = Base Probability + (Current Pull - 65) * 5%
-- When probability increases, the remaining probability is remapped proportionally using the base 5★ / 4★ ratio
-- Pity counter is inherited across all Chartered Headhunting banners
-
-#### 3. 6★ Pity (Cross-banner inherited)
-
-- Maximum 80 pulls guarantee a 6★ operator
-- 6★ probability increases to 100% at pull 80
-- Pity counter is inherited across all Chartered Headhunting banners
-
-#### 4. Rate-up Operator Pity (Hard Pity, Current banner only)
-
-- First 120 pulls guarantee the featured 6★ rate-up operator
-- This rule only applies once per banner, counter resets when the banner ends, not inherited to other banners
-
-### Accumulated Reward Rules
-
-Extra rewards when accumulated pulls reach specified count:
-
-| Accumulated Pulls | Reward | Description |
-|-------------------|--------|-------------|
-| 30 pulls | ×1 Urgent Recruitment | Free 10-pull for current banner only, not counted towards pity or accumulated pulls |
-| 60 pulls | ×1 Headhunting Dossier | Automatically converts to 10-pull ticket for the next Chartered Headhunting banner |
-| Every 240 pulls | ×1 Rate-up Operator Token | Can be obtained repeatedly, used to increase operator potential |
-
-#### Urgent Recruitment Notes
-
-- Same probability as current banner, guarantees at least 1 5★+ operator
-- Pull results do not count towards any pity counter or accumulated pull count
-- Only valid for current banner, will not carry over to other banners
-
-#### Headhunting Dossier Notes
-
-- Automatically added to inventory, converts to exclusive 10-pull ticket when next Chartered Headhunting banner starts
-- Ticket expires when the corresponding banner ends
-
-### Quota Reward Rules
-
-Each pull rewards Arsenal Tickets (can be used for Arsenal Issue):
-
-- 6★ Operator: 2000 Arsenal Tickets
-- 5★ Operator: 200 Arsenal Tickets
-- 4★ Operator: 20 Arsenal Tickets
+In `configs/config_1`, Type_C is `莱万汀的信物`.
 
 ---
 
-## Arsenal Issue (Weapon Gacha)
+## 2. Weapon Issue
 
-### Basic Rules
+### 2.1 Entry and Cost
 
-Arsenal Issue uses **claim mode**, each claim is 10 pulls, consumes 1980 `Arsenal Tickets`.
+- Class: `core.WeaponGacha`
+- Mode: fixed 10-pull issue
+- Cost: 1980 `arsenal_tickets`
 
-- Each Arsenal Issue banner ends when the corresponding Chartered Headhunting banner ends
-- Each banner features 1 rate-up 6★ weapon, accounting for 25% of all 6★ weapon drop rates
+### 2.2 Base Rates
 
-### Probability Rules
+- 6★: 4%
+- 5★: 15%
+- 4★: 81%
 
-Initial probability distribution (no pity triggered):
+Within a rarity, weapons are split according to the `up_prob` values in the configuration. In `configs/config_1`, the sample banner name is `「熔铸申领」` and the featured weapon is `熔铸火焰`.
 
-- 6★ Weapon: 4%
-- 5★ Weapon: 15%
-- 4★ Weapon: 81%
-- Weapons of the same rarity have equal pull probability
-- Rate-up weapon accounts for 25% of all 6★ weapon drop rates
+### 2.3 Pity Rules
 
-### Pity Mechanism
+- Single-issue pity: if no 5★+ appears in the 10 pulls, the last pull is replaced with a 5★+ result.
+- 6★ pity: every 4 issues guarantees a 6★ result on the last pull.
+- Featured 6★ pity: every 8 issues guarantees the featured weapon on the last pull.
+- Priority: featured 6★ > 6★ > 5★
 
-#### 1. Single Claim Pity
+### 2.4 Rewards and Counters
 
-Each claim (10 pulls) guarantees at least 1 5★ or higher weapon:
+Every weapon issue awards AIC Quota:
 
-- If first 9 items are all 4★ weapons, the 10th item will be replaced with 5★+ weapon
+- 6★: 50
+- 5★: 10
+- 4★: 1
 
-#### 2. 6★ Pity (Current banner only)
-
-- Every 4 claims guarantee at least 1 6★ weapon
-- If no 6★ weapon obtained in 3 consecutive claims, the last item of the 4th claim will definitely be 6★ weapon
-- Counter resets when banner ends, not inherited to other banners
-
-#### 3. Rate-up Weapon Pity (Current banner only)
-
-- Every 8 claims guarantee at least 1 featured 6★ rate-up weapon
-- If no UP 6★ weapon obtained in 7 consecutive claims, the last item of the 8th claim will definitely be the UP weapon
-- This rule only applies once per banner, counter resets when the banner ends
-
-### Pity Priority
-
-Arsenal Issue pity trigger priority from highest to lowest:
-> Rate-up Weapon Pity > 6★ Pity > 5★ Pity
-
-### Accumulated Reward Rules
-
-Extra rewards when accumulated claims reach specified count, alternating between two reward types:
-
-| Accumulated Claims | Reward | Description |
-|-------------------|--------|-------------|
-| 10 claims | ×1 Arsenal Supply Crate | Select any 1 6★ weapon from the specified range |
-| 18 claims | ×1 Rate-up Weapon | Directly obtain the featured 6★ rate-up weapon |
-| Every 8 claims thereafter | Alternate between the two rewards | Cyclical distribution, valid for current banner only |
-
-### Quota Reward Rules
-
-Each claim rewards AIC Quota（集成配额）:
-
-- 6★ Weapon: 50 AIC Quota（集成配额）
-- 5★ Weapon: 10 AIC Quota（集成配额）
-- 4★ Weapon: 1 AIC Quota（集成配额）
+The current implementation of `get_accumulated_reward()` starts at the 10th issue and alternates Type_A and Type_B every 8 issues.
 
 ---
 
-## Duplicate Acquisition Rules
+## 3. Web User State
 
-### Operator Duplicate Acquisition
+### 3.1 Storage
 
-Applies to all operator acquisition methods (recruitment, events, exchange, etc.):
+- Entry: `server/user.py`
+- Database: `userdata.db`
+- User ID: MD5 of IP + User-Agent
 
-| Rarity | Duplicate Reward | Exchange after Max Potential |
-|--------|------------------|-------------------------------|
-| 6★ | ×1 Operator Token + ×50 Bond Quota（保障配额） | Tokens can be exchanged for ×10 Endpoint Quota（终点配额） |
-| 5★ | ×1 Operator Token + ×10 Bond Quota（保障配额） | Tokens can be exchanged for ×20 AIC Quota（集成配额） |
-| 4★ | ×1 Operator Token | Tokens can be exchanged for ×5 AIC Quota（集成配额） |
+### 3.2 Default Resources
 
-### Weapon Duplicate Acquisition
+New users start with:
 
-Applies to all weapon acquisition methods (claim, events, exchange, etc.):
+- `chartered_permits`: 10
+- `oroberyl`: 50000
+- `arsenal_tickets`: 8000
+- `origeometry`: 100
+- `urgent_recruitment`: 0
+- `urgent_used`: False
 
-- Duplicate weapons automatically convert to corresponding amount of AIC Quota（集成配额）
+### 3.3 Recharge and Exchange
 
----
+- Recharge tiers: 6 / 30 / 98 / 198 / 328 / 648
+- `origeometry` can be exchanged to:
+  - `oroberyl` at 1:75
+  - `arsenal_tickets` at 1:25
 
-## Resource Exchange Rules
-
-| Resource | Exchange Rate | Usage |
-|----------|---------------|-------|
-| Origeometry | 1:75 Oroberyl / 1:25 Arsenal Tickets | Premium currency, can be exchanged for recruitment/claim resources |
-| Oroberyl | 75:1 Chartered HH Permit | Used for Chartered Headhunting |
-| Arsenal Tickets | 1980:1 Arsenal Issue | Used for Arsenal Issue |
-| Bond Quota（保障配额） / AIC Quota（集成配额） / Endpoint Quota（终点配额） | Exchange for various materials in Quota Exchange | Obtained from duplicate operators/weapons |
-
----
-
-## Official Gacha Screenshots
-
-### Chartered Headhunting Screenshot (2026-2-9)
-
-![Chartered Headhunting Screenshot](../pic/char.png "Chartered Headhunting Screenshot")
-
-### Arsenal Issue Screenshot (2026-2-9)
-
-![Arsenal Issue Screenshot](../pic/weapon.png "Arsenal Issue Screenshot")
+The code does not implement a separate duplicate-operator or duplicate-weapon exchange system. Duplicate results only update collection counts and normal reward counters.
 
 ---
 
-## Implementation Notes
+## 4. Configuration Files
 
-- Configuration probabilities are parsed with `Decimal`; runtime sampling uses precomputed thresholds for consistency and performance
-- Random number generation uses batch pre-generation mechanism, supports seed reproduction function
-- Pity judgment order is strictly executed according to priority to ensure compliance with game design expectations
-- ✅ Implemented: Core gacha logic, all pity mechanisms, quota rewards, accumulated rewards
-- ⏳ Planned: Duplicate operator processing, token system, resource exchange features
+The code only reads:
+
+- `configs/config_*/char_pool.json`
+- `configs/config_*/weapon_pool.json`
+- `configs/config_*/gacha_rules.json`
+- `configs/arrangement`
+- `configs/arrange1`
+
+There is no `constants.json` file in the repository layout.
+
+---
+
+## 5. Implementation Notes
+
+- Pull results are returned as `GachaResult(name, star, quota, is_up_g, is_6_g, is_5_g)`
+- Both banners use `BatchRandom` for pre-generated random numbers
+- `disable_guarantee=True` is for pure probability validation
+- The web app compresses static assets before startup unless development mode is requested
+
