@@ -33,7 +33,7 @@ class BaselineEstimator:
         self.config_dir = config_dir
         self.samples = samples
         self.base_seed = base_seed
-        self.cache_path = cache_path or os.path.join("logs", "scoring_cache.json")
+        self.cache_path = cache_path or os.path.join("data", "scoring_cache.json")
         self._baseline_cache = JsonFileCache(self.cache_path, "baseline")
         self._distribution_cache = JsonFileCache(self.cache_path, "six_star_distribution")
 

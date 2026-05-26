@@ -70,7 +70,7 @@ EndfieldGacha/
 ### Key Implementation Notes
 
 - The scheduler is character-banner only (weapons excluded from scoring)
-- `BaselineEstimator` cache lives at `logs/scoring_cache.json` by default
+- `BaselineEstimator` cache lives at `data/scoring_cache.json` by default
 - Scoring requires at least one `StrategyGoal` (default: obtain 1 current-up character)
 - The protocol layer (`strategy_protocol.py`) auto-normalizes rules passed to `Scheduler.banner()` — callers can pass raw dicts, StrategyRuleSet, or protocol payloads
 - `disable_guarantee=True` on `attempt()` freezes pity state (only total increments) — used for pure probability distribution analysis

@@ -154,7 +154,7 @@ rewards = weapon_gacha.get_accumulated_reward()
 
 - `ScoringSystem.score_traces(...)` 至少需要一个目标
 - 当前评分只面向角色池，不纳入武器池
-- `BaselineEstimator` 默认缓存文件是 `logs/scoring_cache.json`
+- `BaselineEstimator` 默认缓存文件是 `data/scoring_cache.json`
 - 近邻插值使用三次样条
 - `ScoringPreferences` 支持历史 UP 名单、已有潜能记录和问卷状态
 
