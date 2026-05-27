@@ -29,6 +29,10 @@ def get_asset_output_dir(asset_type: str) -> Path:
     return output_dir
 
 
+def get_asset_manifest_key(file_path: Path) -> str:
+    return file_path.relative_to(SOURCE_STATIC_DIR).as_posix()
+
+
 def get_file_hash(content: str) -> str:
     return hashlib.sha256(content.encode("utf-8")).hexdigest()[:6]
 
@@ -244,7 +248,7 @@ def _prepare_output_tree() -> None:
     for root, _, files in os.walk(SOURCE_STATIC_DIR):
         src_root = Path(root)
         rel_root = src_root.relative_to(SOURCE_STATIC_DIR)
-        if rel_root.parts and rel_root.parts[0] in {"css", "js"}:
+        if rel_root.parts and rel_root.parts[0] in {"css", "js", "pages"}:
             continue
         dst_root = OUTPUT_STATIC_DIR / rel_root
         dst_root.mkdir(parents=True, exist_ok=True)
@@ -324,7 +328,7 @@ def _process_asset_file(
     ext = file_path.suffix
     current_hash = get_file_hash(content)
     source_map_name = f"{current_hash}{ext}.map"
-    manifest_key = f"{asset_type}/{file_path.name}"
+    manifest_key = get_asset_manifest_key(file_path)
     output_dir = get_asset_output_dir(asset_type)
 
     if _try_reuse_manifest_entry(

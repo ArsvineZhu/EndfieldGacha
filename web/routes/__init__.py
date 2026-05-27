@@ -5,13 +5,14 @@ from ..user import (  # noqa: F401 — re-export for test monkeypatch
     get_or_create_current_user as get_or_create_current_user,
 )
 from ..user import save_user as save_user
-from . import gacha, info, resources
+from . import eval, gacha, info, resources
 
 
 def create_routes(app):
     gacha.register_routes(app)
     resources.register_routes(app)
     info.register_routes(app)
+    eval.register_routes(app)
 
     @app.context_processor
     def inject_static_url():

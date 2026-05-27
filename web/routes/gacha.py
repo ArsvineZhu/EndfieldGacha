@@ -7,11 +7,11 @@ from flask import jsonify, request
 
 from gacha_core import CharGacha, GlobalConfigLoader, WeaponGacha
 
+from .. import user as user_store
 from ..resource import (
     consume_char_gacha_resources,
     consume_weapon_gacha_resources,
 )
-from ..user import get_or_create_current_user, save_user
 
 DEFAULT_CONFIG = GlobalConfigLoader("configs/config_6")
 
@@ -81,7 +81,7 @@ def register_routes(app):
         if count < 1 or count > 10:
             return jsonify({"error": "Invalid count"}), 400
 
-        user_id, user_info = get_or_create_current_user(request)
+        user_id, user_info = user_store.get_or_create_current_user(request)
 
         if pool_type == "char":
             ok, msg, _ = consume_char_gacha_resources(user_info, count)
@@ -154,14 +154,14 @@ def register_routes(app):
         history_key = f"{pool_type}_gacha"
         user_info[history_key]["operations"].append(operation)
         user_info["last_visit"] = datetime.now().isoformat()
-        save_user(user_id, user_info)
+        user_store.save_user(user_id, user_info)
 
         return jsonify({"results": results})
 
     # ------------------------------------------------------------------ 加急招募
     @app.route("/api/urgent_recruitment", methods=["POST"])
     def urgent_recruitment():
-        user_id, user_info = get_or_create_current_user(request)
+        user_id, user_info = user_store.get_or_create_current_user(request)
 
         if user_info["resources"]["urgent_recruitment"] < 1:
             return jsonify({"error": "加急招募次数不足"}), 400
@@ -189,14 +189,14 @@ def register_routes(app):
         }
         user_info["char_gacha"]["operations"].append(operation)
         user_info["last_visit"] = datetime.now().isoformat()
-        save_user(user_id, user_info)
+        user_store.save_user(user_id, user_info)
 
         return jsonify({"results": results})
 
     # ------------------------------------------------------------------ 累计奖励
     @app.route("/api/rewards", methods=["GET"])
     def get_rewards():
-        user_id, user_info = get_or_create_current_user(request)
+        user_id, user_info = user_store.get_or_create_current_user(request)
         pool_type = request.args.get("pool_type", "char")
 
         if pool_type == "char":
@@ -217,6 +217,6 @@ def register_routes(app):
 
         rewards = [f"{name} × {c}" for name, c in reward_tuples]
         user_info["last_visit"] = datetime.now().isoformat()
-        save_user(user_id, user_info)
+        user_store.save_user(user_id, user_info)
 
         return jsonify({"rewards": rewards})

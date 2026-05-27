@@ -40,7 +40,7 @@ def create_app(dev_mode=False):
             return None
 
         rel_path = request.path[len("/static/") :]
-        if rel_path.startswith(("css/", "js/")) and not HASHED_STATIC_PATTERN.match(rel_path):
+        if rel_path.startswith(("css/", "js/", "pages/")) and not HASHED_STATIC_PATTERN.match(rel_path):
             abort(404)
         return None
 

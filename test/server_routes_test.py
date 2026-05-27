@@ -71,8 +71,8 @@ def test_production_blocks_direct_source_static_css_js():
     app = create_app(dev_mode=False)
     client = app.test_client()
 
-    assert client.get("/static/css/layout.css").status_code == 404
-    assert client.get("/static/js/main.js").status_code == 404
+    assert client.get("/static/pages/gacha/css/layout.css").status_code == 404
+    assert client.get("/static/pages/gacha/js/main.js").status_code == 404
 
 
 def test_dev_mode_allows_source_static_css_js():
@@ -81,5 +81,5 @@ def test_dev_mode_allows_source_static_css_js():
     app = create_app(dev_mode=True)
     client = app.test_client()
 
-    assert client.get("/static/css/layout.css").status_code == 200
-    assert client.get("/static/js/main.js").status_code == 200
+    assert client.get("/static/pages/gacha/css/layout.css").status_code == 200
+    assert client.get("/static/pages/gacha/js/main.js").status_code == 200
