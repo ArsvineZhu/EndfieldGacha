@@ -4,6 +4,7 @@
   "private": true,
   "description": "Pinned frontend static compression toolchain for EndfieldGacha",
   "devDependencies": {
+    "javascript-obfuscator": "4.1.1",
     "lightningcss-cli": "1.32.0",
     "terser": "5.48.0"
   },

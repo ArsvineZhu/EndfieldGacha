@@ -6,7 +6,7 @@ import re
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import brotli
 
@@ -14,13 +14,17 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SOURCE_STATIC_DIR = PROJECT_ROOT / "web" / "static"
 OUTPUT_STATIC_DIR = PROJECT_ROOT / "dist" / "static"
 MANIFEST_FILE = OUTPUT_STATIC_DIR / "manifest.json"
-BUILD_DIR_NAME = "_build"
 
 TEXT_PRECOMPRESS_EXTENSIONS = {".js", ".css", ".json", ".svg", ".txt", ".map"}
+HASHED_ASSET_PATTERN = re.compile(r"^[0-9a-f]{6}\.(css|js)$")
+LEGACY_HASHED_SOURCE_PATTERN = re.compile(r"^.+\.[0-9a-f]{6}\.(css|js)$")
+ENABLE_ASSET_OBFUSCATION = os.environ.get("ENABLE_ASSET_OBFUSCATION", "1") == "1"
+
+AssetMinifier = Callable[[Path, Path, str], str]
 
 
 def get_asset_output_dir(asset_type: str) -> Path:
-    output_dir = OUTPUT_STATIC_DIR / BUILD_DIR_NAME / asset_type
+    output_dir = OUTPUT_STATIC_DIR / asset_type
     output_dir.mkdir(parents=True, exist_ok=True)
     return output_dir
 
@@ -60,26 +64,63 @@ def _source_map_path(asset_path: Path) -> Path:
 
 
 def _normalize_source_mapping_url(content: str, source_map_filename: str) -> str:
-    return re.sub(r"(sourceMappingURL=)[^*\r\n]+", rf"\1{source_map_filename}", content)
+    return re.sub(
+        r"(sourceMappingURL=)[^*\r\n]+",
+        lambda match: f"{match.group(1)}{source_map_filename}",
+        content,
+    )
 
 
 def _rewrite_map_file_target(map_path: Path, output_filename: str) -> None:
     data = json.loads(map_path.read_text(encoding="utf-8"))
     if isinstance(data, dict):
         data["file"] = output_filename
+        if ENABLE_ASSET_OBFUSCATION:
+            data.pop("sourcesContent", None)
         map_path.write_text(
             json.dumps(data, ensure_ascii=False, separators=(",", ":")),
             encoding="utf-8",
         )
 
 
+def _obfuscate_js_file(input_path: Path, output_path: Path) -> None:
+    obfuscator_bin = _require_local_bin("javascript-obfuscator")
+    output_map_name = f"{output_path.name}.map"
+    command = [
+        obfuscator_bin,
+        str(input_path),
+        "--output",
+        str(output_path),
+        "--options-preset",
+        "medium-obfuscation",
+        "--target",
+        "browser-no-eval",
+        "--rename-globals",
+        "false",
+        "--self-defending",
+        "false",
+        "--debug-protection",
+        "false",
+        "--source-map",
+        "true",
+        "--source-map-mode",
+        "separate",
+        "--source-map-file-name",
+        output_map_name,
+    ]
+    _run_command(command)
+
+
 def minify_js_file(input_path: Path, output_path: Path, source_map_filename: str) -> str:
     terser_bin = _require_local_bin("terser")
+    terser_output_path = output_path
+    if ENABLE_ASSET_OBFUSCATION:
+        terser_output_path = output_path.with_name(f".{output_path.name}.terser.js")
     command = [
         terser_bin,
         str(input_path),
         "--output",
-        str(output_path),
+        str(terser_output_path),
         "--compress",
         "passes=3,toplevel=true,drop_console=true,drop_debugger=true",
         "--mangle",
@@ -90,6 +131,11 @@ def minify_js_file(input_path: Path, output_path: Path, source_map_filename: str
         f"url='{source_map_filename}'",
     ]
     _run_command(command)
+
+    if ENABLE_ASSET_OBFUSCATION:
+        _obfuscate_js_file(terser_output_path, output_path)
+        terser_output_path.unlink(missing_ok=True)
+        _source_map_path(terser_output_path).unlink(missing_ok=True)
 
     map_path = _source_map_path(output_path)
     if not map_path.exists():
@@ -118,6 +164,9 @@ def minify_css_file(input_path: Path, output_path: Path, source_map_filename: st
     if not map_path.exists():
         raise RuntimeError(f"lightningcss 未生成 source map: {map_path}")
 
+    if ENABLE_ASSET_OBFUSCATION:
+        _rewrite_map_file_target(map_path, output_path.name)
+
     content = output_path.read_text(encoding="utf-8")
     normalized = _normalize_source_mapping_url(content, source_map_filename)
     if normalized != content:
@@ -125,27 +174,52 @@ def minify_css_file(input_path: Path, output_path: Path, source_map_filename: st
     return normalized
 
 
-def cleanup_old_files(output_dir: Path, name: str, ext: str, current_hash: str) -> None:
-    for file in output_dir.iterdir():
-        if not file.is_file():
-            continue
-        if not file.name.startswith(f"{name}.") or file.suffix != ext:
-            continue
+def _remove_variant_files(path: Path) -> None:
+    path.unlink(missing_ok=True)
+    path.with_name(f"{path.name}.gz").unlink(missing_ok=True)
+    path.with_name(f"{path.name}.br").unlink(missing_ok=True)
 
-        parts = file.name.split(".")
-        if len(parts) < 3:
-            continue
 
-        file_hash = parts[-2]
-        if (
-            file_hash != current_hash
-            and len(file_hash) == 6
-            and all(c in "0123456789abcdef" for c in file_hash.lower())
-        ):
-            file.unlink(missing_ok=True)
-            file.with_name(f"{file.name}.gz").unlink(missing_ok=True)
-            file.with_name(f"{file.name}.br").unlink(missing_ok=True)
-            print(f"删除旧文件: {file}")
+def _remove_manifest_output_bundle(existing_entry: Any) -> None:
+    if not isinstance(existing_entry, dict):
+        return
+
+    rel_path = existing_entry.get("path")
+    if not isinstance(rel_path, str):
+        return
+
+    output_path = OUTPUT_STATIC_DIR / rel_path
+    _remove_variant_files(output_path)
+
+    if output_path.suffix in {".css", ".js"}:
+        map_path = output_path.with_name(f"{output_path.name}.map")
+        _remove_variant_files(map_path)
+
+
+def _is_legacy_hashed_source_name(filename: str) -> bool:
+    parts = filename.split(".")
+    return (
+        bool(HASHED_ASSET_PATTERN.match(filename))
+        or bool(LEGACY_HASHED_SOURCE_PATTERN.match(filename))
+        or (
+            len(parts) >= 3
+            and len(parts[-2]) == 6
+            and all(c in "0123456789abcdef" for c in parts[-2].lower())
+        )
+    )
+
+
+def _resolve_manifest_output_paths(entry: Any) -> tuple[Path, Path] | None:
+    if not isinstance(entry, dict):
+        return None
+
+    rel_path = entry.get("path")
+    if not isinstance(rel_path, str) or not rel_path:
+        return None
+
+    output_path = OUTPUT_STATIC_DIR / rel_path
+    map_path = output_path.with_name(f"{output_path.name}.map")
+    return output_path, map_path
 
 
 def _is_text_precompress_target(path: Path) -> bool:
@@ -163,9 +237,15 @@ def write_precompressed_variants(path: Path) -> None:
 def _prepare_output_tree() -> None:
     OUTPUT_STATIC_DIR.mkdir(parents=True, exist_ok=True)
 
+    # 生产目录不暴露源码 CSS/JS；清理历史遗留目录避免旧文件继续可访问
+    shutil.rmtree(OUTPUT_STATIC_DIR / "css", ignore_errors=True)
+    shutil.rmtree(OUTPUT_STATIC_DIR / "js", ignore_errors=True)
+
     for root, _, files in os.walk(SOURCE_STATIC_DIR):
         src_root = Path(root)
         rel_root = src_root.relative_to(SOURCE_STATIC_DIR)
+        if rel_root.parts and rel_root.parts[0] in {"css", "js"}:
+            continue
         dst_root = OUTPUT_STATIC_DIR / rel_root
         dst_root.mkdir(parents=True, exist_ok=True)
 
@@ -175,16 +255,109 @@ def _prepare_output_tree() -> None:
 
             if rel_file == "manifest.json":
                 continue
-            if re.match(r"css/.+\.[0-9a-f]{6}\.css$", rel_file):
-                continue
-            if re.match(r"js/.+\.[0-9a-f]{6}\.js$", rel_file):
-                continue
-            if re.match(r"(css|js)/.+\.map$", rel_file):
-                continue
             if src_file.suffix in {".gz", ".br"}:
                 continue
-
             shutil.copy2(src_file, dst_root / file)
+
+
+def _cleanup_source_legacy_build_artifacts() -> None:
+    for asset_type in ("css", "js"):
+        asset_dir = SOURCE_STATIC_DIR / asset_type
+        if not asset_dir.exists():
+            continue
+
+        for file_path in asset_dir.iterdir():
+            if not file_path.is_file():
+                continue
+
+            name = file_path.name
+            should_remove = name.endswith((".gz", ".br", ".map")) or _is_legacy_hashed_source_name(name)
+            if should_remove:
+                file_path.unlink(missing_ok=True)
+
+
+def _try_reuse_manifest_entry(
+    *,
+    manifest_key: str,
+    current_hash: str,
+    manifest: dict[str, Any],
+    existing_manifest: dict[str, Any] | None,
+    file_path: Path,
+    asset_label: str,
+) -> bool:
+    if not existing_manifest or manifest_key not in existing_manifest:
+        return False
+
+    existing_entry = existing_manifest[manifest_key]
+    if not isinstance(existing_entry, dict) or existing_entry.get("hash") != current_hash:
+        return False
+
+    resolved_paths = _resolve_manifest_output_paths(existing_entry)
+    if resolved_paths is None:
+        return False
+
+    existing_output_path, existing_map_path = resolved_paths
+    if not existing_output_path.exists() or not existing_map_path.exists():
+        return False
+
+    existing_output = existing_output_path.read_text(encoding="utf-8")
+    if get_file_hash(existing_output) == current_hash:
+        return False
+
+    manifest[manifest_key] = existing_entry
+    write_precompressed_variants(existing_output_path)
+    write_precompressed_variants(existing_map_path)
+    print(f"{asset_label}文件未修改，跳过: {file_path}")
+    return True
+
+
+def _process_asset_file(
+    *,
+    file_path: Path,
+    asset_type: str,
+    asset_label: str,
+    minify_fn: AssetMinifier,
+    manifest: dict[str, Any],
+    existing_manifest: dict[str, Any] | None,
+) -> None:
+    content = file_path.read_text(encoding="utf-8")
+    ext = file_path.suffix
+    current_hash = get_file_hash(content)
+    source_map_name = f"{current_hash}{ext}.map"
+    manifest_key = f"{asset_type}/{file_path.name}"
+    output_dir = get_asset_output_dir(asset_type)
+
+    if _try_reuse_manifest_entry(
+        manifest_key=manifest_key,
+        current_hash=current_hash,
+        manifest=manifest,
+        existing_manifest=existing_manifest,
+        file_path=file_path,
+        asset_label=asset_label,
+    ):
+        return
+
+    temp_output_path = output_dir / f".{file_path.stem}.tmp.min{ext}"
+    minified_content = minify_fn(file_path, temp_output_path, source_map_name)
+
+    output_hash = get_file_hash(minified_content)
+    hashed_name = f"{output_hash}{ext}"
+    output_path = output_dir / hashed_name
+    output_map_path = output_dir / f"{output_hash}{ext}.map"
+
+    _remove_manifest_output_bundle(existing_manifest.get(manifest_key) if existing_manifest else None)
+    output_path.write_text(minified_content, encoding="utf-8")
+
+    temp_map_path = _source_map_path(temp_output_path)
+    temp_map_path.replace(output_map_path)
+    _rewrite_map_file_target(output_map_path, output_path.name)
+    temp_output_path.unlink(missing_ok=True)
+
+    write_precompressed_variants(output_path)
+    write_precompressed_variants(output_map_path)
+
+    manifest[manifest_key] = {"hash": current_hash, "path": f"{asset_type}/{hashed_name}"}
+    print(f"{asset_label}压缩完成: {file_path} -> {output_path}")
 
 
 def process_js_file(
@@ -192,55 +365,14 @@ def process_js_file(
     manifest: dict[str, Any],
     existing_manifest: dict[str, Any] | None = None,
 ) -> None:
-    content = file_path.read_text(encoding="utf-8")
-
-    name = file_path.stem
-    ext = file_path.suffix
-    source_map_name = f"{name}.map"
-    current_hash = get_file_hash(content)
-    manifest_key = f"js/{file_path.name}"
-    output_dir = get_asset_output_dir("js")
-
-    if existing_manifest and manifest_key in existing_manifest:
-        existing_entry = existing_manifest[manifest_key]
-        existing_rel_path = existing_entry.get("path") if isinstance(existing_entry, dict) else existing_entry
-        existing_output_path = OUTPUT_STATIC_DIR / str(existing_rel_path)
-
-        if (
-            isinstance(existing_entry, dict)
-            and existing_entry.get("hash") == current_hash
-            and existing_output_path.exists()
-            and (output_dir / source_map_name).exists()
-        ):
-            existing_output = existing_output_path.read_text(encoding="utf-8")
-            if get_file_hash(existing_output) != current_hash:
-                manifest[manifest_key] = existing_entry
-                write_precompressed_variants(existing_output_path)
-                write_precompressed_variants(output_dir / source_map_name)
-                print(f"JS文件未修改，跳过: {file_path}")
-                return
-
-    temp_output_path = output_dir / f".{name}.tmp.min.js"
-    minified_content = minify_js_file(file_path, temp_output_path, source_map_name)
-
-    output_hash = get_file_hash(minified_content)
-    hashed_name = f"{name}.{output_hash}{ext}"
-    output_path = output_dir / hashed_name
-    output_map_path = output_dir / source_map_name
-
-    cleanup_old_files(output_dir, name, ext, output_hash)
-    output_path.write_text(minified_content, encoding="utf-8")
-
-    temp_map_path = _source_map_path(temp_output_path)
-    temp_map_path.replace(output_map_path)
-    _rewrite_map_file_target(output_map_path, output_path.name)
-    temp_output_path.unlink(missing_ok=True)
-
-    write_precompressed_variants(output_path)
-    write_precompressed_variants(output_map_path)
-
-    manifest[manifest_key] = {"hash": current_hash, "path": f"{BUILD_DIR_NAME}/js/{hashed_name}"}
-    print(f"JS压缩完成: {file_path} -> {output_path}")
+    _process_asset_file(
+        file_path=file_path,
+        asset_type="js",
+        asset_label="JS",
+        minify_fn=minify_js_file,
+        manifest=manifest,
+        existing_manifest=existing_manifest,
+    )
 
 
 def process_css_file(
@@ -248,55 +380,14 @@ def process_css_file(
     manifest: dict[str, Any],
     existing_manifest: dict[str, Any] | None = None,
 ) -> None:
-    content = file_path.read_text(encoding="utf-8")
-
-    name = file_path.stem
-    ext = file_path.suffix
-    source_map_name = f"{name}.map"
-    current_hash = get_file_hash(content)
-    manifest_key = f"css/{file_path.name}"
-    output_dir = get_asset_output_dir("css")
-
-    if existing_manifest and manifest_key in existing_manifest:
-        existing_entry = existing_manifest[manifest_key]
-        existing_rel_path = existing_entry.get("path") if isinstance(existing_entry, dict) else existing_entry
-        existing_output_path = OUTPUT_STATIC_DIR / str(existing_rel_path)
-
-        if (
-            isinstance(existing_entry, dict)
-            and existing_entry.get("hash") == current_hash
-            and existing_output_path.exists()
-            and (output_dir / source_map_name).exists()
-        ):
-            existing_output = existing_output_path.read_text(encoding="utf-8")
-            if get_file_hash(existing_output) != current_hash:
-                manifest[manifest_key] = existing_entry
-                write_precompressed_variants(existing_output_path)
-                write_precompressed_variants(output_dir / source_map_name)
-                print(f"CSS文件未修改，跳过: {file_path}")
-                return
-
-    temp_output_path = output_dir / f".{name}.tmp.min.css"
-    minified_content = minify_css_file(file_path, temp_output_path, source_map_name)
-
-    output_hash = get_file_hash(minified_content)
-    hashed_name = f"{name}.{output_hash}{ext}"
-    output_path = output_dir / hashed_name
-    output_map_path = output_dir / source_map_name
-
-    cleanup_old_files(output_dir, name, ext, output_hash)
-    output_path.write_text(minified_content, encoding="utf-8")
-
-    temp_map_path = _source_map_path(temp_output_path)
-    temp_map_path.replace(output_map_path)
-    _rewrite_map_file_target(output_map_path, output_path.name)
-    temp_output_path.unlink(missing_ok=True)
-
-    write_precompressed_variants(output_path)
-    write_precompressed_variants(output_map_path)
-
-    manifest[manifest_key] = {"hash": current_hash, "path": f"{BUILD_DIR_NAME}/css/{hashed_name}"}
-    print(f"CSS压缩完成: {file_path} -> {output_path}")
+    _process_asset_file(
+        file_path=file_path,
+        asset_type="css",
+        asset_label="CSS",
+        minify_fn=minify_css_file,
+        manifest=manifest,
+        existing_manifest=existing_manifest,
+    )
 
 
 def load_manifest() -> dict[str, Any]:
@@ -327,6 +418,7 @@ def precompress_additional_text_assets() -> None:
 
 
 def main() -> None:
+    _cleanup_source_legacy_build_artifacts()
     _prepare_output_tree()
 
     existing_manifest = load_manifest()
@@ -341,12 +433,7 @@ def main() -> None:
             if ".min." in file:
                 continue
 
-            parts = file.split(".")
-            if (
-                len(parts) >= 3
-                and len(parts[-2]) == 6
-                and all(c in "0123456789abcdef" for c in parts[-2].lower())
-            ):
+            if _is_legacy_hashed_source_name(file):
                 continue
 
             if file.endswith(".css"):

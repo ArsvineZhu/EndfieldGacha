@@ -155,10 +155,12 @@ uv run python build/compress.py
 ```
 
 静态资源压缩说明：
-- `build/compress.py` 使用本地锁定依赖：`terser`（JS）与 `lightningcss`（CSS）。
+- `build/compress.py` 使用本地锁定依赖：`terser` + `javascript-obfuscator`（JS）与 `lightningcss`（CSS）。
 - 构建会为文本资源生成 `.gz` 与 `.br` 预压缩文件（优先配合 Nginx `*_static on`）。
 - 构建产物输出到 `dist/static`，源码静态文件保留在 `web/static`（生产模式默认从 `dist/static` 提供静态资源）。
+- 生产模式下（含 Waitress）会根据 `Accept-Encoding` 优先返回 `.br` / `.gz`，并附加 `Vary: Accept-Encoding`。
 - 相关 Nginx 模板见 `deploy/nginx/static-compression.conf`。
+- 默认开启混淆（`ENABLE_ASSET_OBFUSCATION=1`）：JS 会进行二次混淆，source map 会去除 `sourcesContent`；可用 `ENABLE_ASSET_OBFUSCATION=0` 关闭。
 
 ## 需要注意的实现事实
 
