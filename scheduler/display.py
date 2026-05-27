@@ -60,10 +60,12 @@ class SchedulerDisplay:
         config_table.add_row("并行进程", f"{workers}")
         config_table.add_row("卡池切换", "启用" if change else "禁用")
         config_table.add_row("", "")
-        config_table.add_row("策略组", "代码")
+        config_table.add_row("卡池编号", "策略组")
         for idx, rule in enumerate(rules):
+            strategy_text = SchedulerDisplay._format_strategy(rule)
             config_table.add_row(
-                f"  ({idx + 1})", f"{pformat(SchedulerDisplay._format_strategy(rule))}"
+                f"  ({idx + 1})",
+                Text(strategy_text, style="yellow"),
             )
 
         console.print(
@@ -304,9 +306,10 @@ class SchedulerDisplay:
 
         for item in combined:
             report = item["report"]
+            strategy_text = SchedulerDisplay._format_strategy(item["strategy_rules"])
             detail_table.add_row(
                 item["strategy_id"],
-                str(SchedulerDisplay._format_strategy(item["strategy_rules"])),
+                Text(strategy_text, style="yellow"),
                 f"{report.score_delta_from_best:.1f}",
                 f"{report.goal_delta_from_best * 100:.1f}%",
                 f"{report.opportunity_delta_from_best:.1f}",
@@ -367,8 +370,66 @@ class SchedulerDisplay:
     @staticmethod
     def _format_strategy(rule: Any) -> Any:
         if is_structured_strategy(rule):
-            return StrategyRuleEngine.describe(rule)
+            return SchedulerDisplay._render_strategy(StrategyRuleEngine.describe(rule))
         raise TypeError(f"仅支持结构化策略规则，收到: {type(rule)}")
+
+    @staticmethod
+    def _render_strategy(desc: Dict[str, Any], indent: int = 0) -> str:
+        match = desc.get("match", "all")
+        title = "全部满足" if match == "all" else "任一满足"
+        conditions = desc.get("conditions", [])
+        prefix = "  " * indent
+        if not conditions:
+            return f"{prefix}{title}: (无策略，跳过)"
+
+        lines = [f"{prefix}{title}:"]
+        for idx, item in enumerate(conditions, start=1):
+            item_prefix = "  " * (indent + 1)
+            if item.get("type") == "condition":
+                lines.append(f"{item_prefix}{idx}. {SchedulerDisplay._render_condition(item)}")
+                continue
+            lines.append(f"{item_prefix}{idx}.")
+            lines.append(SchedulerDisplay._render_strategy(item, indent + 2))
+        return "\n".join(lines)
+
+    @staticmethod
+    def _render_condition(item: Dict[str, Any]) -> str:
+        kind_alias = {
+            "draws": "总抽数",
+            "draw_count": "总抽数",
+            "current_up": "当期UP数量",
+            "up_operator_count": "当期UP数量",
+            "current_up_count": "当期UP数量",
+            "six_star_count": "六星数量",
+            "six_star_obtained_count": "六星数量",
+            "resource_left": "剩余资源",
+            "potential": "潜能",
+            "hard_pity": "总抽数",
+            "urgent": "加急招募",
+            "urgent_recruitment": "加急招募",
+            "dossier": "寻访情报书",
+            "headhunting_dossier": "寻访情报书",
+            "soft_pity": "小保底",
+            "up_oprt": "UP干员",
+            "oprt": "六星干员",
+            "flag": "通用标记",
+        }
+        operator_alias = {
+            "==": ":",
+            "!=": "不为",
+            ">": "大于",
+            "<": "小于",
+            ">=": "大于等于",
+            "<=": "小于等于",
+            "in": "属于",
+        }
+        kind = str(item.get("kind", "unknown"))
+        op = str(item.get("operator", "=="))
+        value = item.get("value")
+        kind_display = kind_alias.get(kind, kind)
+        op_display = operator_alias.get(op, op)
+        value_display = "有" if value is True else "无" if value is False else str(value)
+        return f"{kind_display} {op_display} {value_display}"
 
 
 __all__ = ["SchedulerDisplay"]
