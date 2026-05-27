@@ -40,9 +40,9 @@ def _load_config(path: str | None = None) -> Dict[str, Any]:
     return payload
 
 
-def _resource_from_dict(payload: Dict[str, Any] | None) -> Resource:
+def _resource_from_dict(payload: Dict[str, Any] | None) -> Resource | None:
     if payload is None:
-        return Resource()
+        return None
     return Resource(
         chartered_permits=int(payload.get("chartered_permits", 0)),
         oroberyl=int(payload.get("oroberyl", 0)),

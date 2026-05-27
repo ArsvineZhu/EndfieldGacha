@@ -146,7 +146,7 @@ def _simulator(
             if idx == 0
             else {
                 "total": 0,
-                "no_6star": 0,
+                "no_6star": counters.no_6star,
                 "no_5star_plus": counters.no_5star_plus,
                 "no_up": counters.no_up,
                 "guarantee_used": False,

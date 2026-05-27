@@ -16,6 +16,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `uv run ruff check .` — lint
 - `uv run pyright` — type check
 - `uv run python build/compress.py` — compress static files
+- `uv run python build/precompute_cache.py` — pre-compute baseline value cache (offline)
 
 ## Project Structure
 
@@ -33,8 +34,8 @@ EndfieldGacha/
 ├── scheduler/              # Strategy planning, simulation & scoring
 │   ├── engine.py           # Scheduler orchestrator
 │   ├── scoring.py          # ScoringSystem v2.3.0 (goal/utility/resource/risk)
-│   ├── baseline.py         # BaselineEstimator (MC + cache + spline)
-│   ├── cache.py            # JsonFileCache utility
+│   ├── baseline.py         # BaselineEstimator (MC + SQLite cache + spline)
+│   ├── cache_db.py         # BaselineCacheDB (SQLite/WAL cache backend)
 │   ├── models.py           # Data models (Resource, StageTrace, ScoreReport, etc.)
 │   ├── workers.py          # Simulation runtime + multiprocessing worker
 │   ├── display.py          # Rich-formatted console output
@@ -53,7 +54,8 @@ EndfieldGacha/
 │   ├── examination.py      # Probability distribution verification
 │   └── evaluation_examples.json
 ├── build/                  # Build utilities
-│   └── compress.py         # JS/CSS minification + hashing
+│   ├── compress.py         # JS/CSS minification + hashing
+│   └── precompute_cache.py # Offline baseline cache pre-computation
 ├── configs/                # JSON configuration files
 │   ├── constants.json      # Global defaults
 │   ├── char_pool_base.json # Shared character rosters
@@ -70,7 +72,7 @@ EndfieldGacha/
 ### Key Implementation Notes
 
 - The scheduler is character-banner only (weapons excluded from scoring)
-- `BaselineEstimator` cache lives at `data/scoring_cache.json` by default
+- `BaselineEstimator` cache lives at `data/baseline_cache.db` (SQLite, WAL mode). Use `uv run python build/precompute_cache.py` to pre-compute anchor state values offline.
 - Scoring requires at least one `StrategyGoal` (default: obtain 1 current-up character)
 - The protocol layer (`strategy_protocol.py`) auto-normalizes rules passed to `Scheduler.banner()` — callers can pass raw dicts, StrategyRuleSet, or protocol payloads
 - `disable_guarantee=True` on `attempt()` freezes pity state (only total increments) — used for pure probability distribution analysis

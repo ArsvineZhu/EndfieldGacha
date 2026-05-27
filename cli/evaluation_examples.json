@@ -84,8 +84,7 @@
             }
           },
           "check_in": false,
-          "use_shared_counters": true,
-          "resource_increment": {}
+          "use_shared_counters": true
         },
         {
           "rules": {
@@ -344,8 +343,7 @@
             }
           },
           "check_in": false,
-          "use_shared_counters": true,
-          "resource_increment": {}
+          "use_shared_counters": true
         },
         {
           "rules": {
@@ -478,8 +476,7 @@
             }
           },
           "check_in": false,
-          "use_shared_counters": true,
-          "resource_increment": {}
+          "use_shared_counters": true
         },
         {
           "rules": {

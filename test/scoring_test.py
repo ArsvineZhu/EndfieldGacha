@@ -11,6 +11,7 @@ if PROJECT_ROOT not in sys.path:
 from gacha_core import Counters, GlobalConfigLoader
 from scheduler import Scheduler
 from scheduler.baseline import BaselineEstimator
+from scheduler.cache_db import BaselineCacheDB, preferences_hash
 from scheduler.models import (
     LogMapConfig,
     Resource,
@@ -351,55 +352,25 @@ def test_baseline_estimator_uses_file_cache(tmp_path):
 
 
 def test_baseline_estimator_interpolates_from_nearby_cached_points(tmp_path):
-    cache_path = tmp_path / "baseline-cache.json"
+    cache_path = tmp_path / "baseline-cache.db"
     prefs = ScoringPreferences(baseline_samples=4, baseline_seed=17)
-    cache_payload = {
-        "meta": {"cache_version": "score-cache-v1"},
-        "baseline": {
-            "k10": {
-                "estimate": 100.0,
-                "config_name": "config_3",
-                "paid_draws": 10,
-                "samples": 4,
-                "seed": 17,
-                "version": "2.3.0",
-                "counters_signature": [0, 0, 0, 0, False, False],
-                "preferences_signature": list(prefs.theta_signature),
-            },
-            "k20": {
-                "estimate": 200.0,
-                "config_name": "config_3",
-                "paid_draws": 20,
-                "samples": 4,
-                "seed": 17,
-                "version": "2.3.0",
-                "counters_signature": [0, 0, 0, 0, False, False],
-                "preferences_signature": list(prefs.theta_signature),
-            },
-            "k30": {
-                "estimate": 300.0,
-                "config_name": "config_3",
-                "paid_draws": 30,
-                "samples": 4,
-                "seed": 17,
-                "version": "2.3.0",
-                "counters_signature": [0, 0, 0, 0, False, False],
-                "preferences_signature": list(prefs.theta_signature),
-            },
-            "k40": {
-                "estimate": 400.0,
-                "config_name": "config_3",
-                "paid_draws": 40,
-                "samples": 4,
-                "seed": 17,
-                "version": "2.3.0",
-                "counters_signature": [0, 0, 0, 0, False, False],
-                "preferences_signature": list(prefs.theta_signature),
-            },
-        },
-        "six_star_distribution": {},
-    }
-    cache_path.write_text(__import__("json").dumps(cache_payload), encoding="utf-8")
+    pref_hash = preferences_hash(prefs.theta_signature)
+
+    db = BaselineCacheDB(str(cache_path))
+    for pd, est in [(10, 100.0), (20, 200.0), (30, 300.0), (40, 400.0)]:
+        db.set_baseline(
+            cache_key=f"test_{pd}",
+            config_name="config_3",
+            counters_signature=(0, 0, 0, 0, False, False),
+            paid_draws=pd,
+            preferences_sig_hash=pref_hash,
+            samples=4,
+            seed=17,
+            estimate=est,
+            source="simulation",
+            version="2.3.0",
+        )
+    db.close()
 
     estimator = BaselineEstimator(
         config_dir="configs",
@@ -413,55 +384,31 @@ def test_baseline_estimator_interpolates_from_nearby_cached_points(tmp_path):
 
 
 def test_baseline_estimator_interpolates_from_nearby_states(tmp_path):
-    cache_path = tmp_path / "baseline-cache-near-state.json"
+    cache_path = tmp_path / "baseline-cache-near-state.db"
     prefs = ScoringPreferences(baseline_samples=4, baseline_seed=17)
-    cache_payload = {
-        "meta": {"cache_version": "score-cache-v1"},
-        "baseline": {
-            "k10": {
-                "estimate": 100.0,
-                "config_name": "config_3",
-                "paid_draws": 10,
-                "samples": 4,
-                "seed": 17,
-                "version": "2.3.0",
-                "counters_signature": [34, 14, 2, 19, False, False],
-                "preferences_signature": list(prefs.theta_signature),
-            },
-            "k20": {
-                "estimate": 200.0,
-                "config_name": "config_3",
-                "paid_draws": 20,
-                "samples": 4,
-                "seed": 17,
-                "version": "2.3.0",
-                "counters_signature": [35, 15, 2, 20, False, False],
-                "preferences_signature": list(prefs.theta_signature),
-            },
-            "k30": {
-                "estimate": 300.0,
-                "config_name": "config_3",
-                "paid_draws": 30,
-                "samples": 4,
-                "seed": 17,
-                "version": "2.3.0",
-                "counters_signature": [36, 15, 3, 21, False, False],
-                "preferences_signature": list(prefs.theta_signature),
-            },
-            "k40": {
-                "estimate": 400.0,
-                "config_name": "config_3",
-                "paid_draws": 40,
-                "samples": 4,
-                "seed": 17,
-                "version": "2.3.0",
-                "counters_signature": [35, 16, 2, 20, False, False],
-                "preferences_signature": list(prefs.theta_signature),
-            },
-        },
-        "six_star_distribution": {},
-    }
-    cache_path.write_text(__import__("json").dumps(cache_payload), encoding="utf-8")
+    pref_hash = preferences_hash(prefs.theta_signature)
+
+    db = BaselineCacheDB(str(cache_path))
+    entries = [
+        (10, 100.0, (34, 14, 2, 19, False, False)),
+        (20, 200.0, (35, 15, 2, 20, False, False)),
+        (30, 300.0, (36, 15, 3, 21, False, False)),
+        (40, 400.0, (35, 16, 2, 20, False, False)),
+    ]
+    for idx, (pd, est, sig) in enumerate(entries):
+        db.set_baseline(
+            cache_key=f"test_{idx}",
+            config_name="config_3",
+            counters_signature=sig,
+            paid_draws=pd,
+            preferences_sig_hash=pref_hash,
+            samples=4,
+            seed=17,
+            estimate=est,
+            source="simulation",
+            version="2.3.0",
+        )
+    db.close()
 
     estimator = BaselineEstimator(
         config_dir="configs",
