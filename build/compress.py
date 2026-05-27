@@ -1,268 +1,311 @@
+import gzip
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
-import tempfile
+from pathlib import Path
 from typing import Any
 
-import rcssmin
+import brotli
 
-STATIC_DIR = "web/static"
-MANIFEST_FILE = "web/static/manifest.json"
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+SOURCE_STATIC_DIR = PROJECT_ROOT / "web" / "static"
+OUTPUT_STATIC_DIR = PROJECT_ROOT / "dist" / "static"
+MANIFEST_FILE = OUTPUT_STATIC_DIR / "manifest.json"
+BUILD_DIR_NAME = "_build"
+
+TEXT_PRECOMPRESS_EXTENSIONS = {".js", ".css", ".json", ".svg", ".txt", ".map"}
 
 
-def get_file_hash(content):
-    """使用 SHA256 生成哈希值"""
+def get_asset_output_dir(asset_type: str) -> Path:
+    output_dir = OUTPUT_STATIC_DIR / BUILD_DIR_NAME / asset_type
+    output_dir.mkdir(parents=True, exist_ok=True)
+    return output_dir
+
+
+def get_file_hash(content: str) -> str:
     return hashlib.sha256(content.encode("utf-8")).hexdigest()[:6]
 
 
-def obfuscate_js(input_path, output_path):
-    terser_bin = shutil.which("terser") or shutil.which("terser.cmd") or "terser"
-    npx_bin = shutil.which("npx") or shutil.which("npx.cmd") or "npx"
-    commands = [
-        [
-            terser_bin,
-            input_path,
-            "--output",
-            output_path,
-            "--compress",
-            "--mangle",
-            "--toplevel",
-        ],
-        [
-            npx_bin,
-            "--yes",
-            "terser",
-            input_path,
-            "--output",
-            output_path,
-            "--compress",
-            "--mangle",
-            "--toplevel",
-        ],
+def _run_command(command: list[str]) -> None:
+    result = subprocess.run(
+        command,
+        check=False,
+        capture_output=True,
+        text=True,
+        shell=False,
+        timeout=120,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"命令执行失败: {' '.join(command)}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
+
+
+def _require_local_bin(bin_name: str) -> str:
+    candidates = [
+        PROJECT_ROOT / "node_modules" / ".bin" / f"{bin_name}.cmd",
+        PROJECT_ROOT / "node_modules" / ".bin" / bin_name,
     ]
+    for candidate in candidates:
+        if candidate.exists():
+            return str(candidate)
+    raise RuntimeError(f"未找到本地依赖 {bin_name}。请先执行 `npm install`。")
 
-    try:
-        # 确保输出目录存在
-        output_dir = os.path.dirname(output_path)
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-        last_error = None
-        for cmd in commands:
-            try:
-                subprocess.run(
-                    cmd,
-                    check=True,
-                    capture_output=True,
-                    text=True,
-                    shell=False,
-                    timeout=60,
-                )
-                return True
-            except FileNotFoundError as e:
-                last_error = e
+
+def _source_map_path(asset_path: Path) -> Path:
+    return asset_path.with_name(f"{asset_path.name}.map")
+
+
+def _normalize_source_mapping_url(content: str, source_map_filename: str) -> str:
+    return re.sub(r"(sourceMappingURL=)[^*\r\n]+", rf"\1{source_map_filename}", content)
+
+
+def _rewrite_map_file_target(map_path: Path, output_filename: str) -> None:
+    data = json.loads(map_path.read_text(encoding="utf-8"))
+    if isinstance(data, dict):
+        data["file"] = output_filename
+        map_path.write_text(
+            json.dumps(data, ensure_ascii=False, separators=(",", ":")),
+            encoding="utf-8",
+        )
+
+
+def minify_js_file(input_path: Path, output_path: Path, source_map_filename: str) -> str:
+    terser_bin = _require_local_bin("terser")
+    command = [
+        terser_bin,
+        str(input_path),
+        "--output",
+        str(output_path),
+        "--compress",
+        "passes=3,toplevel=true,drop_console=true,drop_debugger=true",
+        "--mangle",
+        "toplevel=true",
+        "--ecma",
+        "2020",
+        "--source-map",
+        f"url='{source_map_filename}'",
+    ]
+    _run_command(command)
+
+    map_path = _source_map_path(output_path)
+    if not map_path.exists():
+        raise RuntimeError(f"terser 未生成 source map: {map_path}")
+
+    content = output_path.read_text(encoding="utf-8")
+    normalized = _normalize_source_mapping_url(content, source_map_filename)
+    if normalized != content:
+        output_path.write_text(normalized, encoding="utf-8")
+    return normalized
+
+
+def minify_css_file(input_path: Path, output_path: Path, source_map_filename: str) -> str:
+    lightningcss_bin = _require_local_bin("lightningcss")
+    command = [
+        lightningcss_bin,
+        str(input_path),
+        "--minify",
+        "--sourcemap",
+        "-o",
+        str(output_path),
+    ]
+    _run_command(command)
+
+    map_path = _source_map_path(output_path)
+    if not map_path.exists():
+        raise RuntimeError(f"lightningcss 未生成 source map: {map_path}")
+
+    content = output_path.read_text(encoding="utf-8")
+    normalized = _normalize_source_mapping_url(content, source_map_filename)
+    if normalized != content:
+        output_path.write_text(normalized, encoding="utf-8")
+    return normalized
+
+
+def cleanup_old_files(output_dir: Path, name: str, ext: str, current_hash: str) -> None:
+    for file in output_dir.iterdir():
+        if not file.is_file():
+            continue
+        if not file.name.startswith(f"{name}.") or file.suffix != ext:
+            continue
+
+        parts = file.name.split(".")
+        if len(parts) < 3:
+            continue
+
+        file_hash = parts[-2]
+        if (
+            file_hash != current_hash
+            and len(file_hash) == 6
+            and all(c in "0123456789abcdef" for c in file_hash.lower())
+        ):
+            file.unlink(missing_ok=True)
+            file.with_name(f"{file.name}.gz").unlink(missing_ok=True)
+            file.with_name(f"{file.name}.br").unlink(missing_ok=True)
+            print(f"删除旧文件: {file}")
+
+
+def _is_text_precompress_target(path: Path) -> bool:
+    return path.suffix in TEXT_PRECOMPRESS_EXTENSIONS
+
+
+def write_precompressed_variants(path: Path) -> None:
+    if not _is_text_precompress_target(path):
+        return
+    data = path.read_bytes()
+    path.with_name(f"{path.name}.gz").write_bytes(gzip.compress(data, compresslevel=9, mtime=0))
+    path.with_name(f"{path.name}.br").write_bytes(brotli.compress(data, quality=11))
+
+
+def _prepare_output_tree() -> None:
+    OUTPUT_STATIC_DIR.mkdir(parents=True, exist_ok=True)
+
+    for root, _, files in os.walk(SOURCE_STATIC_DIR):
+        src_root = Path(root)
+        rel_root = src_root.relative_to(SOURCE_STATIC_DIR)
+        dst_root = OUTPUT_STATIC_DIR / rel_root
+        dst_root.mkdir(parents=True, exist_ok=True)
+
+        for file in files:
+            src_file = src_root / file
+            rel_file = src_file.relative_to(SOURCE_STATIC_DIR).as_posix()
+
+            if rel_file == "manifest.json":
                 continue
-            except subprocess.TimeoutExpired as e:
-                last_error = e
-                print(f"JS压缩超时（60s）: {' '.join(cmd)}")
+            if re.match(r"css/.+\.[0-9a-f]{6}\.css$", rel_file):
                 continue
-            except subprocess.CalledProcessError as e:
-                last_error = e
-                stderr_output = (
-                    e.stderr
-                    if isinstance(e.stderr, str)
-                    else (
-                        e.stderr.decode("utf-8", errors="ignore")
-                        if e.stderr
-                        else str(e)
-                    )
-                )
-                stdout_output = (
-                    e.stdout
-                    if isinstance(e.stdout, str)
-                    else (
-                        e.stdout.decode("utf-8", errors="ignore")
-                        if e.stdout
-                        else ""
-                    )
-                )
-                print(f"JS压缩失败: {stderr_output}")
-                if stdout_output:
-                    print(f"标准输出: {stdout_output}")
+            if re.match(r"js/.+\.[0-9a-f]{6}\.js$", rel_file):
+                continue
+            if re.match(r"(css|js)/.+\.map$", rel_file):
+                continue
+            if src_file.suffix in {".gz", ".br"}:
                 continue
 
-        print("提示: 请确保已安装Node.js；或预装 terser（npm i -g terser）")
-        if last_error:
-            print(f"最后错误: {last_error}")
-        return False
-    except Exception as e:
-        print(f"JS压缩异常: {e}")
-        return False
+            shutil.copy2(src_file, dst_root / file)
 
 
-def minify_js_file(input_path):
-    """返回 JS 压缩结果；失败时返回原始内容。"""
-    with open(input_path, "r", encoding="utf-8") as f:
-        original_content = f.read()
+def process_js_file(
+    file_path: Path,
+    manifest: dict[str, Any],
+    existing_manifest: dict[str, Any] | None = None,
+) -> None:
+    content = file_path.read_text(encoding="utf-8")
 
-    temp_fd, temp_path = tempfile.mkstemp(suffix=".js")
-    os.close(temp_fd)
-    try:
-        success = obfuscate_js(input_path, temp_path)
-        if not success or not os.path.exists(temp_path):
-            return False, original_content
-        with open(temp_path, "r", encoding="utf-8") as f:
-            return True, f.read()
-    finally:
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
-
-
-def compress_css(content):
-    return rcssmin.cssmin(content)
-
-
-def ensure_text(value: Any) -> str:
-    """将压缩输出统一转换为 str，便于类型检查与文件写入。"""
-    if isinstance(value, str):
-        return value
-    if isinstance(value, memoryview):
-        return value.tobytes().decode("utf-8")
-    if isinstance(value, (bytes, bytearray)):
-        return bytes(value).decode("utf-8")
-    return str(value)
-
-
-def cleanup_old_files(file_dir, name, ext, current_hash):
-    """清理旧的压缩文件"""
-    for file in os.listdir(file_dir):
-        # 检查是否是同一文件的旧哈希版本
-        if file.startswith(f"{name}.") and file.endswith(ext):
-            # 提取文件名中的哈希部分
-            parts = file.split(".")
-            if len(parts) >= 3:
-                file_hash = parts[-2]
-                # 如果哈希不是当前的，且是6位十六进制，则删除
-                if (
-                    file_hash != current_hash
-                    and len(file_hash) == 6
-                    and all(c in "0123456789abcdef" for c in file_hash.lower())
-                ):
-                    old_path = os.path.join(file_dir, file)
-                    try:
-                        os.remove(old_path)
-                        print(f"删除旧文件: {old_path}")
-                    except Exception as e:
-                        print(f"删除旧文件失败 {old_path}: {e}")
-
-
-def process_js_file(file_path, manifest, existing_manifest=None):
-    with open(file_path, "r", encoding="utf-8") as f:
-        content = f.read()
-
-    file_dir = os.path.dirname(file_path)
-    file_name = os.path.basename(file_path)
-    name, ext = os.path.splitext(file_name)
+    name = file_path.stem
+    ext = file_path.suffix
+    source_map_name = f"{name}.map"
     current_hash = get_file_hash(content)
-    manifest_key = f"js/{file_name}"
+    manifest_key = f"js/{file_path.name}"
+    output_dir = get_asset_output_dir("js")
 
-    # 先检查 manifest — 源哈希一致且产物确实被压缩过（内容与源码不同）则跳过
     if existing_manifest and manifest_key in existing_manifest:
         existing_entry = existing_manifest[manifest_key]
-        if isinstance(existing_entry, dict):
-            existing_output_path = os.path.join(STATIC_DIR, existing_entry["path"])
-            if (
-                existing_entry.get("hash") == current_hash
-                and os.path.exists(existing_output_path)
-                and get_file_hash(open(existing_output_path, "r", encoding="utf-8").read()) != current_hash
-            ):
-                manifest[manifest_key] = existing_entry
-                print(f"JS文件未修改，跳过: {file_path}")
-                return True
-        elif isinstance(existing_entry, str):
-            existing_output_path = os.path.join(STATIC_DIR, existing_entry)
-            if (
-                os.path.exists(existing_output_path)
-                and get_file_hash(open(existing_output_path, "r", encoding="utf-8").read()) != current_hash
-            ):
-                manifest[manifest_key] = {"hash": current_hash, "path": existing_entry}
-                print(f"JS文件未修改，跳过: {file_path}")
-                return True
+        existing_rel_path = existing_entry.get("path") if isinstance(existing_entry, dict) else existing_entry
+        existing_output_path = OUTPUT_STATIC_DIR / str(existing_rel_path)
 
-    # 源文件已变更，执行压缩
-    minify_success, output_content = minify_js_file(file_path)
-    output_hash = get_file_hash(output_content)
+        if (
+            isinstance(existing_entry, dict)
+            and existing_entry.get("hash") == current_hash
+            and existing_output_path.exists()
+            and (output_dir / source_map_name).exists()
+        ):
+            existing_output = existing_output_path.read_text(encoding="utf-8")
+            if get_file_hash(existing_output) != current_hash:
+                manifest[manifest_key] = existing_entry
+                write_precompressed_variants(existing_output_path)
+                write_precompressed_variants(output_dir / source_map_name)
+                print(f"JS文件未修改，跳过: {file_path}")
+                return
+
+    temp_output_path = output_dir / f".{name}.tmp.min.js"
+    minified_content = minify_js_file(file_path, temp_output_path, source_map_name)
+
+    output_hash = get_file_hash(minified_content)
     hashed_name = f"{name}.{output_hash}{ext}"
-    output_path = os.path.join(file_dir, hashed_name)
+    output_path = output_dir / hashed_name
+    output_map_path = output_dir / source_map_name
 
-    cleanup_old_files(file_dir, name, ext, output_hash)
-    with open(output_path, "w", encoding="utf-8") as f:
-        f.write(output_content)
+    cleanup_old_files(output_dir, name, ext, output_hash)
+    output_path.write_text(minified_content, encoding="utf-8")
 
-    manifest[manifest_key] = {"hash": current_hash, "path": f"js/{hashed_name}"}
-    if minify_success:
-        print(f"JS压缩完成: {file_path} -> {output_path}")
-    else:
-        print(f"JS压缩失败，使用原内容: {file_path} -> {output_path}")
-    return minify_success
+    temp_map_path = _source_map_path(temp_output_path)
+    temp_map_path.replace(output_map_path)
+    _rewrite_map_file_target(output_map_path, output_path.name)
+    temp_output_path.unlink(missing_ok=True)
+
+    write_precompressed_variants(output_path)
+    write_precompressed_variants(output_map_path)
+
+    manifest[manifest_key] = {"hash": current_hash, "path": f"{BUILD_DIR_NAME}/js/{hashed_name}"}
+    print(f"JS压缩完成: {file_path} -> {output_path}")
 
 
-def process_css_file(file_path, manifest, existing_manifest=None):
-    with open(file_path, "r", encoding="utf-8") as f:
-        content = f.read()
+def process_css_file(
+    file_path: Path,
+    manifest: dict[str, Any],
+    existing_manifest: dict[str, Any] | None = None,
+) -> None:
+    content = file_path.read_text(encoding="utf-8")
 
-    file_dir = os.path.dirname(file_path)
-    file_name = os.path.basename(file_path)
-    name, ext = os.path.splitext(file_name)
+    name = file_path.stem
+    ext = file_path.suffix
+    source_map_name = f"{name}.map"
     current_hash = get_file_hash(content)
-    manifest_key = f"css/{file_name}"
+    manifest_key = f"css/{file_path.name}"
+    output_dir = get_asset_output_dir("css")
 
-    # 先检查 manifest — 源哈希一致且产物确实被压缩过（内容与源码不同）则跳过
     if existing_manifest and manifest_key in existing_manifest:
         existing_entry = existing_manifest[manifest_key]
-        if isinstance(existing_entry, dict):
-            existing_output_path = os.path.join(STATIC_DIR, existing_entry["path"])
-            if (
-                existing_entry.get("hash") == current_hash
-                and os.path.exists(existing_output_path)
-                and get_file_hash(open(existing_output_path, "r", encoding="utf-8").read()) != current_hash
-            ):
+        existing_rel_path = existing_entry.get("path") if isinstance(existing_entry, dict) else existing_entry
+        existing_output_path = OUTPUT_STATIC_DIR / str(existing_rel_path)
+
+        if (
+            isinstance(existing_entry, dict)
+            and existing_entry.get("hash") == current_hash
+            and existing_output_path.exists()
+            and (output_dir / source_map_name).exists()
+        ):
+            existing_output = existing_output_path.read_text(encoding="utf-8")
+            if get_file_hash(existing_output) != current_hash:
                 manifest[manifest_key] = existing_entry
+                write_precompressed_variants(existing_output_path)
+                write_precompressed_variants(output_dir / source_map_name)
                 print(f"CSS文件未修改，跳过: {file_path}")
-                return True
-        elif isinstance(existing_entry, str):
-            if os.path.exists(os.path.join(STATIC_DIR, existing_entry)):
-                manifest[manifest_key] = {"hash": current_hash, "path": existing_entry}
-                print(f"CSS文件未修改，跳过: {file_path}")
-                return True
+                return
 
-    # 源文件已变更，执行压缩
-    minified_content = ensure_text(compress_css(content))
-    file_hash = get_file_hash(minified_content)
-    hashed_name = f"{name}.{file_hash}{ext}"
-    output_path = os.path.join(file_dir, hashed_name)
+    temp_output_path = output_dir / f".{name}.tmp.min.css"
+    minified_content = minify_css_file(file_path, temp_output_path, source_map_name)
 
-    cleanup_old_files(file_dir, name, ext, file_hash)
-    with open(output_path, "w", encoding="utf-8") as f:
-        f.write(minified_content)
+    output_hash = get_file_hash(minified_content)
+    hashed_name = f"{name}.{output_hash}{ext}"
+    output_path = output_dir / hashed_name
+    output_map_path = output_dir / source_map_name
 
-    manifest[manifest_key] = {"hash": current_hash, "path": f"css/{hashed_name}"}
+    cleanup_old_files(output_dir, name, ext, output_hash)
+    output_path.write_text(minified_content, encoding="utf-8")
+
+    temp_map_path = _source_map_path(temp_output_path)
+    temp_map_path.replace(output_map_path)
+    _rewrite_map_file_target(output_map_path, output_path.name)
+    temp_output_path.unlink(missing_ok=True)
+
+    write_precompressed_variants(output_path)
+    write_precompressed_variants(output_map_path)
+
+    manifest[manifest_key] = {"hash": current_hash, "path": f"{BUILD_DIR_NAME}/css/{hashed_name}"}
     print(f"CSS压缩完成: {file_path} -> {output_path}")
-    return True
 
 
-def load_manifest():
-    """加载manifest文件"""
-    manifest_path = os.path.join(STATIC_DIR, "manifest.json")
-    if os.path.exists(manifest_path):
-        with open(manifest_path, "r", encoding="utf-8") as f:
-            return json.load(f)
+def load_manifest() -> dict[str, Any]:
+    if MANIFEST_FILE.exists():
+        return json.loads(MANIFEST_FILE.read_text(encoding="utf-8"))
     return {}
 
 
-def get_static_url(filename):
-    """根据原始文件名获取哈希化后的URL"""
+def get_static_url(filename: str) -> str:
     manifest = load_manifest()
     entry = manifest.get(filename)
     if isinstance(entry, dict):
@@ -270,21 +313,34 @@ def get_static_url(filename):
     return entry or filename
 
 
-def main():
-    # 加载现有的manifest文件
+def precompress_additional_text_assets() -> None:
+    for file_path in OUTPUT_STATIC_DIR.rglob("*"):
+        if not file_path.is_file():
+            continue
+        if file_path.suffix in {".gz", ".br"}:
+            continue
+        if file_path.suffix not in TEXT_PRECOMPRESS_EXTENSIONS:
+            continue
+        if file_path.suffix in {".js", ".css", ".map"}:
+            continue
+        write_precompressed_variants(file_path)
+
+
+def main() -> None:
+    _prepare_output_tree()
+
     existing_manifest = load_manifest()
-    manifest = {}
+    manifest: dict[str, Any] = {}
 
-    # 处理静态文件
-    for root, _, files in os.walk(STATIC_DIR):
+    for root, _, files in os.walk(SOURCE_STATIC_DIR):
         for file in files:
-            file_path = os.path.join(root, file)
+            file_path = Path(root) / file
 
-            # 跳过已经压缩/混淆的文件
+            if file.endswith((".gz", ".br", ".map")):
+                continue
             if ".min." in file:
                 continue
 
-            # 跳过已经是哈希化命名的文件
             parts = file.split(".")
             if (
                 len(parts) >= 3
@@ -298,12 +354,13 @@ def main():
             elif file.endswith(".js"):
                 process_js_file(file_path, manifest, existing_manifest)
 
-    # 生成manifest文件
-    manifest_path = os.path.join(STATIC_DIR, "manifest.json")
-    with open(manifest_path, "w", encoding="utf-8") as f:
-        json.dump(manifest, f, indent=2, ensure_ascii=False)
+    precompress_additional_text_assets()
 
-    print(f"Manifest文件已生成: {manifest_path}")
+    MANIFEST_FILE.parent.mkdir(parents=True, exist_ok=True)
+    MANIFEST_FILE.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+    write_precompressed_variants(MANIFEST_FILE)
+
+    print(f"Manifest文件已生成: {MANIFEST_FILE}")
 
 
 if __name__ == "__main__":

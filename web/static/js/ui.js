@@ -211,7 +211,8 @@
 
                 // 生成潜能显示的五个小长方形
                 let potentialIndicators = '';
-                const potential = Math.min(info.count, 5);
+                // 潜能规则：1本体 + 5信物，首次获得(仅1本体)应显示0潜
+                const potential = Math.min(Math.max((info.count || 0) - 1, 0), 5);
                 for (let i = 0; i < 5; i++) {
                     const isActive = i < potential;
                     potentialIndicators += `<div class="potential-indicator ${isActive ? 'active' : ''}"></div>`;

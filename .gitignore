@@ -218,6 +218,9 @@ __marimo__/
 # Vscode
 .vscode/
 
+# NodeJS
+node_modules/
+
 # History
 *_history_*
 
@@ -245,7 +248,12 @@ discarded/
 # Logs
 logs/
 
-# minified static files
-app/static/css/*.*.css
-app/static/js/*.*.js
-app/static/manifest.json
+# generated static build artifacts
+dist/
+web/static/css/*.*.css
+web/static/js/*.*.js
+web/static/css/*.map
+web/static/js/*.map
+web/static/**/*.gz
+web/static/**/*.br
+web/static/manifest.json

@@ -5,12 +5,12 @@ description = "Arknights Endfield gacha simulation and strategy evaluation toolk
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "brotli",
     "flask",
     "flask-cors",
     "matplotlib",
     "numpy",
     "pillow",
-    "rcssmin",
     "rich>=14.3.2",
     "scipy",
     "six",

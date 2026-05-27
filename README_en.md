@@ -150,8 +150,15 @@ The code actually reads:
 uv run pytest test/ -v
 uv run ruff check .
 uv run pyright
-uv run python app/utils/compress.py
+npm install
+uv run python build/compress.py
 ```
+
+Static compression notes:
+- `build/compress.py` uses pinned local tools: `terser` (JS) and `lightningcss` (CSS).
+- The build generates `.gz` and `.br` precompressed variants for text assets.
+- Build artifacts are written to `dist/static`, while source static files stay in `web/static` (production serves `dist/static` by default).
+- Nginx template is provided at `deploy/nginx/static-compression.conf`.
 
 ## Important implementation notes
 

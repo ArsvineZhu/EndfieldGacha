@@ -1,0 +1,13 @@
+{
+  "name": "endfield-gacha-build-tools",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pinned frontend static compression toolchain for EndfieldGacha",
+  "devDependencies": {
+    "lightningcss-cli": "1.32.0",
+    "terser": "5.48.0"
+  },
+  "scripts": {
+    "compress:static": "python build/compress.py"
+  }
+}

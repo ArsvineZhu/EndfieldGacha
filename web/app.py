@@ -16,7 +16,13 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 def create_app(dev_mode=False):
     """创建并配置 Flask 应用"""
     template_folder = os.path.join(PROJECT_ROOT, "web", "templates")
-    static_folder = os.path.join(PROJECT_ROOT, "web", "static")
+    source_static_folder = os.path.join(PROJECT_ROOT, "web", "static")
+    dist_static_folder = os.path.join(PROJECT_ROOT, "dist", "static")
+    static_folder = (
+        source_static_folder
+        if dev_mode
+        else (dist_static_folder if os.path.exists(dist_static_folder) else source_static_folder)
+    )
     
     app = Flask(__name__, template_folder=template_folder, static_folder=static_folder)
     app.secret_key = "endfield_gacha_secret_key_Arsvine_20260228"

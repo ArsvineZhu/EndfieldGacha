@@ -23,9 +23,25 @@
         });
     }
 
+    function getEmojiFallContainer() {
+        let container = document.getElementById('emoji-fall-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'emoji-fall-container';
+            container.style.position = 'fixed';
+            container.style.inset = '0';
+            container.style.pointerEvents = 'none';
+            container.style.overflow = 'hidden';
+            container.style.zIndex = '9999';
+            document.body.appendChild(container);
+        }
+        return container;
+    }
+
     function createEmojiFall() {
         const emojis = ['🎉', '✨', '🌟', '💫', '🎊', '🌸', '💐', '🎈'];
         const congratulationTexts = ['恭喜', '欧气满满', '好运连连'];
+        const fallContainer = getEmojiFallContainer();
 
         // 创建 50 个飘落的 emoji
         for (let i = 0; i < 50; i++) {
@@ -52,7 +68,7 @@
                 // 随机延迟（0-2 秒）
                 emoji.style.animationDelay = `${Math.random() * 2}s`;
 
-                document.body.appendChild(emoji);
+                fallContainer.appendChild(emoji);
 
                 // 动画结束后移除元素
                 setTimeout(() => {

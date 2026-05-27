@@ -150,8 +150,15 @@ Web 端当前默认读取 `configs/config_7`，也就是复刻池配置。
 uv run pytest test/ -v
 uv run ruff check .
 uv run pyright
-uv run python app/utils/compress.py
+npm install
+uv run python build/compress.py
 ```
+
+静态资源压缩说明：
+- `build/compress.py` 使用本地锁定依赖：`terser`（JS）与 `lightningcss`（CSS）。
+- 构建会为文本资源生成 `.gz` 与 `.br` 预压缩文件（优先配合 Nginx `*_static on`）。
+- 构建产物输出到 `dist/static`，源码静态文件保留在 `web/static`（生产模式默认从 `dist/static` 提供静态资源）。
+- 相关 Nginx 模板见 `deploy/nginx/static-compression.conf`。
 
 ## 需要注意的实现事实
 

@@ -15,6 +15,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `uv run pytest test/scoring_test.py -v -k test_name` — run a single test
 - `uv run ruff check .` — lint
 - `uv run pyright` — type check
+- `npm install` — install pinned frontend compression tools
 - `uv run python build/compress.py` — compress static files
 - `uv run python build/precompute_cache.py` — pre-compute baseline value cache (offline)
 
@@ -76,5 +77,5 @@ EndfieldGacha/
 - Scoring requires at least one `StrategyGoal` (default: obtain 1 current-up character)
 - The protocol layer (`strategy_protocol.py`) auto-normalizes rules passed to `Scheduler.banner()` — callers can pass raw dicts, StrategyRuleSet, or protocol payloads
 - `disable_guarantee=True` on `attempt()` freezes pity state (only total increments) — used for pure probability distribution analysis
-- Web static files are minified via rcssmin; dev mode (`--dev` flag) skips compression
+- Web static files are minified via terser (JS) + lightningcss (CSS), with `.gz/.br` precompressed variants; build artifacts go to `dist/static`, and dev mode (`--dev` flag) keeps using source files under `web/static`
 - Recharge amounts: 6/30/98/198/328/648 only. Exchange: origeometry → oroberyl or origeometry → arsenal_tickets
