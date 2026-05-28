@@ -93,11 +93,16 @@ test("renderApp builds the tactical result screen for evaluation results", () =>
   assert.match(html, /eval-result-screen/);
   assert.match(html, /eval-result-backdrop-title"[^>]*>RESULTS</);
   assert.match(html, /eval-result-radar/);
+  assert.match(html, /eval-result-radial-slot-shell/);
+  assert.match(html, /eval-result-radial-arm is-cap/);
+  assert.match(html, /eval-result-radial-arm is-score/);
   assert.match(html, /eval-result-rank-brackets/);
   assert.match(html, /eval-result-meta-zone/);
   assert.match(html, />> 查看详情/);
   assert.match(html, /8F17B807\.\.\.C26D222/);
   assert.doesNotMatch(html, /平均实际收益/);
+  assert.doesNotMatch(html, /eval-result-radar-shape/);
+  assert.doesNotMatch(html, /eval-result-radar-node/);
 });
 
 test("renderApp removes the global navigation chrome for setup flow screens", () => {
@@ -132,6 +137,18 @@ test("radar labels stay close to the pentagon vertices", () => {
   assert.ok(Number(leftTopTop) >= 38, `left-top label should stay closer to the polygon shoulder: ${leftTopTop}`);
   assert.ok(Number(rightTopLeft) <= 88, `right-top label should not overshoot too far right: ${rightTopLeft}`);
   assert.ok(Number(rightTopTop) >= 38, `right-top label should sit closer to the vertex: ${rightTopTop}`);
+});
+
+test("result radial arms render score length independently from full-score slots", () => {
+  const renderApp = loadRenderApp();
+  const html = renderApp(buildState());
+  const scoreArms = [...html.matchAll(/eval-result-radial-arm is-score [^"]*" style="--arm-scale:([0-9.]+); --arm-angle:([-0-9.]+)deg;/g)];
+  const capArms = [...html.matchAll(/eval-result-radial-arm is-cap [^"]*" style="--arm-scale:1; --arm-angle:([-0-9.]+)deg;/g)];
+
+  assert.equal(scoreArms.length, 5, "should render five score arms");
+  assert.equal(capArms.length, 5, "should render five full-score arms");
+  assert.ok(scoreArms.some(([, scale]) => Number(scale) < 0.4), "low scores should produce short score arms");
+  assert.ok(scoreArms.some(([, scale]) => Number(scale) > 0.95), "full scores should nearly fill the slot");
 });
 
 test("eval result styles do not depend on remote font providers", () => {

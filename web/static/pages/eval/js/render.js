@@ -572,7 +572,7 @@
             <div class="eval-result-screen-head">
                 <div>
                     <div class="eval-result-screen-kicker">跨卡池方案评估器</div>
-                    <div class="eval-result-screen-caption">当前偏好评分结果 / 战术结算终端</div>
+                    <div class="eval-result-screen-caption">评分结果 / 结算终端</div>
                 </div>
                 <div class="eval-result-head-actions">
                     <div class="eval-result-taskline">
@@ -661,24 +661,28 @@
     function renderResultRadar(result) {
         const metrics = buildResultRadarMetrics(result);
         const center = 160;
-        const radius = 104;
-        const levels = [0.3, 0.55, 0.8, 1];
-        const grid = levels.map((level) => polygonPoints(metrics, center, center, radius * level));
-        const outline = polygonPoints(metrics, center, center, radius);
-        const dataPoints = metrics.map((metric) => polarPoint(center, center, (radius * metric.score) / 100, metric.angle));
+        const shellAngles = [-54, 18, 90, 162, 234];
+        const outerShell = pointsFromAngles(shellAngles, center, center, 108);
+        const midShell = pointsFromAngles(shellAngles, center, center, 92);
+        const innerShell = pointsFromAngles(shellAngles, center, center, 76);
         return `
         <div class="eval-result-radar">
-            <svg class="eval-result-radar-svg" viewBox="0 0 320 320" aria-label="五维评估雷达图" role="img">
-                <polygon class="eval-result-radar-shell" points="${outline}"></polygon>
-                ${grid.map((points, index) => `<polygon class="eval-result-radar-grid level-${index + 1}" points="${points}"></polygon>`).join("")}
-                ${metrics.map((metric) => {
-            const end = polarPoint(center, center, radius, metric.angle);
-            return `<line class="eval-result-radar-axis" x1="${center}" y1="${center}" x2="${end.x}" y2="${end.y}"></line>`;
-        }).join("")}
-                <polygon class="eval-result-radar-shape" points="${dataPoints.map((point) => `${point.x},${point.y}`).join(" ")}"></polygon>
-                ${dataPoints.map((point) => `<circle class="eval-result-radar-node" cx="${point.x}" cy="${point.y}" r="4"></circle>`).join("")}
+            <svg class="eval-result-radar-svg" viewBox="0 0 320 320" aria-label="五维放射评分图" role="img">
+                <polygon class="eval-result-radial-slot-shell" points="${outerShell}"></polygon>
+                <polygon class="eval-result-radial-slot-grid" points="${midShell}"></polygon>
+                <polygon class="eval-result-radial-slot-shell is-inner" points="${innerShell}"></polygon>
                 <circle class="eval-result-radar-core" cx="${center}" cy="${center}" r="8"></circle>
             </svg>
+            <div class="eval-result-radial-arms" aria-hidden="true">
+                ${metrics.map((metric) => `
+                <span class="eval-result-radial-arm is-cap ${metric.anchor}" style="--arm-scale:1; --arm-angle:${metric.angle}deg; --arm-offset:${metric.capOffset}px;">
+                    <span class="eval-result-radial-arm-body"></span>
+                </span>
+                <span class="eval-result-radial-arm is-score ${metric.anchor}" style="--arm-scale:${formatFixed(metric.score / 100, 3)}; --arm-angle:${metric.angle}deg; --arm-offset:${metric.scoreOffset}px;">
+                    <span class="eval-result-radial-arm-body"></span>
+                </span>
+                `).join("")}
+            </div>
             ${metrics.map((metric) => {
             const labelPoint = polarPoint(center, center, metric.labelDistance, metric.angle);
             return `
@@ -695,18 +699,18 @@
     function buildResultRadarMetrics(result) {
         const completionScore = Number(result.goal_completion_rate) * 100;
         return [
-            { label: "目标达成", score: clampScore(result.goal_score), angle: -90, anchor: "is-top", labelDistance: 132 },
-            { label: "期望收益", score: clampScore(result.utility_score), angle: -18, anchor: "is-right-top", labelDistance: 122 },
-            { label: "资源机会", score: clampScore(result.resource_score), angle: 54, anchor: "is-right-bottom", labelDistance: 126 },
-            { label: "风险稳定", score: clampScore(result.risk_score), angle: 126, anchor: "is-left-bottom", labelDistance: 126 },
-            { label: "完成率", score: clampScore(completionScore), angle: 198, anchor: "is-left-top", labelDistance: 118 },
+            { label: "目标达成", score: clampScore(result.goal_score), angle: -90, anchor: "is-top", labelDistance: 132, capOffset: -12, scoreOffset: 12 },
+            { label: "期望收益", score: clampScore(result.utility_score), angle: -18, anchor: "is-right-top", labelDistance: 122, capOffset: -12, scoreOffset: 12 },
+            { label: "资源机会", score: clampScore(result.resource_score), angle: 54, anchor: "is-right-bottom", labelDistance: 126, capOffset: -12, scoreOffset: 12 },
+            { label: "风险稳定", score: clampScore(result.risk_score), angle: 126, anchor: "is-left-bottom", labelDistance: 126, capOffset: -12, scoreOffset: 12 },
+            { label: "完成率", score: clampScore(completionScore), angle: 198, anchor: "is-left-top", labelDistance: 118, capOffset: -12, scoreOffset: 12 },
         ];
     }
 
-    function polygonPoints(metrics, centerX, centerY, radius) {
-        return metrics
-            .map((metric) => {
-                const point = polarPoint(centerX, centerY, radius, metric.angle);
+    function pointsFromAngles(angles, centerX, centerY, radius) {
+        return angles
+            .map((angle) => {
+                const point = polarPoint(centerX, centerY, radius, angle);
                 return `${point.x},${point.y}`;
             })
             .join(" ");

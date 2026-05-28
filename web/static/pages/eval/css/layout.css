@@ -621,42 +621,74 @@ body {
     height: 430px;
     aspect-ratio: 1 / 1;
     margin: 0 auto;
+    --eval-radial-arm-length: 108px;
+    --eval-radial-arm-start: 22px;
+    --eval-radial-arm-thickness: 16px;
 }
 
 .eval-result-radar-svg {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
     overflow: visible;
 }
 
-.eval-result-radar-shell {
-    fill: rgba(14, 15, 17, 0.84);
+.eval-result-radial-slot-shell {
+    fill: rgba(18, 16, 18, 0.9);
     stroke: rgba(215, 40, 42, 0.88);
-    stroke-width: 4;
+    stroke-width: 3.4;
 }
 
-.eval-result-radar-grid {
+.eval-result-radial-slot-shell.is-inner {
+    fill: rgba(28, 25, 28, 0.84);
+    stroke: rgba(147, 42, 36, 0.72);
+    stroke-width: 2.2;
+}
+
+.eval-result-radial-slot-grid {
     fill: none;
-    stroke: rgba(255, 255, 255, 0.08);
-    stroke-width: 1.4;
+    stroke: rgba(255, 255, 255, 0.1);
+    stroke-width: 1.6;
 }
 
-.eval-result-radar-axis {
-    stroke: rgba(255, 255, 255, 0.2);
-    stroke-width: 6;
-    stroke-linecap: square;
+.eval-result-radial-arms {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
 }
 
-.eval-result-radar-shape {
-    fill: rgba(185, 22, 26, 0.26);
-    stroke: #ff3b31;
-    stroke-width: 4;
+.eval-result-radial-arm {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 0;
+    height: 0;
+    transform: translate(-50%, -50%) rotate(var(--arm-angle));
+    transform-origin: center center;
 }
 
-.eval-result-radar-node {
-    fill: #fff4e7;
-    stroke: #ff3b31;
-    stroke-width: 3;
+.eval-result-radial-arm-body {
+    position: absolute;
+    left: var(--eval-radial-arm-start);
+    top: var(--arm-offset);
+    width: calc(var(--eval-radial-arm-length) * var(--arm-scale));
+    height: var(--eval-radial-arm-thickness);
+    transform: translateY(-50%);
+    transform-origin: left center;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.32);
+}
+
+.eval-result-radial-arm.is-cap .eval-result-radial-arm-body {
+    background: linear-gradient(90deg, rgba(98, 101, 110, 0.92), rgba(70, 73, 80, 0.9));
+}
+
+.eval-result-radial-arm.is-score .eval-result-radial-arm-body {
+    background: linear-gradient(90deg, #ff5c4a 0%, #f53d33 58%, #d92a21 100%);
+    box-shadow:
+        0 0 0 1px rgba(255, 120, 104, 0.14),
+        0 10px 20px rgba(134, 14, 8, 0.28);
 }
 
 .eval-result-radar-core {
@@ -674,6 +706,7 @@ body {
     color: #fff;
     line-height: 0.92;
     text-shadow: 0 3px 10px rgba(0, 0, 0, 0.48);
+    z-index: 3;
 }
 
 .eval-result-radar-label span {
