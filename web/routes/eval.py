@@ -8,7 +8,13 @@ from multiprocessing import cpu_count
 from flask import jsonify, render_template, request
 
 from ..eval_jobs import EvaluationJobManager
-from ..evaluator import evaluate_payload, list_eval_configs, validate_eval_payload
+from ..evaluator import (
+    evaluate_compare_payload,
+    evaluate_payload,
+    list_eval_configs,
+    validate_compare_payload,
+    validate_eval_payload,
+)
 
 MAX_PARALLEL_EVALS = 2
 DEFAULT_WORKERS = max(1, cpu_count() // MAX_PARALLEL_EVALS)
@@ -46,6 +52,18 @@ def register_routes(app):
         job_id = job_manager.submit(normalized)
         snapshot = job_manager.get_job(job_id)
         return jsonify(snapshot), 202
+
+    @app.route("/api/eval/compare", methods=["POST"])
+    def compare_eval_strategies():
+        data = request.get_json(silent=True)
+        try:
+            normalized = validate_compare_payload(data)
+            result = evaluate_compare_payload(normalized, default_workers=DEFAULT_WORKERS)
+        except (TypeError, ValueError) as exc:
+            message = str(exc)
+            status_code = 409 if message.startswith("EVAL_QUESTIONNAIRE_INCONSISTENT:") else 400
+            return jsonify({"error": message}), status_code
+        return jsonify(result), 200
 
     @app.route("/api/eval/jobs/<job_id>", methods=["GET"])
     def eval_job_status(job_id: str):

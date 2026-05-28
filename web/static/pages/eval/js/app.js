@@ -23,6 +23,8 @@ const {
 const {
     applyQuestionnaireWeights,
     createQuestionnaireState,
+    isReviewRequired,
+    prepareConflictReview,
     saveQuestionnaireAnswer,
 } = global.EvalQuestionnaire;
 const { renderApp } = global.EvalRender;
@@ -65,12 +67,57 @@ async function init() {
     bindEvents();
     await loadConfigs();
     render();
+    startScoreRefresh();
+}
+
+function startScoreRefresh() {
+    setInterval(() => {
+        const el = root.querySelector("[data-output-score]");
+        if (el) {
+            const newScore = String(Math.floor(Math.random() * 40) + 60).padStart(2, "0");
+            animateTyping(el, newScore);
+        }
+    }, 10000);
+}
+
+function animateTyping(el, text) {
+    el.textContent = "_".repeat(text.length);
+    let i = 0;
+    const timer = setInterval(() => {
+        el.textContent = text.slice(0, i + 1) + "_".repeat(text.length - i - 1);
+        i++;
+        if (i >= text.length) {
+            clearInterval(timer);
+        }
+    }, 120);
 }
 
 function bindEvents() {
     root.addEventListener("click", handleClick);
     root.addEventListener("change", handleChange);
     root.addEventListener("input", handleInput);
+
+    let touchStartY = 0;
+    root.addEventListener("wheel", (event) => {
+        if (state.currentView !== "intro") return;
+        if (event.deltaY > 0) {
+            event.preventDefault();
+            startQuestionnaire();
+        }
+    }, { passive: false });
+
+    root.addEventListener("touchstart", (event) => {
+        if (state.currentView !== "intro") return;
+        touchStartY = event.touches[0].clientY;
+    });
+
+    root.addEventListener("touchend", (event) => {
+        if (state.currentView !== "intro") return;
+        const deltaY = touchStartY - event.changedTouches[0].clientY;
+        if (deltaY > 50) {
+            startQuestionnaire();
+        }
+    });
 }
 
 async function loadConfigs() {
@@ -103,6 +150,37 @@ function postRenderEffects() {
     if (questionBlock) {
         requestAnimationFrame(() => questionBlock.classList.add("is-visible"));
     }
+    if (state._viewChanged) {
+        const stage = root.querySelector(".eval-stage");
+        if (stage) {
+            stage.classList.add("eval-stage-enter");
+        }
+        state._viewChanged = false;
+    }
+}
+
+function startQuestionnaire() {
+    if (state._exiting) return;
+    state._exiting = true;
+
+    const intro = root.querySelector(".eval-stage-intro");
+    if (intro) {
+        intro.style.transition = "opacity 0.3s ease, transform 0.3s ease";
+        intro.style.opacity = "0";
+        intro.style.transform = "translateY(-20px)";
+        setTimeout(finishTransition, 300);
+    } else {
+        finishTransition();
+    }
+}
+
+function finishTransition() {
+    state.started = true;
+    state.currentView = "questionnaire";
+    state.error = "";
+    state._exiting = false;
+    state._viewChanged = true;
+    render();
 }
 
 function handleClick(event) {
@@ -113,10 +191,7 @@ function handleClick(event) {
     const action = target.dataset.action;
 
     if (action === "start-questionnaire") {
-        state.started = true;
-        state.currentView = "questionnaire";
-        state.error = "";
-        render();
+        startQuestionnaire();
         return;
     }
 
@@ -334,7 +409,35 @@ function handleChange(event) {
 }
 
 function handleInput(event) {
-    handleChange(event);
+    const target = event.target;
+    if (!target) {
+        return;
+    }
+
+    if (target.dataset.prefKey) {
+        setPreferenceValue(target.dataset.prefKey, target.value);
+        return;
+    }
+    if (target.dataset.resourceKey) {
+        state.resources[target.dataset.resourceKey] = readNumber(target.value);
+        return;
+    }
+    if (target.dataset.counterKey && target.type !== "checkbox") {
+        state.initialCounters[target.dataset.counterKey] = readNumber(target.value);
+        return;
+    }
+    if (target.dataset.planIndex && target.dataset.resourceField) {
+        const plan = state.bannerPlans[Number(target.dataset.planIndex)];
+        plan.resource_increment[target.dataset.resourceField] = readNumber(target.value);
+        return;
+    }
+    if (target.dataset.conditionField) {
+        updateConditionFromTarget(target);
+        return;
+    }
+    if (target.dataset.goalIndex) {
+        updateGoalField(target);
+    }
 }
 
 function selectDirection(choice) {
@@ -352,12 +455,19 @@ function selectStrength(value) {
 }
 
 function saveAnswer(direction, strength) {
-    const from = state.questionnaire.pairIndex / PAIRS.length;
+    const from = state.questionnaire.in_review
+        ? state.questionnaire.review_cursor / Math.max(1, state.questionnaire.review_pairs.length)
+        : state.questionnaire.pairIndex / PAIRS.length;
     saveQuestionnaireAnswer(state.questionnaire, direction, strength);
     applyQuestionnaireWeights(state.questionnaire, state.preferences);
-    const to = Math.min(state.questionnaire.pairIndex / PAIRS.length, 1);
+    const to = state.questionnaire.in_review
+        ? state.questionnaire.review_cursor / Math.max(1, state.questionnaire.review_pairs.length)
+        : Math.min(state.questionnaire.pairIndex / PAIRS.length, 1);
     state.lastProgress = { from, to };
-    if (state.questionnaire.pairIndex >= PAIRS.length) {
+    if (!state.questionnaire.in_review && state.questionnaire.pairIndex >= PAIRS.length && isReviewRequired(state.preferences, state.questionnaire)) {
+        state.questionnaire = prepareConflictReview(state.questionnaire, state.preferences);
+        state.currentView = "questionnaire";
+    } else if (!state.questionnaire.in_review && state.questionnaire.pairIndex >= PAIRS.length) {
         state.currentView = "questionnaire_result";
     }
     render();
@@ -434,6 +544,12 @@ async function submitEvaluation() {
         render();
         return;
     }
+    if (isReviewRequired(state.preferences, state.questionnaire)) {
+        state.error = "问卷一致性冲突尚未复核，请先完成复核后再提交。";
+        state.currentView = "questionnaire";
+        render();
+        return;
+    }
 
     try {
         const response = await fetch("/api/eval/jobs", {
@@ -494,13 +610,6 @@ function buildPreferencesPayload() {
             high: Number(state.preferences.utility_log_map.high),
             curve: Number(state.preferences.utility_log_map.curve),
         },
-        utility_absolute_log_map: {
-            low: Number(state.preferences.utility_absolute_log_map.low),
-            high: Number(state.preferences.utility_absolute_log_map.high),
-            curve: Number(state.preferences.utility_absolute_log_map.curve),
-        },
-        utility_absolute_reference: Number(state.preferences.utility_absolute_reference),
-        utility_mix_weight: Number(state.preferences.utility_mix_weight),
         resource_log_map: {
             low: Number(state.preferences.resource_log_map.low),
             high: Number(state.preferences.resource_log_map.high),
@@ -513,6 +622,7 @@ function buildPreferencesPayload() {
         baseline_samples: Number(state.preferences.baseline_samples),
         baseline_seed: Number(state.preferences.baseline_seed),
         questionnaire_status: state.preferences.questionnaire_status,
+        questionnaire_consistency_ratio: Number(state.preferences.questionnaire_consistency_ratio),
     };
 }
 

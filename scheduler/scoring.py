@@ -21,7 +21,6 @@ from .models import (
     _flatten_results,
     calculate_trace_utility,
     log_map,
-    mixed_utility_score,
 )
 
 
@@ -42,10 +41,6 @@ class ScoringSystem:
         return ScoringPreferences()
 
     @staticmethod
-    def default_goals() -> List[StrategyGoal]:
-        return [StrategyGoal(kind="current_up", target=1)]
-
-    @staticmethod
     def normalize_preferences(
         preferences: Optional[ScoringPreferences | Dict[str, Any] | str],
     ) -> ScoringPreferences:
@@ -64,7 +59,7 @@ class ScoringSystem:
         goals: Optional[List[StrategyGoal] | List[Dict[str, Any]] | str],
     ) -> List[StrategyGoal]:
         if goals is None:
-            return ScoringSystem.default_goals()
+            raise ValueError("goals 不能为空，必须显式提供至少一个目标")
         if isinstance(goals, str):
             with open(goals, "r", encoding="utf-8") as file:
                 payload: Any = json.load(file)
@@ -129,16 +124,9 @@ class ScoringSystem:
             scored_samples
         )
         utility_ratio = mean_utility / mean_baseline if mean_baseline > 0 else 0.0
-        utility_absolute_ratio = (
-            mean_utility / preferences.utility_absolute_reference
-            if preferences.utility_absolute_reference > 0
-            else 0.0
-        )
         utility_score = (
-            mixed_utility_score(
-                utility_ratio, utility_absolute_ratio, preferences
-            )
-            if mean_baseline > 0 and preferences.utility_absolute_reference > 0
+            log_map(utility_ratio, preferences.utility_log_map)
+            if mean_baseline > 0
             else 0.0
         )
 
@@ -198,6 +186,8 @@ class ScoringSystem:
             baseline_seed=baseline_estimator.base_seed,
             scoring_version=SCORING_VERSION,
             parameter_tags=preferences.parameter_tags,
+            formula_tags=preferences.formula_tags,
+            deprecation_tags=preferences.deprecation_tags,
             cache_tags=cache_tags,
             traces=traces if include_traces else None,
         )
@@ -228,6 +218,27 @@ class ScoringSystem:
                 report.mean_opportunity - best_opportunity, 4
             )
 
+        return reports
+
+    @staticmethod
+    def attach_baseline_deltas(
+        reports: List[StrategyScoreReport], baseline_index: int
+    ) -> List[StrategyScoreReport]:
+        if not reports:
+            return reports
+        if baseline_index < 0 or baseline_index >= len(reports):
+            raise ValueError("baseline_index 超出范围")
+        baseline = reports[baseline_index]
+        for report in reports:
+            report.score_delta_from_baseline = round(
+                report.raw_score - baseline.raw_score, 4
+            )
+            report.goal_delta_from_baseline = round(
+                report.goal_completion_rate - baseline.goal_completion_rate, 4
+            )
+            report.opportunity_delta_from_baseline = round(
+                report.mean_opportunity - baseline.mean_opportunity, 4
+            )
         return reports
 
     @staticmethod
@@ -265,15 +276,13 @@ class ScoringSystem:
                 future_draws,
                 preferences,
             )
+            if preferences.future_value_policy == "discounted":
+                discount = max(0.0, min(1.0, preferences.future_value_discount))
+                opportunity *= discount
         else:
             opportunity = 0.0
 
         utility_ratio = utility / baseline if baseline > 0 else 0.0
-        utility_absolute_ratio = (
-            utility / preferences.utility_absolute_reference
-            if preferences.utility_absolute_reference > 0
-            else 0.0
-        )
         opportunity_ratio = (
             opportunity / preferences.opportunity_reference
             if preferences.opportunity_reference > 0
@@ -281,10 +290,8 @@ class ScoringSystem:
         )
 
         quality_utility = (
-            mixed_utility_score(
-                utility_ratio, utility_absolute_ratio, preferences
-            )
-            if baseline > 0 and preferences.utility_absolute_reference > 0
+            log_map(utility_ratio, preferences.utility_log_map)
+            if baseline > 0
             else 0.0
         )
         quality_resource = (

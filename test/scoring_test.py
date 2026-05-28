@@ -172,6 +172,7 @@ def test_scheduler_evaluate_returns_reproducible_report():
         workers=1,
         show_progress=False,
         preferences=prefs,
+        goals=[StrategyGoal(kind="current_up", target=1)],
         return_traces=True,
     )
     report_b = scheduler_b.evaluate(
@@ -179,6 +180,7 @@ def test_scheduler_evaluate_returns_reproducible_report():
         workers=1,
         show_progress=False,
         preferences=prefs,
+        goals=[StrategyGoal(kind="current_up", target=1)],
         return_traces=True,
     )
 
@@ -318,6 +320,7 @@ def test_evaluate_multiple_strategies_preserves_raw_scores_and_adds_rankings():
         workers=1,
         show_progress=False,
         preferences=prefs,
+        goals=[StrategyGoal(kind="current_up", target=1)],
     )
 
     assert len(reports) == 2
@@ -590,6 +593,19 @@ def test_score_traces_requires_at_least_one_goal():
         )
 
 
+def test_score_traces_requires_explicit_goals_when_none():
+    prefs = ScoringPreferences()
+    estimator = BaselineEstimator(config_dir="configs", samples=2, base_seed=5)
+
+    with pytest.raises(ValueError, match="goals 不能为空"):
+        ScoringSystem.score_traces(
+            traces=[make_trace(results=[], paid_draws=0, resource_left=60)],
+            preferences=prefs,
+            goals=None,
+            baseline_estimator=estimator,
+        )
+
+
 def test_scheduler_evaluate_accepts_structured_strategy_rules():
     prefs = ScoringPreferences(baseline_samples=4, baseline_seed=19)
     scheduler = Scheduler(
@@ -835,5 +851,48 @@ def test_scheduler_evaluate_accepts_structured_preferences_and_goals(tmp_path):
 
     assert isinstance(report, StrategyScoreReport)
     assert report.raw_score >= 0.0
+
+
+def test_utility_score_ignores_deprecated_absolute_reference():
+    traces = [
+        make_trace(
+            results=[{"name": "A", "star": 6, "is_current_up": True, "is_past_up": False}],
+            paid_draws=40,
+            resource_left=80,
+        )
+    ]
+    goals = [StrategyGoal(kind="current_up", target=1)]
+    estimator = BaselineEstimator(config_dir="configs", samples=4, base_seed=31)
+    prefs_a = ScoringPreferences(utility_absolute_reference=100.0, utility_mix_weight=0.1)
+    prefs_b = ScoringPreferences(utility_absolute_reference=9999.0, utility_mix_weight=0.9)
+
+    report_a = ScoringSystem.score_traces(
+        traces=traces,
+        preferences=prefs_a,
+        goals=goals,
+        baseline_estimator=estimator,
+    )
+    report_b = ScoringSystem.score_traces(
+        traces=traces,
+        preferences=prefs_b,
+        goals=goals,
+        baseline_estimator=estimator,
+    )
+
+    assert report_a.utility_score == pytest.approx(report_b.utility_score)
+    assert report_a.raw_score == pytest.approx(report_b.raw_score)
+
+
+def test_scoring_preferences_marks_deprecated_fields_for_tags():
+    prefs = ScoringPreferences.from_dict(
+        {
+            "utility_absolute_reference": 700.0,
+            "utility_absolute_log_map": {"low": 0.6, "high": 1.4, "curve": 1.0},
+            "utility_mix_weight": 0.5,
+        }
+    )
+    assert "deprecated:utility_absolute_reference_ignored" in prefs.deprecation_tags
+    assert "deprecated:utility_absolute_log_map_ignored" in prefs.deprecation_tags
+    assert "deprecated:utility_mix_weight_ignored" in prefs.deprecation_tags
 
 

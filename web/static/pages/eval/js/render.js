@@ -22,6 +22,8 @@
         getQuestionnaireProgress,
     } = global.EvalQuestionnaire;
 
+    const outputScore = String(Math.floor(Math.random() * 40) + 60).padStart(2, "0");
+
     function renderApp(state) {
         return `
         <div class="eval-shell">
@@ -36,7 +38,7 @@
                         <span class="eval-kicker">终末地策略评估</span>
                         <h1>跨卡池方案评估器</h1>
                     </div>
-                    <a class="eval-link" href="/gacha">返回 /gacha</a>
+                    <a class="eval-link" href="/gacha">前往 /gacha</a>
                 </div>
             </header>
             <main class="eval-main">
@@ -99,21 +101,24 @@
             <div class="eval-hero-grid">
                 <div class="eval-hero-copy">
                     <div class="eval-section-tag">系统用途</div>
-                    <h2>在一条轨道中，评估你的多卡池规划。</h2>
+                    <h2>在一条轨道中，<br>评估你的多卡池规划。</h2>
                     <p class="eval-copy">
                         这里评估的不是单次手气，而是一整套跨卡池方案。你会先做几道取舍题，让系统理解你更看重“目标能不能成”、“平均收益高不高”、“要不要留资源”，还是“结果够不够稳”。
                     </p>
                     <p class="eval-copy">
                         问卷结束后会先生成一份偏好结果：你可以直接继续，也可以手动改高级设置，再去配置卡池阶段、停止条件和评分目标。
                     </p>
-                    <div class="eval-actions">
-                        <button class="eval-btn primary" data-action="start-questionnaire">${state.started ? "继续问卷" : "开始问卷"}</button>
+                    <div class="eval-scroll-hint" data-action="start-questionnaire">
+                        <span>向下滚动进入</span>
+                        <svg class="eval-scroll-icon" viewBox="0 0 20 20" fill="none">
+                            <path d="M10 3v14M5 12l5 5 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
                     </div>
                 </div>
                 <div class="eval-hero-side">
                     <div class="eval-hero-metric">
                         <span class="label">卡池阶段</span>
-                        <span class="value">${String(state.bannerPlans.length).padStart(2, "0")}</span>
+                        <span class="value">${String(state.availableConfigs.length).padStart(2, "0")}</span>
                     </div>
                     <div class="eval-hero-metric">
                         <span class="label">问卷题组</span>
@@ -121,7 +126,7 @@
                     </div>
                     <div class="eval-hero-metric">
                         <span class="label">输出结果</span>
-                        <span class="value">评分</span>
+                        <span class="value" data-output-score="true">${outputScore}</span>
                     </div>
                 </div>
             </div>
@@ -131,21 +136,27 @@
 
     function renderQuestionnaire(state) {
         const completed = state.questionnaire.pairIndex >= PAIRS.length;
-        if (completed) {
+        if (completed && !state.questionnaire.in_review) {
             return renderQuestionnaireResult(state);
         }
         const pair = getCurrentPair(state.questionnaire);
         const progress = getQuestionnaireProgress(state.questionnaire);
+        const totalCount = state.questionnaire.in_review ? Math.max(1, state.questionnaire.review_pairs.length) : PAIRS.length;
+        const currentCount = state.questionnaire.in_review ? state.questionnaire.review_cursor + 1 : state.questionnaire.pairIndex + 1;
+        const title = state.questionnaire.in_review ? "冲突复核" : "取舍问卷";
+        const description = state.questionnaire.in_review
+            ? "你的取舍存在冲突，请重答冲突最大的两组比较后再继续。"
+            : "系统会通过 6 组取舍题，判断你更看重哪类结果。";
         return `
         <section class="eval-stage">
-            ${renderSectionHead("取舍问卷", "系统会通过 6 组取舍题，判断你更看重哪类结果。", [
+            ${renderSectionHead(title, description, [
             button("返回引导", "go-intro"),
         ])}
             <div class="eval-progress-row">
                 <div class="eval-progress-bar">
                     <div class="eval-progress-value" data-progress-value="true" data-progress-from="${state.lastProgress.from}" data-progress-to="${progress}"></div>
                 </div>
-                <span class="eval-progress-count">${state.questionnaire.pairIndex + 1} / ${PAIRS.length}</span>
+                <span class="eval-progress-count">${currentCount} / ${totalCount}</span>
             </div>
             <div class="eval-question-block" data-question-block="true">
                 ${renderCurrentQuestion(state, pair)}
@@ -156,9 +167,15 @@
 
     function renderCurrentQuestion(state, pair) {
         const [left, right] = pair;
+        const directionPrompt = state.questionnaire.in_review
+            ? "请重新确认这组冲突取舍，你更不能牺牲哪一项？"
+            : "如果两者不能兼得，你更不能牺牲哪一项？";
+        const strengthPrompt = state.questionnaire.in_review
+            ? "请确认这次复核中的偏向强度。"
+            : "你对这项偏向有多强？";
         if (state.questionnaire.step === "direction") {
             return `
-            <p class="eval-question-lead">如果两者不能兼得，你更不能牺牲哪一项？</p>
+            <p class="eval-question-lead">${directionPrompt}</p>
             <div class="eval-question-pair">
                 ${renderModulePanel(left, true)}
                 <div class="eval-vs">取舍</div>
@@ -184,7 +201,7 @@
         const chosen = state.questionnaire.pendingDirection;
         const other = chosen === left ? right : left;
         return `
-        <p class="eval-question-lead">你对这项偏向有多强？</p>
+        <p class="eval-question-lead">${strengthPrompt}</p>
         <div class="eval-question-pair">
             ${renderModulePanel(chosen, true)}
             <div class="eval-vs">强度</div>
@@ -218,7 +235,7 @@
             </div>
             <div class="eval-summary-panel">
                 <p class="eval-summary-title">这组结果会直接影响最终评分。</p>
-                <p class="eval-copy">一致性 CR：${formatNumber(ratio, 4)}。${escapeHtml(getConsistencyHint(ratio))}</p>
+                <p class="eval-copy">一致性 CR：${formatNumber(ratio, 4)}。${escapeHtml(getConsistencyHint(ratio, state.preferences.questionnaire_status))}</p>
                 <ul class="eval-bullet-list">
                     ${Object.values(MODULES).map((module) => `<li><strong>${escapeHtml(module.label)}</strong>：${escapeHtml(module.impact)}</li>`).join("")}
                 </ul>
@@ -336,7 +353,7 @@
                 </div>
             </div>
             <div class="eval-banner-grid">
-                <section class="eval-subpanel">
+                <section class="eval-subpanel eval-subpanel-resource">
                     <h4>阶段资源与补给</h4>
                     <div class="eval-form-grid">
                         <label class="eval-check-field">
@@ -353,7 +370,7 @@
                         ${renderPlanResourceField(index, "origeometry", "衍质源石", plan.resource_increment.origeometry)}
                     </div>
                 </section>
-                <section class="eval-subpanel">
+                <section class="eval-subpanel eval-subpanel-rule">
                     <div class="eval-result-head">
                         <div>
                             <h4>停止条件</h4>
@@ -513,24 +530,21 @@
                 ${state.job.error ? `<div class="eval-error">${escapeHtml(state.job.error)}</div>` : ""}
             </div>
             ${result ? `
-                <div class="eval-result-grid eval-result-grid-main">
-                    ${renderResultMetric("总分", result.raw_score)}
-                    ${renderResultMetric("评级", `${result.grade} · ${result.grade_name}`)}
-                    ${renderResultMetric("目标达成", result.goal_score)}
-                    ${renderResultMetric("期望收益", result.utility_score)}
-                    ${renderResultMetric("资源机会", result.resource_score)}
-                    ${renderResultMetric("风险稳定", result.risk_score)}
-                    ${renderResultMetric("目标完成率", result.goal_completion_rate)}
-                    ${renderResultMetric("收益倍率", result.utility_ratio)}
-                    ${renderResultMetric("资源倍率", result.opportunity_ratio)}
-                    ${renderResultMetric("模拟次数", result.simulations)}
-                </div>
-                <div class="eval-result-grid">
-                    ${renderResultMetric("平均实际收益", result.mean_utility)}
-                    ${renderResultMetric("平均基准收益", result.mean_baseline)}
-                    ${renderResultMetric("平均资源机会", result.mean_opportunity)}
-                    ${renderResultMetric("低尾风险均值", result.tail_risk_mean)}
-                    ${renderResultMetric("评分版本", result.scoring_version)}
+                ${renderResultHero(result)}
+                <div class="eval-result-detail-block">
+                    <div class="eval-result-highlight-metrics eval-result-highlight-metrics-secondary">
+                        ${renderResultAccent("目标完成率", result.goal_completion_rate)}
+                        ${renderResultAccent("收益倍率", result.utility_ratio)}
+                        ${renderResultAccent("资源倍率", result.opportunity_ratio)}
+                        ${renderResultAccent("模拟次数", result.simulations)}
+                    </div>
+                    <div class="eval-result-grid">
+                        ${renderResultMetric("平均实际收益", result.mean_utility)}
+                        ${renderResultMetric("平均基准收益", result.mean_baseline)}
+                        ${renderResultMetric("平均资源机会", result.mean_opportunity)}
+                        ${renderResultMetric("低尾风险均值", result.tail_risk_mean)}
+                        ${renderResultMetric("评分版本", result.scoring_version)}
+                    </div>
                 </div>
             ` : `<div class="eval-panel"><p class="eval-copy">任务已提交，正在等待结果。</p></div>`}
         </section>
@@ -583,6 +597,60 @@
     `;
     }
 
+    function renderResultAccent(label, value) {
+        return `
+        <div class="eval-result-accent">
+            <span class="label">${escapeHtml(label)}</span>
+            <span class="value">${escapeHtml(String(formatMaybe(value)))}</span>
+        </div>
+    `;
+    }
+
+    function renderResultHero(result) {
+        const completionScore = Number(result.goal_completion_rate) * 100;
+        return `
+        <div class="eval-panel eval-result-hero">
+            <div class="eval-result-radial">
+                <div class="eval-result-radial-core" aria-hidden="true"></div>
+                <div class="eval-result-radial-ring" aria-hidden="true"></div>
+                ${renderRadialArm("目标达成", result.goal_score, -90)}
+                ${renderRadialArm("期望收益", result.utility_score, -18)}
+                ${renderRadialArm("资源机会", result.resource_score, 54)}
+                ${renderRadialArm("风险稳定", result.risk_score, 126)}
+                ${renderRadialArm("目标完成率", completionScore, 198)}
+            </div>
+            <div class="eval-result-main-score">
+                <div class="eval-result-main-grade">${escapeHtml(`[${result.grade}]`)}</div>
+                <div class="eval-result-main-value">${escapeHtml(String(formatFixed(result.raw_score, 1)))}</div>
+            </div>
+        </div>
+    `;
+    }
+
+    function renderRadialArm(label, value, angle) {
+        const score = clampScore(value);
+        return `
+        <div class="eval-result-radial-arm" style="--arm-angle:${angle}deg; --arm-score:${score};">
+            <span class="eval-result-radial-lanes" aria-hidden="true">
+                <i class="eval-result-radial-track-full"></i>
+                <i class="eval-result-radial-track-current" style="--arm-score:${score};"></i>
+            </span>
+            <span class="eval-result-radial-label">
+                <strong>${escapeHtml(label)}</strong>
+                <em>${escapeHtml(String(formatFixed(score, 1)))}</em>
+            </span>
+        </div>
+    `;
+    }
+
+    function clampScore(value) {
+        const num = Number(value);
+        if (!Number.isFinite(num)) {
+            return 0;
+        }
+        return Math.max(0, Math.min(100, num));
+    }
+
     function renderPrefInput(state, path, key, label) {
         const value = readByPath(state.preferences, key);
         return `
@@ -631,6 +699,13 @@
             return value;
         }
         return Math.round(value * 10000) / 10000;
+    }
+
+    function formatFixed(value, digits) {
+        if (!Number.isFinite(Number(value))) {
+            return value;
+        }
+        return Number(value).toFixed(digits);
     }
 
     function escapeHtml(value) {

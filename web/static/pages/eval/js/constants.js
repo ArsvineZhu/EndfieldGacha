@@ -159,8 +159,6 @@
                 ["normal_six_value", "normal_six_value", "普通 6 星价值"],
                 ["five_star_value", "five_star_value", "5 星价值"],
                 ["four_star_value", "four_star_value", "4 星价值"],
-                ["utility_absolute_reference", "utility_absolute_reference", "绝对收益参考值"],
-                ["utility_mix_weight", "utility_mix_weight", "收益混合权重"],
             ],
         },
         {

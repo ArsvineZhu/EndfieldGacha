@@ -39,10 +39,10 @@
             use_origeometry: false,
             is_core: true,
             resource_increment: {
-                chartered_permits: 0,
-                oroberyl: 0,
-                arsenal_tickets: 0,
-                origeometry: 0,
+                chartered_permits: 5,
+                oroberyl: 500 * 25,
+                arsenal_tickets: 200,
+                origeometry: 10,
             },
             rule: buildDefaultRule(),
         };

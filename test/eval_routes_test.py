@@ -46,6 +46,7 @@ def _build_eval_payload():
             "baseline_samples": 2,
             "baseline_seed": 20260525,
             "questionnaire_status": "completed",
+            "questionnaire_consistency_ratio": 0.02,
         },
         "goals": [{"kind": "current_up", "target": 1}],
         "banner_plans": [
@@ -228,6 +229,69 @@ def test_eval_jobs_accept_nested_strategy_groups():
     body = response.get_json()
     assert body is not None
     assert body["status"] == "queued"
+
+
+def test_eval_jobs_reject_inconsistent_questionnaire():
+    from web.app import create_app
+
+    app = create_app(dev_mode=True)
+    client = app.test_client()
+    payload = _build_eval_payload()
+    payload["preferences"]["questionnaire_status"] = "inconsistent"
+    payload["preferences"]["questionnaire_consistency_ratio"] = 0.2
+
+    response = client.post(
+        "/api/eval/jobs",
+        data=json.dumps(payload),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    body = response.get_json()
+    assert body is not None
+    assert body["error"].startswith("EVAL_QUESTIONNAIRE_INCONSISTENT:")
+
+
+def test_eval_compare_returns_ranked_results_and_baseline_deltas():
+    from web.app import create_app
+
+    app = create_app(dev_mode=True)
+    client = app.test_client()
+    strategy_payload = _build_eval_payload()
+    compare_payload = {
+        "resource": strategy_payload["resource"],
+        "initial_counters": strategy_payload["initial_counters"],
+        "preferences": strategy_payload["preferences"],
+        "goals": strategy_payload["goals"],
+        "scale": 3,
+        "strategies": [
+            {
+                "id": "candidate_a",
+                "label": "candidate_a",
+                "banner_plans": strategy_payload["banner_plans"],
+            }
+        ],
+        "baseline_strategy_id": "fixed_draw_cap",
+    }
+
+    response = client.post(
+        "/api/eval/compare",
+        data=json.dumps(compare_payload),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body is not None
+    assert body["baseline_strategy_id"] == "fixed_draw_cap"
+    assert len(body["strategies"]) == 2
+    ids = {item["strategy_id"] for item in body["strategies"]}
+    assert "candidate_a" in ids
+    assert "baseline::fixed_draw_cap" in ids
+    for item in body["strategies"]:
+        assert "rank" in item
+        assert "percentile" in item
+        assert "score_delta_from_baseline" in item
 
 
 def test_evaluation_job_manager_limits_parallel_jobs_and_queues_extra_work():
