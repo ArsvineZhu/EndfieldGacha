@@ -1,8 +1,8 @@
 # 终末地卡池 | Endfield Gacha
 
-**更新日期**：2026-05-26
+**更新日期**：2026-05-28
 
-**项目版本**：`2.0.0`
+**项目版本**：`2.5.0`
 
 [中文](README.md) | [English](README_en.md)
 
@@ -17,27 +17,28 @@
 - 配置加载：`GlobalConfigLoader`
 - 单次结果对象：`GachaResult`
 - 计数器状态：`Counters`
-- Web 服务与用户数据：`server/`
+- Web 服务与用户数据：`web/`
 - 结构化策略评估：`scheduler/`
-- 概率统计与演示：`tools/`
+- 概率统计与演示：`cli/`
 
 ## 仓库结构
 
 ```text
 EndfieldGacha/
-├── run.py
-├── gacha_core/
-├── server.py
-├── server/
-├── scheduler/
-├── tools/
-├── app/
-├── configs/
-├── doc/
-├── legacy/
-├── test/
-├── pic/
-└── ref.md
+├── run.py              # 统一 CLI 入口
+├── pyproject.toml      # 项目元数据与依赖
+├── gacha_core/         # 抽卡引擎
+├── scheduler/          # 策略规划与评分
+├── web/                # Web 服务（Flask）
+├── cli/                # CLI 工具
+├── build/              # 构建工具
+├── configs/            # JSON 配置文件
+├── deploy/             # 部署模板
+├── doc/                # 文档
+├── scripts/            # 启动脚本
+├── test/               # 测试
+├── data/               # 运行时数据（gitignored）
+└── legacy/             # 归档
 ```
 
 ## 运行入口
@@ -49,14 +50,13 @@ uv run run.py          # 显示帮助
 uv run run.py demo     # 抽卡演示与统计
 uv run run.py eval     # 策略评估
 uv run run.py exam     # 概率分布验证
-uv run run.py server   # 启动 Web 服务
+uv run run.py server   # 启动 Web 服务 (http://localhost:5000)
 
-uv run server.py --dev
-uv run server.py --waitress --port 5000
+uv run run.py server --dev                                    # 开发模式
+uv run run.py server --waitress --port 5000                   # Waitress 生产模式
 ```
 
-`run.py` 是统一入口；`server.py` 是 Web 服务命令行包装器。默认 Web 端口为 `5000`。
-Web 端当前默认读取 `configs/config_7`，也就是复刻池配置。
+`run.py` 是统一入口。默认 Web 端口为 `5000`。生产模式需设置 `ENDFIELD_SECRET_KEY` 环境变量。
 
 ## 核心实现
 
@@ -77,6 +77,7 @@ Web 端当前默认读取 `configs/config_7`，也就是复刻池配置。
 - 当期 UP 6★ 硬保底为 120 抽
 - 角色池结果会发放武库配额：6★ 2000、5★ 200、4★ 20
 - 累计奖励当前实现为 30 抽加急招募、60 抽寻访情报书、240 抽周期性 UP 信物
+- 加急招募通过 `attempt_urgent()` 实现 10 连抽
 
 ### 武器池
 
@@ -99,24 +100,27 @@ Web 端当前默认读取 `configs/config_7`，也就是复刻池配置。
 ### 评分系统
 
 - 评分主实现位于 `scheduler/scoring.py`
-- 当前版本号：`SCORING_VERSION = 2.3.0`
+- 当前版本号：`SCORING_VERSION = 2.4.0`
 - 四个评分维度为目标、收益、资源、风险
 - `BaselineEstimator` 使用文件缓存，并可对近邻状态做三次样条插值
 - 当前评分仅面向角色池，不纳入武器池
 
 ### Web 服务
 
-- 应用工厂：`server/app.py`
-- 路由：`server/routes.py`
-- 用户存储：SQLite 数据库 `userdata.db`
+- 应用工厂：`web/app.py`
+- 路由：`web/routes/`（gacha、info、resources、eval）
+- 后台评估任务：`web/eval_jobs.py`（线程池 + job_id 轮询）
+- 用户存储：SQLite 数据库 `data/userdata.db`
 - 用户身份：由 IP + User-Agent 生成 MD5 标识
 - 资源操作：充值、兑换、抽卡、加急招募
+- 评估端点：`/api/eval/jobs`（异步）、`/api/eval/compare`（同步）
+- 生产模式自动提供 `.br`/`.gz` 预压缩静态资源
 
-### 工具脚本
+### CLI 工具
 
-- `tools/demo.py`：`demo_char_draw()`、`demo_weapon_apply()`、`stats_char_quota()`、`stats_weapon_quota()`、`stats_char_up_prob()`、`stats_char_potential()`
-- `tools/evaluation.py`：基于 `evaluation_examples.json` 的策略评估
-- `tools/examination.py`：概率分布验证
+- `cli/demo.py`：`GachaTestTool` 封装角色/武器演示与统计（底层调用 `_demo_char.py`、`_demo_weapon.py`）
+- `cli/evaluation.py`：基于 `evaluation_examples.json` 的多场景策略评估
+- `cli/examination.py`：概率分布验证（可禁用保底）
 
 ## 配置文件
 
@@ -131,18 +135,19 @@ Web 端当前默认读取 `configs/config_7`，也就是复刻池配置。
 - `configs/arrangement`
 - `configs/arrange1`
 
-角色池和武器池都只接受显式 banner 配置；旧 `char_pool.json` / `weapon_pool.json` 只保留在 `legacy/configs/` 归档目录。`configs/config_1` 是默认加载目录；`arrangement` 的第一行也可决定默认配置。`gacha_rules.json` 只保留当期奖励覆盖，通用规则与 banner 默认值都来自 `constants.json`。`char_banner.json` 的 `featured.normal` 一旦显式给出，就会覆盖共享 6 星普通池；`weapon_banners.json` 则允许同一配置目录声明多个武器池，运行时默认读取 `default_banner_id` 指向的条目。
+`configs/arrangement` 第一行决定默认配置目录。`configs/arrange1` 用于调度器默认顺序。目前存在 `config_1` 到 `config_7` 共七个配置目录。角色池和武器池都只接受显式 banner 配置；旧 `char_pool.json` / `weapon_pool.json` 只保留在 `legacy/configs/` 归档目录。`gacha_rules.json` 只保留当期奖励覆盖，通用规则与 banner 默认值都来自 `constants.json`。
 
 ## 文档导航
 
 - [中文机制说明](doc/mechanics.md)
 - [English mechanics](doc/mechanics_en.md)
 - [策略协议](doc/strategy_protocol.md)
+- [开发者参考](doc/developer-reference.md)
+- [评估页面设计](doc/cross-pool-evaluation-result-page-design.md)
 - [角色池配置迁移记录](doc/implementation_records/2026-05-26-char-config.md)
 - [运行时包拆分记录](doc/implementation_records/2026-05-26-runtime-package-split.md)
 - [评分系统记录](doc/implementation_records/2026-05-26-scoring-followup.md)
 - [旧评分设计归档](legacy/doc/策略评分系统设计方案.md)
-- [开发参考](ref.md)
 
 ## 开发命令
 
@@ -164,7 +169,9 @@ uv run python build/compress.py
 
 ## 需要注意的实现事实
 
-- 当前代码没有独立的“重复角色 / 重复武器兑换”系统实现，重复结果只会更新收藏与资源计数
+- 当前代码没有独立的"重复角色 / 重复武器兑换"系统实现，重复结果只会更新收藏与资源计数
 - `configs/config_1` 中的当前示例卡池名为 `「熔火灼痕」` 和 `「熔铸申领」`
 - `gacha_rules.json` 仅保存当期差异；默认规则来自 `configs/constants.json`
 - 旧版 `legacy_magic` 策略不再被协议层接受
+- 生产模式必须设置 `ENDFIELD_SECRET_KEY` 环境变量
+- Web 后台评估通过 `EvaluationJobManager`（线程池）执行，同一时间最多 2 个并发评估任务

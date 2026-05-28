@@ -371,7 +371,7 @@ def test_baseline_estimator_interpolates_from_nearby_cached_points(tmp_path):
             seed=17,
             estimate=est,
             source="simulation",
-            version="2.3.0",
+            version="2.4.0",
         )
     db.close()
 
@@ -409,7 +409,7 @@ def test_baseline_estimator_interpolates_from_nearby_states(tmp_path):
             seed=17,
             estimate=est,
             source="simulation",
-            version="2.3.0",
+            version="2.4.0",
         )
     db.close()
 

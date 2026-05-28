@@ -1,6 +1,6 @@
 # 终末地卡池机制说明
 
-**更新日期**：2026-05-26
+**更新日期**：2026-05-28
 
 **适用范围**：本文档描述当前仓库代码实现的抽卡、申领、资源与 Web 状态行为。若与旧版说明冲突，以代码实现为准。
 
@@ -89,8 +89,8 @@
 
 ### 3.1 用户存储
 
-- 入口：`server/user.py`
-- 数据库：`userdata.db`
+- 入口：`web/user.py`
+- 数据库：`data/userdata.db`
 - 用户 ID：IP + User-Agent 的 MD5
 
 ### 3.2 初始资源
@@ -137,6 +137,6 @@
 - 抽卡结果使用 `GachaResult` 返回，包含 `name`、`star`、`quota`、`is_up_g`、`is_6_g`、`is_5_g`
 - 角色池与武器池都使用 `BatchRandom` 做随机数预生成
 - `disable_guarantee=True` 会禁用保底计数更新，适合做纯概率分布验证
-- Web 服务中的 `compress_static_files()` 会在启动前压缩静态资源
+- Web 服务中的 `compress_static_files()` 会在启动前压缩静态资源（可通过 `--dev` 跳过）
 
 

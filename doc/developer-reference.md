@@ -1,6 +1,6 @@
 # 开发者参考
 
-**更新日期**：2026-05-26
+**更新日期**：2026-05-28
 
 本文档以当前代码实现为准，记录仓库里真正存在的模块、接口和配置。
 
@@ -12,9 +12,9 @@
 | `uv run run.py demo` | 抽卡演示与统计 |
 | `uv run run.py eval` | 策略评估 |
 | `uv run run.py exam` | 概率验证 |
-| `uv run run.py server` | 启动 Web 服务 |
-| `uv run server.py --dev` | Web 服务开发模式 |
-| `uv run server.py --waitress --port 5000` | Waitress 生产模式 |
+| `uv run run.py server` | 启动 Web 服务（默认端口 5000） |
+| `uv run run.py server --dev` | 开发模式（跳过压缩、debug 模式） |
+| `uv run run.py server --waitress --port 5000` | Waitress 生产模式 |
 
 ## 2. 核心模块
 
@@ -38,6 +38,7 @@ rewards = char_gacha.get_accumulated_reward()
 ```
 
 - `attempt()` 返回单个 `GachaResult`
+- `attempt_urgent()` 加急招募，一次 10 抽，返回 `List[GachaResult]`
 - `disable_guarantee=True` 可用于分布统计
 - 计数器字段：
   - `total`
@@ -72,6 +73,9 @@ rewards = weapon_gacha.get_accumulated_reward()
 | `get_pool_info(pool_type)` | 返回当前配置集的卡池名和时间信息 |
 | `get_text(key)` | 返回硬编码文案和卡池名 |
 | `get_default_precision()` | 返回 `default_precision` |
+| `get_char_featured_names()` | 返回当期 UP、过往 UP、普通池角色名称列表 |
+| `get_weapon_banners()` | 返回所有武器池配置列表 |
+| `get_active_weapon_banner_id()` | 返回当前默认武器池 ID |
 
 默认配置路径来自 `configs/arrangement` 的第一行；如果文件不存在，则回退到 `configs/config_1`。
 
@@ -85,6 +89,7 @@ rewards = weapon_gacha.get_accumulated_reward()
 - `StrategyRuleSet`
 - `StrategyCondition`
 - `StrategyRuleEngine`
+- `is_structured_strategy`
 - `StrategyProtocolAdapter`
 - `STRATEGY_PROTOCOL_VERSION`
 - `ScoringSystem`
@@ -96,6 +101,7 @@ rewards = weapon_gacha.get_accumulated_reward()
 - `BaselineEstimator`
 - `Resource`
 - `LogMapConfig`
+- `Counters`
 
 ### `scheduler/strategy_rules.py`
 
@@ -139,13 +145,13 @@ rewards = weapon_gacha.get_accumulated_reward()
 
 | 符号 | 说明 |
 |---|---|
-| `SCORING_VERSION` | 当前为 `2.3.0` |
+| `SCORING_VERSION` | 当前为 `2.4.0` |
 | `SCORING_CACHE_VERSION` | 当前为 `score-cache-v1` |
 | `Resource` | 抽卡资源模型 |
 | `StrategyGoal` | AND 目标定义 |
 | `StageTrace` | 单阶段轨迹 |
 | `StrategyTrace` | 单次完整策略轨迹 |
-| `ScoringPreferences` | 评分偏好参数 |
+| `ScoringPreferences` | 评分偏好参数（含问卷状态） |
 | `StrategyScoreReport` | 评分输出结果 |
 | `BaselineEstimator` | 基准价值估计器 |
 | `ScoringSystem` | 评分主系统 |
@@ -157,7 +163,7 @@ rewards = weapon_gacha.get_accumulated_reward()
 - `BaselineEstimator` 默认缓存文件是 `data/baseline_cache.db`（SQLite WAL 模式）
 - 缓存可通过 `build/precompute_cache.py` 离线预计算
 - 近邻插值使用三次样条
-- `ScoringPreferences` 支持历史 UP 名单、已有潜能记录和问卷状态
+- `ScoringPreferences` 支持历史 UP 名单、已有潜能记录和问卷状态（`questionnaire_status`、`questionnaire_consistency_ratio`）
 
 ### `scheduler/engine.py`
 
@@ -171,30 +177,50 @@ rewards = weapon_gacha.get_accumulated_reward()
 
 ## 4. Web 服务
 
-### `server/`
+### `web/`
 
-- `server/app.py`：Flask 应用工厂
-- `server/routes.py`：路由
-- `server/resource.py`：充值、兑换和资源消耗
-- `server/user.py`：用户数据读写
+- `web/app.py`：Flask 应用工厂，包含环境变量加载、静态文件压缩触发、pre-compressed 静态资源服务
+- `web/routes/__init__.py`：路由注册入口，整合所有子模块路由
+- `web/routes/gacha.py`：抽卡、加急招募、累计奖励 API
+- `web/routes/info.py`：主页、用户数据、历史记录、卡池信息 API
+- `web/routes/resources.py`：充值、兑换 API
+- `web/routes/eval.py`：异步评估任务、策略对比 API
+- `web/resource.py`：充值、兑换、资源消耗逻辑
+- `web/user.py`：用户数据读写（SQLite）
+- `web/eval_jobs.py`：后台评估任务管理器（`EvaluationJobManager`，线程池实现）
+- `web/evaluator.py`：评估负载验证与执行、基准策略构建
 
 ### Web 事实
 
-- 用户数据保存在 SQLite 数据库 `userdata.db`
+- 用户数据保存在 SQLite 数据库 `data/userdata.db`
 - 用户 ID 由 IP + User-Agent 生成 MD5
 - 默认用户资源包括：
-  - `chartered_permits`
-  - `oroberyl`
-  - `arsenal_tickets`
-  - `origeometry`
-  - `urgent_recruitment`
-  - `urgent_used`
+  - `chartered_permits`: 10
+  - `oroberyl`: 50000
+  - `arsenal_tickets`: 8000
+  - `origeometry`: 100
+  - `urgent_recruitment`: 0
+  - `urgent_used`: False
+  - `total_recharge`: 0
+  - `first_recharge`: 各档位首充标记
 - 充值档位只接受 `6 / 30 / 98 / 198 / 328 / 648`
-- 兑换只支持 `origeometry -> oroberyl` 或 `origeometry -> arsenal_tickets`
+- 兑换只支持 `origeometry -> oroberyl`（1:75）或 `origeometry -> arsenal_tickets`（1:25）
+- 资源操作记录在用户数据的 `char_gacha.operations` / `weapon_gacha.operations` 数组中
+- 生产模式要求 `ENDFIELD_SECRET_KEY` 环境变量
+- Web 端默认加载 `configs/config_6`（info 路由）或 `configs/arrangement` 第一行（evaluator 路由）
 
-## 5. 工具包
+### 评估端点
 
-### `tools/demo.py`
+- `POST /api/eval/jobs`：提交异步评估任务，返回 `job_id`，状态码 202
+- `GET /api/eval/jobs/<job_id>`：查询任务状态（queued/running/succeeded/failed）
+- `POST /api/eval/compare`：同步策略对比，最多 20 个策略，并发上限 2
+- `GET /api/eval/configs`：列出可用卡池配置及 UP 信息
+
+## 5. CLI 工具
+
+### `cli/demo.py`
+
+`GachaTestTool` 封装类（底层调用 `_demo_char.py`、`_demo_weapon.py`、`_demo_ui.py`）：
 
 | 方法 | 默认值 | 说明 |
 |---|---|---|
@@ -202,19 +228,26 @@ rewards = weapon_gacha.get_accumulated_reward()
 | `demo_weapon_apply(apply_times=1)` | `1` | 武器池演示 |
 | `stats_char_quota(draw_times=50000, gragh=False)` | `50000` | 角色池配额分布 |
 | `stats_weapon_quota(draw_times=50000, gragh=False)` | `50000` | 武器池配额分布 |
+| `stats_char_draw(draw_times=50000, gragh=False)` | `50000` | 角色池 6★ 数量分布 |
+| `stats_weapon_draw(draw_times=50000, gragh=False)` | `50000` | 武器池 6★ 数量分布 |
 | `stats_char_up_prob(test_times=50000, gragh=False, limit=0)` | `50000` | 抽到 UP 角色所需抽数 |
+| `stats_weapon_up_prob(test_times=50000, gragh=False, limit=0)` | `50000` | 抽到 UP 武器所需申领数 |
+| `stats_urgent_quota(draw_times=50000, gragh=False)` | `50000` | 加急招募 10 连配额分布 |
 | `stats_char_potential(draw_times=50000, gragh=False)` | `50000` | 满潜所需抽数 |
 
-### `tools/evaluation.py`
+### `cli/evaluation.py`
 
-- 默认读取 `tools/evaluation_examples.json`
+- 默认读取 `cli/evaluation_examples.json`
 - 支持 `shared`、`scenarios`、`run_order`
 - 每个场景可以覆盖资源、计数器、权重、目标、模拟规模和 worker 数
+- `run_scenario(name, scale=5000)` 执行单个场景
+- `run_all()` 按 `run_order` 执行全部场景
 
-### `tools/examination.py`
+### `cli/examination.py`
 
 - 通过关闭保底机制验证纯概率分布
 - 角色池和武器池都使用当前配置文件
+- 默认读取 `configs/config_4`
 
 ## 6. 配置目录
 
@@ -222,12 +255,12 @@ rewards = weapon_gacha.get_accumulated_reward()
 
 - `configs/constants.json`
 - `configs/char_pool_base.json`
-- `configs/config_*/char_banner.json`
-- `configs/weapon_pool_base.json`
-- `configs/config_*/weapon_banners.json`
-- `configs/config_*/gacha_rules.json`
-- `configs/arrangement`
-- `configs/arrange1`
+- `configs/config_1/` 到 `configs/config_7/`，每个目录包含：
+  - `char_banner.json`
+  - `weapon_banners.json`
+  - `gacha_rules.json`
+- `configs/arrangement` — 列出全部 7 个配置目录，第一行为默认加载目录
+- `configs/arrange1` — 调度器默认顺序（config_3 ~ config_7）
 
 ### 重要事实
 
@@ -251,5 +284,5 @@ rewards = weapon_gacha.get_accumulated_reward()
 ## 8. 维护建议
 
 - 新增文档前先确认代码中是否真的存在对应接口
-- 旧的游戏机制描述如果无法在代码里找到实现，应写成“未实现”而不是“已实现”
+- 旧的游戏机制描述如果无法在代码里找到实现，应写成"未实现"而不是"已实现"
 - 更新文档后，至少执行一次 `ruff`、`pyright` 和相关测试

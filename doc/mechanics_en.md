@@ -1,6 +1,6 @@
 # Endfield Gacha Mechanics
 
-**Updated**: 2026-05-26
+**Updated**: 2026-05-28
 
 This document describes the behavior actually implemented in the repository. If it conflicts with older notes, the code wins.
 
@@ -86,8 +86,8 @@ The current implementation of `get_accumulated_reward()` starts at the 10th issu
 
 ### 3.1 Storage
 
-- Entry: `server/user.py`
-- Database: `userdata.db`
+- Entry: `web/user.py`
+- Database: `data/userdata.db`
 - User ID: MD5 of IP + User-Agent
 
 ### 3.2 Default Resources
@@ -134,6 +134,6 @@ The code only reads:
 - Pull results are returned as `GachaResult(name, star, quota, is_up_g, is_6_g, is_5_g)`
 - Both banners use `BatchRandom` for pre-generated random numbers
 - `disable_guarantee=True` is for pure probability validation
-- The web app compresses static assets before startup unless development mode is requested
+- The web app compresses static assets before startup unless dev mode (`--dev`) is requested
 
 

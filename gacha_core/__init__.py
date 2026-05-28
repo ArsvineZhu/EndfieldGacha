@@ -6,7 +6,7 @@ from .config import GlobalConfigLoader
 from .models import Counters, GachaResult
 from .weapon import WeaponGacha
 
-__version__ = "2.0.0"
+__version__ = "2.5.0"
 __author__ = "Arsvine"
 
 __all__ = [

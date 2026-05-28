@@ -1,6 +1,6 @@
 [project]
 name = "endfield-gacha"
-version = "2.0.0"
+version = "2.5.0"
 description = "Arknights Endfield gacha simulation and strategy evaluation toolkit"
 readme = "README.md"
 requires-python = ">=3.14"
