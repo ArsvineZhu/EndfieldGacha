@@ -109,6 +109,7 @@ def test_gacha_and_eval_pages_are_available():
 def test_eval_page_uses_ordered_classic_scripts_in_production():
     from web.app import create_app
 
+    os.environ["ENDFIELD_SECRET_KEY"] = "test-secret-key"
     app = create_app(dev_mode=False)
     client = app.test_client()
 

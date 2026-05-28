@@ -17,8 +17,32 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 HASHED_STATIC_PATTERN = re.compile(r"^(css|js)/[0-9a-f]{6}\.(css|js)(\.map)?$")
 
 
+def _load_env_file(path: str = ".env") -> None:
+    """Load a simple key=value .env file into environment variables.
+
+    This is a lightweight alternative to python-dotenv.  Values must not
+    contain newlines; optional quotes around the value are stripped.
+    Existing environment variables are NOT overwritten.
+    """
+    env_path = os.path.join(PROJECT_ROOT, path)
+    if not os.path.isfile(env_path):
+        return
+    with open(env_path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            key = key.strip()
+            value = value.strip()
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in ("\"", "'"):
+                value = value[1:-1]
+            os.environ.setdefault(key, value)
+
+
 def create_app(dev_mode=False):
     """创建并配置 Flask 应用"""
+    _load_env_file()
     template_folder = os.path.join(PROJECT_ROOT, "web", "templates")
     source_static_folder = os.path.join(PROJECT_ROOT, "web", "static")
     dist_static_folder = os.path.join(PROJECT_ROOT, "dist", "static")
@@ -29,10 +53,17 @@ def create_app(dev_mode=False):
     )
     
     app = Flask(__name__, template_folder=template_folder, static_folder=static_folder)
-    app.secret_key = os.environ.get(
-        "ENDFIELD_SECRET_KEY",
-        "endfield_gacha_secret_key_Arsvine_20260228",
-    )
+
+    if dev_mode:
+        app.secret_key = os.environ.get("ENDFIELD_SECRET_KEY", "dev-only-secret-key")
+    else:
+        secret_key = os.environ.get("ENDFIELD_SECRET_KEY")
+        if not secret_key:
+            raise RuntimeError(
+                "生产模式必须设置 ENDFIELD_SECRET_KEY 环境变量"
+            )
+        app.secret_key = secret_key
+
     app.config["DEV_MODE"] = dev_mode
 
     @app.before_request

@@ -9,6 +9,7 @@ from flask import jsonify, render_template, request
 
 from ..eval_jobs import EvaluationJobManager
 from ..evaluator import (
+    MAX_PARALLEL_EVALS,
     evaluate_compare_payload,
     evaluate_payload,
     list_eval_configs,
@@ -16,7 +17,6 @@ from ..evaluator import (
     validate_eval_payload,
 )
 
-MAX_PARALLEL_EVALS = 2
 DEFAULT_WORKERS = max(1, cpu_count() // MAX_PARALLEL_EVALS)
 _JOB_MANAGER: EvaluationJobManager | None = None
 

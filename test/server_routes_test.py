@@ -68,6 +68,7 @@ def test_urgent_recruitment_api_guarantees_at_least_one_5star_plus(monkeypatch):
 def test_production_blocks_direct_source_static_css_js():
     from web.app import create_app
 
+    os.environ["ENDFIELD_SECRET_KEY"] = "test-secret-key"
     app = create_app(dev_mode=False)
     client = app.test_client()
 
