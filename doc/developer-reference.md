@@ -38,7 +38,7 @@ rewards = char_gacha.get_accumulated_reward()
 ```
 
 - `attempt()` 返回单个 `GachaResult`
-- `attempt_urgent()` 加急招募，一次 10 抽，返回 `List[GachaResult]`
+- `attempt_urgent()` — 不存在独立方法；Web 端通过循环调用 `attempt()` 10 次实现加急招募
 - `disable_guarantee=True` 可用于分布统计
 - 计数器字段：
   - `total`

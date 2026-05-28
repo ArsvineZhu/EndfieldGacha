@@ -77,7 +77,7 @@ uv run run.py server --waitress --port 5000                 # production (Waitre
 - Featured 6★ hard pity: 120 pulls
 - Rewards from pulls: 6★ 2000 Arsenal Tickets, 5★ 200, 4★ 20
 - Accumulated rewards: urgent recruitment at 30 pulls, dossier at 60 pulls, repeated featured token every 240 pulls
-- Urgent recruitment via `attempt_urgent()` for 10-pull mode
+- Urgent recruitment via 10 consecutive `attempt()` calls (web endpoint `/api/urgent_recruitment`)
 
 ### Weapon issue
 
@@ -161,7 +161,7 @@ uv run python build/compress.py
 
 Static compression notes:
 - `build/compress.py` uses pinned local tools: `terser` + `javascript-obfuscator` (JS) and `lightningcss` (CSS).
-- The build generates `.gz` and `.br` precompressed variants for text assets.
+- The build generates `.gz` and `.br` precompressed variants for text assets (Nginx with `gzip_static on; brotli_static on;`).
 - Build artifacts are written to `dist/static`, while source static files stay in `web/static` (production serves `dist/static` by default).
 - In production mode (including Waitress), static responses prefer `.br` / `.gz` by `Accept-Encoding` and set `Vary: Accept-Encoding`.
 - Nginx template is provided at `deploy/nginx/static-compression.conf`.

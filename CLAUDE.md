@@ -118,5 +118,5 @@ EndfieldGacha/
 - `web/static/` is reorganized into `pages/gacha/` and `pages/eval/` subdirectories
 - Evaluation web endpoints use a background `EvaluationJobManager` (thread pool) — POST `/api/eval/jobs` returns immediately with a job_id, pollable via GET `/api/eval/jobs/<job_id>`
 - The `/api/eval/compare` endpoint is synchronous (server-side rate-limited to 2 concurrent evals)
-- `CharGacha` also handles urgent recruitment (10-pull mode via `attempt_urgent()`)
+- `CharGacha` also handles urgent recruitment (10 consecutive `attempt()` calls via web endpoint)
 - `scheduler/__init__` exports `is_structured_strategy` for runtime type checking
