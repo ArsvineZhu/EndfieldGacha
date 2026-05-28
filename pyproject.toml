@@ -3,7 +3,7 @@ name = "endfield-gacha"
 version = "2.0.0"
 description = "Arknights Endfield gacha simulation and strategy evaluation toolkit"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.14"
 dependencies = [
     "brotli",
     "flask",
@@ -35,7 +35,7 @@ python_files = ["test_*.py", "*_test.py"]
 
 [tool.ruff]
 line-length = 120
-target-version = "py310"
+target-version = "py314"
 exclude = [
     ".git",
     ".venv",
@@ -54,7 +54,7 @@ indent-style = "space"
 line-ending = "lf"
 
 [tool.pyright]
-pythonVersion = "3.10"
+pythonVersion = "3.14"
 include = ["gacha_core", "web", "scheduler", "cli"]
 exclude = [
     "**/__pycache__",

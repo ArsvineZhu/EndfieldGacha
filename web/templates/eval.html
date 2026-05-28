@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#121212">
+    <meta name="description" content="跨卡池单方案评分器">
+    <link rel="icon" type="image/x-icon"
+        href="{{ url_for('static', filename=get_static_url('img/favicons/favicon.ico')) }}">
+    <title>终末地抽卡策略评估</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename=get_static_url('pages/eval/css/base.css')) }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename=get_static_url('pages/eval/css/layout.css')) }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename=get_static_url('pages/eval/css/components.css')) }}">
+</head>
+
+<body>
+    <div id="root"></div>
+    <script src="{{ url_for('static', filename=get_static_url('pages/eval/js/constants.js')) }}"></script>
+    <script src="{{ url_for('static', filename=get_static_url('pages/eval/js/rules.js')) }}"></script>
+    <script src="{{ url_for('static', filename=get_static_url('pages/eval/js/questionnaire.js')) }}"></script>
+    <script src="{{ url_for('static', filename=get_static_url('pages/eval/js/render.js')) }}"></script>
+    <script src="{{ url_for('static', filename=get_static_url('pages/eval/js/app.js')) }}"></script>
+</body>
+
+</html>

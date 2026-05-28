@@ -41,4 +41,4 @@ def test_format_strategy_renders_boolean_values_cleanly():
 
     text = SchedulerDisplay._format_strategy(rule)
 
-    assert "档案线索标记 等于 是" in text
+    assert "寻访情报书 : 有" in text

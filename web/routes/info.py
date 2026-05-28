@@ -8,7 +8,7 @@ from flask import jsonify, render_template, request, session
 
 from gacha_core import GlobalConfigLoader
 
-from ..user import get_or_create_current_user, reset_user_data, save_user
+from .. import user as user_store
 
 DEFAULT_CONFIG = GlobalConfigLoader("configs/config_6")
 
@@ -17,30 +17,35 @@ def register_routes(app):
     # ------------------------------------------------------------------ 主页
     @app.route("/")
     def index():
-        user_id, user_data = get_or_create_current_user(request)
+        return gacha_page()
+
+    @app.route("/gacha")
+    def gacha_page():
+        user_id, user_data = user_store.get_or_create_current_user(request)
         user_data["last_visit"] = datetime.now().isoformat()
-        save_user(user_id, user_data)
+        user_store.save_user(user_id, user_data)
         session["user_id"] = user_id
         return render_template("index.html")
+
 
     # ------------------------------------------------------------------ 用户数据
     @app.route("/api/user_data", methods=["GET"])
     def get_user_data():
-        _, user_info = get_or_create_current_user(request)
+        _, user_info = user_store.get_or_create_current_user(request)
         return jsonify(user_info)
 
     # ------------------------------------------------------------------ 清空数据
     @app.route("/api/clear_data", methods=["POST"])
     def clear_data():
-        user_id, user_info = get_or_create_current_user(request)
-        new_data = reset_user_data(user_id, user_info.get("created_at"))
-        save_user(user_id, new_data)
+        user_id, user_info = user_store.get_or_create_current_user(request)
+        new_data = user_store.reset_user_data(user_id, user_info.get("created_at"))
+        user_store.save_user(user_id, new_data)
         return jsonify({"message": "数据已清空"})
 
     # ------------------------------------------------------------------ 历史记录
     @app.route("/api/history", methods=["GET"])
     def get_history():
-        _, user_info = get_or_create_current_user(request)
+        _, user_info = user_store.get_or_create_current_user(request)
         pool_type = request.args.get("pool_type", "char")
         if pool_type not in ("char", "weapon"):
             return jsonify({"error": "Invalid pool type"}), 400

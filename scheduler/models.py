@@ -3,13 +3,13 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from math import log
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from gacha_core import Counters
 
-SCORING_VERSION = "2.3.0"
+SCORING_VERSION = "2.4.0"
 SCORING_CACHE_VERSION = "score-cache-v1"
 
 
@@ -123,35 +123,51 @@ class ScoringPreferences:
     past_up_character_names: Tuple[str, ...] = ()
     owned_character_potentials: Dict[str, int] = field(default_factory=dict)
     questionnaire_status: str = "pending"
+    questionnaire_consistency_ratio: float = 0.0
     future_value_policy: str = "current"
+    future_value_discount: float = 0.85
+    deprecated_input_accepted: bool = False
 
     @classmethod
     def from_dict(cls, payload: Dict[str, Any]) -> "ScoringPreferences":
         data = dict(payload)
-        if "utility_log_map" in data and isinstance(data["utility_log_map"], dict):
-            data["utility_log_map"] = LogMapConfig.from_dict(data["utility_log_map"])
-        if "utility_absolute_log_map" in data and isinstance(
-            data["utility_absolute_log_map"], dict
+        deprecated_fields = {
+            "utility_absolute_reference",
+            "utility_absolute_log_map",
+            "utility_mix_weight",
+        }
+        accepted_fields = {item.name for item in fields(cls)}
+        normalized: Dict[str, Any] = {
+            key: value for key, value in data.items() if key in accepted_fields
+        }
+        normalized["deprecated_input_accepted"] = bool(
+            normalized.get("deprecated_input_accepted", False)
+            or any(field in payload for field in deprecated_fields)
+        )
+        if "utility_log_map" in normalized and isinstance(normalized["utility_log_map"], dict):
+            normalized["utility_log_map"] = LogMapConfig.from_dict(normalized["utility_log_map"])
+        if "utility_absolute_log_map" in normalized and isinstance(
+            normalized["utility_absolute_log_map"], dict
         ):
-            data["utility_absolute_log_map"] = LogMapConfig.from_dict(
-                data["utility_absolute_log_map"]
+            normalized["utility_absolute_log_map"] = LogMapConfig.from_dict(
+                normalized["utility_absolute_log_map"]
             )
-        if "resource_log_map" in data and isinstance(data["resource_log_map"], dict):
-            data["resource_log_map"] = LogMapConfig.from_dict(data["resource_log_map"])
-        if "past_up_character_names" in data and isinstance(
-            data["past_up_character_names"], list
+        if "resource_log_map" in normalized and isinstance(normalized["resource_log_map"], dict):
+            normalized["resource_log_map"] = LogMapConfig.from_dict(normalized["resource_log_map"])
+        if "past_up_character_names" in normalized and isinstance(
+            normalized["past_up_character_names"], list
         ):
-            data["past_up_character_names"] = tuple(
-                str(name) for name in data["past_up_character_names"]
+            normalized["past_up_character_names"] = tuple(
+                str(name) for name in normalized["past_up_character_names"]
             )
-        if "owned_character_potentials" in data and isinstance(
-            data["owned_character_potentials"], dict
+        if "owned_character_potentials" in normalized and isinstance(
+            normalized["owned_character_potentials"], dict
         ):
-            data["owned_character_potentials"] = {
+            normalized["owned_character_potentials"] = {
                 str(name): int(value)
-                for name, value in data["owned_character_potentials"].items()
+                for name, value in normalized["owned_character_potentials"].items()
             }
-        return cls(**data)
+        return cls(**normalized)
 
     @classmethod
     def from_json_file(cls, path: str) -> "ScoringPreferences":
@@ -194,12 +210,12 @@ class ScoringPreferences:
             f"scoring:{SCORING_VERSION}",
             f"preset:{self.preset_name}",
             f"o_ref:{self.opportunity_reference}",
-            f"u_ref:{self.utility_absolute_reference}",
-            f"u_mix:{self.utility_mix_weight}",
+            f"questionnaire_cr:{self.questionnaire_consistency_ratio}",
             f"baseline_samples:{self.baseline_samples}",
             f"baseline_seed:{self.baseline_seed}",
             f"questionnaire:{self.questionnaire_status}",
             f"future_value:{self.future_value_policy}",
+            f"future_value_discount:{self.future_value_discount}",
             f"past_up_count:{len(self.past_up_character_names)}",
             f"owned_potential_count:{len(self.owned_character_potentials)}",
             "weapon:excluded",
@@ -207,6 +223,23 @@ class ScoringPreferences:
             "baseline_interp:near-state-cubic-spline",
             "extensions:enabled",
         ]
+
+    @property
+    def formula_tags(self) -> List[str]:
+        return [
+            "utility_formula:relative-logmap-only",
+            "risk_quality_u:relative-logmap-only",
+            "resource_formula:opportunity-logmap",
+        ]
+
+    @property
+    def deprecation_tags(self) -> List[str]:
+        tags: List[str] = []
+        if self.deprecated_input_accepted:
+            tags.append("deprecated:utility_absolute_reference_ignored")
+            tags.append("deprecated:utility_absolute_log_map_ignored")
+            tags.append("deprecated:utility_mix_weight_ignored")
+        return tags
 
 
 @dataclass
@@ -245,12 +278,17 @@ class StrategyScoreReport:
     baseline_seed: int
     scoring_version: str
     parameter_tags: List[str]
+    formula_tags: List[str]
+    deprecation_tags: List[str]
     cache_tags: List[str]
     rank: Optional[int] = None
     percentile: Optional[float] = None
     score_delta_from_best: Optional[float] = None
     goal_delta_from_best: Optional[float] = None
     opportunity_delta_from_best: Optional[float] = None
+    score_delta_from_baseline: Optional[float] = None
+    goal_delta_from_baseline: Optional[float] = None
+    opportunity_delta_from_baseline: Optional[float] = None
     traces: Optional[List[StrategyTrace]] = None
 
 

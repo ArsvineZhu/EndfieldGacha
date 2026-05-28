@@ -233,6 +233,8 @@ test_*
 # User data db
 userdata.db
 data/*.db
+data/*.db-shm
+data/*.db-wal
 
 # Backup files
 *.bak
