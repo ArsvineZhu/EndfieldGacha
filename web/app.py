@@ -5,12 +5,16 @@ Flask 应用工厂模块
 提供 Flask 应用创建和配置功能
 """
 
+import logging
 import os
 import re
+import time
 from mimetypes import guess_type
 from pathlib import Path
 
-from flask import Flask, abort, request, send_file
+from flask import Flask, abort, g, request, send_file
+
+logger = logging.getLogger(__name__)
 
 # 获取项目根目录（server 包的上级目录）
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -111,6 +115,27 @@ def create_app(dev_mode=False):
 
         return None
 
+    @app.before_request
+    def _log_request_start():
+        g.request_start = time.time()
+
+    @app.after_request
+    def _log_request(response):
+        duration = time.time() - g.pop("request_start", time.time())
+        ms = round(duration * 1000)
+        method = request.method
+        path = request.path
+        status = response.status_code
+
+        if path.startswith("/static/"):
+            logger.debug("%s %s → %d (%dms)", method, path, status, ms)
+        elif path.startswith("/api/"):
+            logger.info("%s %s → %d (%dms)", method, path, status, ms)
+        else:
+            logger.debug("%s %s → %d (%dms)", method, path, status, ms)
+
+        return response
+
     # 注册路由
     from .routes import create_routes
 
@@ -124,8 +149,8 @@ def compress_static_files():
     try:
         from build.compress import main as compress_main
 
-        print("正在压缩静态文件...")
+        logger.info("正在压缩静态文件...")
         compress_main()
-        print("静态文件压缩完成，启动服务")
+        logger.info("静态文件压缩完成，启动服务")
     except Exception as e:
-        print(f"压缩静态文件时出错：{e}")
+        logger.error("压缩静态文件时出错：%s", e)

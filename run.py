@@ -1,7 +1,23 @@
 # -*- coding: utf-8 -*-
 """统一入口：快速运行演示、策略评估、概率验证或启动 Web 服务。"""
+import logging
 import os
 import sys
+
+logger = logging.getLogger(__name__)
+
+
+def _setup_logging(dev_mode: bool = False) -> None:
+    """Configure root logger with console handler."""
+    level = logging.DEBUG if dev_mode else logging.INFO
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(logging.Formatter(
+        "[%(asctime)s] %(levelname)-7s %(name)s | %(message)s",
+        datefmt="%H:%M:%S",
+    ))
+    root = logging.getLogger()
+    root.setLevel(level)
+    root.addHandler(handler)
 
 
 def _show_help():
@@ -22,6 +38,8 @@ def _run_server():
     dev_mode = "--dev" in sys.argv
     use_waitress = "--waitress" in sys.argv
 
+    _setup_logging(dev_mode=dev_mode)
+
     port = 5000
     for i, arg in enumerate(sys.argv):
         if arg == "--port" and i + 1 < len(sys.argv):
@@ -37,10 +55,23 @@ def _run_server():
 
     app = create_app(dev_mode=dev_mode)
 
+    # 接管 Flask 日志到我们的 root handler，避免重复格式
+    if not dev_mode:
+        app.logger.handlers.clear()
+        app.logger.handlers.extend(logging.getLogger().handlers)
+        app.logger.propagate = False
+
+    if not dev_mode:
+        secret_set = bool(os.environ.get("ENDFIELD_SECRET_KEY"))
+        if secret_set:
+            logger.info("ENDFIELD_SECRET_KEY 已设置")
+        else:
+            logger.warning("ENDFIELD_SECRET_KEY 未设置")
+
     if use_waitress:
         from waitress import serve
 
-        print(f"使用 Waitress 生产服务器启动，端口：{port}")
+        logger.info("使用 Waitress 生产服务器启动，端口：%d", port)
         app.debug = False
         serve(
             app,
@@ -56,7 +87,7 @@ def _run_server():
         )
     else:
         if dev_mode:
-            print(f"开发模式启动，端口：{port}，静态资源不压缩，便于调试")
+            logger.info("开发模式启动，端口：%d，静态资源不压缩，便于调试", port)
         app.run(debug=True, host="0.0.0.0", port=port)
 
 

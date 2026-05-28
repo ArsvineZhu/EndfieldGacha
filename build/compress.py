@@ -1,6 +1,7 @@
 import gzip
 import hashlib
 import json
+import logging
 import os
 import re
 import shutil
@@ -9,6 +10,8 @@ from pathlib import Path
 from typing import Any, Callable
 
 import brotli
+
+logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SOURCE_STATIC_DIR = PROJECT_ROOT / "web" / "static"
@@ -311,7 +314,7 @@ def _try_reuse_manifest_entry(
     manifest[manifest_key] = existing_entry
     write_precompressed_variants(existing_output_path)
     write_precompressed_variants(existing_map_path)
-    print(f"{asset_label}文件未修改，跳过: {file_path}")
+    logger.info("%s文件未修改，跳过: %s", asset_label, file_path)
     return True
 
 
@@ -361,7 +364,7 @@ def _process_asset_file(
     write_precompressed_variants(output_map_path)
 
     manifest[manifest_key] = {"hash": current_hash, "path": f"{asset_type}/{hashed_name}"}
-    print(f"{asset_label}压缩完成: {file_path} -> {output_path}")
+    logger.info("%s压缩完成: %s", asset_label, output_path)
 
 
 def process_js_file(
@@ -451,7 +454,7 @@ def main() -> None:
     MANIFEST_FILE.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
     write_precompressed_variants(MANIFEST_FILE)
 
-    print(f"Manifest文件已生成: {MANIFEST_FILE}")
+    logger.info("Manifest文件已生成: %s", MANIFEST_FILE)
 
 
 if __name__ == "__main__":
