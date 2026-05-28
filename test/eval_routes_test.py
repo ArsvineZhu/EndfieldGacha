@@ -294,6 +294,211 @@ def test_eval_compare_returns_ranked_results_and_baseline_deltas():
         assert "score_delta_from_baseline" in item
 
 
+def test_eval_jobs_reject_workers_exceeding_max():
+    """workers 超过服务端上限时返回 400。"""
+    from web.app import create_app
+    from web.evaluator import MAX_EVAL_WORKERS
+
+    app = create_app(dev_mode=True)
+    client = app.test_client()
+    payload = _build_eval_payload()
+    payload["workers"] = MAX_EVAL_WORKERS + 1
+
+    response = client.post(
+        "/api/eval/jobs",
+        data=json.dumps(payload),
+        content_type="application/json",
+    )
+    assert response.status_code == 400
+    body = response.get_json()
+    assert body is not None
+    assert "workers" in body["error"]
+
+
+def test_eval_jobs_reject_negative_resources():
+    """resource 字段出现负数时返回 400。"""
+    from web.app import create_app
+
+    app = create_app(dev_mode=True)
+    client = app.test_client()
+    payload = _build_eval_payload()
+    payload["resource"]["chartered_permits"] = -1
+
+    response = client.post(
+        "/api/eval/jobs",
+        data=json.dumps(payload),
+        content_type="application/json",
+    )
+    assert response.status_code == 400
+    body = response.get_json()
+    assert body is not None
+    assert "不能为负数" in body["error"]
+
+
+def test_eval_jobs_reject_negative_counters():
+    """counters 字段出现负数时返回 400。"""
+    from web.app import create_app
+
+    app = create_app(dev_mode=True)
+    client = app.test_client()
+    payload = _build_eval_payload()
+    payload["initial_counters"]["total"] = -5
+
+    response = client.post(
+        "/api/eval/jobs",
+        data=json.dumps(payload),
+        content_type="application/json",
+    )
+    assert response.status_code == 400
+    body = response.get_json()
+    assert body is not None
+    assert "不能为负数" in body["error"]
+
+
+def test_eval_jobs_reject_invalid_bool_fields():
+    """布尔字段传入非布尔值时返回 400。"""
+    from web.app import create_app
+
+    app = create_app(dev_mode=True)
+    client = app.test_client()
+    payload = _build_eval_payload()
+    payload["initial_counters"]["guarantee_used"] = "true"  # string, not bool
+
+    response = client.post(
+        "/api/eval/jobs",
+        data=json.dumps(payload),
+        content_type="application/json",
+    )
+    assert response.status_code == 400
+    body = response.get_json()
+    assert body is not None
+    assert "布尔字段" in body["error"]
+
+
+def test_eval_compare_rejects_excessive_strategies():
+    """对比接口 strategies 超过上限时返回 400。"""
+    from web.app import create_app
+    from web.evaluator import MAX_COMPARE_STRATEGIES
+
+    app = create_app(dev_mode=True)
+    client = app.test_client()
+    strategy_payload = _build_eval_payload()
+    compare_payload = {
+        "resource": strategy_payload["resource"],
+        "initial_counters": strategy_payload["initial_counters"],
+        "preferences": strategy_payload["preferences"],
+        "goals": strategy_payload["goals"],
+        "scale": 3,
+        "strategies": [
+            {"id": f"strategy_{i}", "label": f"strategy_{i}", "banner_plans": strategy_payload["banner_plans"]}
+            for i in range(MAX_COMPARE_STRATEGIES + 1)
+        ],
+    }
+
+    response = client.post(
+        "/api/eval/compare",
+        data=json.dumps(compare_payload),
+        content_type="application/json",
+    )
+    assert response.status_code == 400
+    body = response.get_json()
+    assert body is not None
+    assert "对比策略数量" in body["error"]
+
+
+def test_eval_compare_ignores_custom_workers():
+    """对比接口不接受自定义 workers，默认 workers 下仍然能正常工作。"""
+    from web.app import create_app
+
+    app = create_app(dev_mode=True)
+    client = app.test_client()
+    strategy_payload = _build_eval_payload()
+    compare_payload = {
+        "resource": strategy_payload["resource"],
+        "initial_counters": strategy_payload["initial_counters"],
+        "preferences": strategy_payload["preferences"],
+        "goals": strategy_payload["goals"],
+        "scale": 3,
+        "workers": 9999,  # should be ignored
+        "strategies": [
+            {
+                "id": "candidate_a",
+                "label": "candidate_a",
+                "banner_plans": strategy_payload["banner_plans"],
+            }
+        ],
+    }
+
+    response = client.post(
+        "/api/eval/compare",
+        data=json.dumps(compare_payload),
+        content_type="application/json",
+    )
+    # Should still succeed (workers is ignored in compare)
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body is not None
+    assert len(body["strategies"]) >= 1
+
+
+def test_eval_jobs_reject_excessive_scale():
+    """scale 超过上限时返回 400。"""
+    from web.app import create_app
+    from web.evaluator import MAX_EVAL_SCALE
+
+    app = create_app(dev_mode=True)
+    client = app.test_client()
+    payload = _build_eval_payload()
+    payload["scale"] = MAX_EVAL_SCALE + 1
+
+    response = client.post(
+        "/api/eval/jobs",
+        data=json.dumps(payload),
+        content_type="application/json",
+    )
+    assert response.status_code == 400
+    body = response.get_json()
+    assert body is not None
+    assert "scale" in body["error"]
+
+
+def test_evaluation_job_manager_rejects_when_queue_full():
+    """任务队列满时 submit 应抛出异常。"""
+    import threading
+    import time
+
+    from web.eval_jobs import EvaluationJobManager
+
+    hold_event = threading.Event()
+
+    def slow_task(payload):
+        hold_event.wait(timeout=10)
+        return {"value": payload["value"]}
+
+    # 2 workers, max_queue_size=3 → capacity = 2 (running) + 3 (pending) = 5
+    manager = EvaluationJobManager(worker_count=2, evaluator=slow_task, max_queue_size=3)
+    try:
+        for i in range(2):
+            manager.submit({"value": i})
+            time.sleep(0.05)  # let workers pick up
+
+        for i in range(3):
+            manager.submit({"value": i + 2})
+
+        # 6th submit should be rejected (pending queue full)
+        queue_full = False
+        try:
+            manager.submit({"value": 99})
+        except ValueError as exc:
+            queue_full = True
+            assert "队列已满" in str(exc)
+        assert queue_full, "队列满时应抛出 ValueError"
+    finally:
+        hold_event.set()
+        time.sleep(0.2)
+        manager.shutdown(wait=True)
+
+
 def test_evaluation_job_manager_limits_parallel_jobs_and_queues_extra_work():
     from web.eval_jobs import EvaluationJobManager
 

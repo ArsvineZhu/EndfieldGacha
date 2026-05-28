@@ -12,9 +12,17 @@ from uuid import uuid4
 
 
 class EvaluationJobManager:
-    def __init__(self, worker_count: int, evaluator: Callable[[Dict[str, Any]], Dict[str, Any]]):
+    def __init__(
+        self,
+        worker_count: int,
+        evaluator: Callable[[Dict[str, Any]], Dict[str, Any]],
+        max_queue_size: int = 20,
+        max_history: int = 100,
+    ):
         self.worker_count = max(1, int(worker_count))
         self.evaluator = evaluator
+        self.max_queue_size = max(1, max_queue_size)
+        self.max_history = max(1, max_history)
         self._jobs: Dict[str, Dict[str, Any]] = {}
         self._pending: Deque[str] = deque()
         self._lock = RLock()
@@ -30,6 +38,8 @@ class EvaluationJobManager:
         job_id = uuid4().hex
         now = datetime.now(timezone.utc).isoformat()
         with self._lock:
+            if len(self._pending) >= self.max_queue_size:
+                raise ValueError("任务队列已满，请稍后再试")
             self._jobs[job_id] = {
                 "job_id": job_id,
                 "status": "queued",
@@ -42,6 +52,7 @@ class EvaluationJobManager:
             }
             self._pending.append(job_id)
         self._queue.put(job_id)
+        self._prune_history()
         return job_id
 
     def get_job(self, job_id: str) -> Optional[Dict[str, Any]]:
@@ -63,6 +74,24 @@ class EvaluationJobManager:
         if wait:
             for worker in self._workers:
                 worker.join(timeout=2.0)
+
+    def _prune_history(self) -> None:
+        with self._lock:
+            if len(self._jobs) <= self.max_history:
+                return
+            done = sorted(
+                [
+                    (jid, job)
+                    for jid, job in self._jobs.items()
+                    if job["status"] in ("succeeded", "failed")
+                ],
+                key=lambda x: x[1].get("finished_at", ""),
+            )
+            excess = len(self._jobs) - self.max_history
+            for jid, _ in done[:excess]:
+                del self._jobs[jid]
+                if jid in self._pending:
+                    self._pending.remove(jid)
 
     def _queue_position(self, job_id: str) -> int:
         try:

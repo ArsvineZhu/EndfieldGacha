@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import asdict
+from multiprocessing import cpu_count
 from typing import Any, Dict, List
 
 from gacha_core import Counters, GlobalConfigLoader
@@ -16,6 +17,9 @@ from scheduler.strategy_protocol import StrategyProtocolAdapter
 VALID_CONFIG_PREFIX = "config_"
 DEFAULT_EVAL_SCALE = 2000
 MAX_EVAL_SCALE = 20000
+MAX_EVAL_WORKERS = max(1, cpu_count())
+MAX_COMPARE_STRATEGIES = 20
+MAX_COMPARE_SCALE = 20000
 QUESTIONNAIRE_CR_THRESHOLD = 0.1
 COMPARE_BASELINE_STRATEGY_IDS = {
     "no_draw",
@@ -72,6 +76,8 @@ def validate_eval_payload(payload: Dict[str, Any] | None) -> Dict[str, Any]:
         workers = int(workers)
         if workers < 1:
             raise ValueError("workers 必须大于 0")
+        if workers > MAX_EVAL_WORKERS:
+            raise ValueError(f"workers 不能超过 {MAX_EVAL_WORKERS}")
 
     return {
         "resource": _resource_dict(payload.get("resource")),
@@ -93,18 +99,17 @@ def validate_compare_payload(payload: Dict[str, Any] | None) -> Dict[str, Any]:
     goals = _parse_goals(payload.get("goals"))
 
     scale = int(payload.get("scale", DEFAULT_EVAL_SCALE))
-    if scale < 1 or scale > MAX_EVAL_SCALE:
-        raise ValueError(f"scale 必须位于 1 到 {MAX_EVAL_SCALE} 之间")
+    if scale < 1 or scale > MAX_COMPARE_SCALE:
+        raise ValueError(f"compare scale 必须位于 1 到 {MAX_COMPARE_SCALE} 之间")
 
-    workers = payload.get("workers")
-    if workers is not None:
-        workers = int(workers)
-        if workers < 1:
-            raise ValueError("workers 必须大于 0")
+    # compare 不接受自定义 workers，始终使用服务端默认值
+    # 避免绕过服务端并发控制
 
     strategies_payload = payload.get("strategies")
     if not isinstance(strategies_payload, list) or not strategies_payload:
         raise ValueError("strategies 必须是非空数组")
+    if len(strategies_payload) > MAX_COMPARE_STRATEGIES:
+        raise ValueError(f"对比策略数量不能超过 {MAX_COMPARE_STRATEGIES}")
 
     strategies: List[Dict[str, Any]] = []
     for index, strategy_item in enumerate(strategies_payload, start=1):
@@ -136,7 +141,6 @@ def validate_compare_payload(payload: Dict[str, Any] | None) -> Dict[str, Any]:
         "preferences": asdict(preferences),
         "goals": [asdict(goal) for goal in goals],
         "scale": scale,
-        "workers": workers,
         "strategies": strategies,
         "baseline_strategy_id": baseline_strategy_id,
     }
@@ -198,7 +202,7 @@ def evaluate_compare_payload(
             }
         )
 
-    workers = payload["workers"] if payload["workers"] is not None else default_workers
+    workers = default_workers
     for item in strategy_items:
         report = _evaluate_single_strategy(
             resource=payload["resource"],
@@ -293,9 +297,9 @@ def _validate_banner_plans(banner_plans: Any) -> List[Dict[str, Any]]:
                 "config_name": config_name,
                 "strategy": strategy_payload,
                 "resource_increment": _resource_dict(plan.get("resource_increment")),
-                "check_in": bool(plan.get("check_in", True)),
-                "use_origeometry": bool(plan.get("use_origeometry", False)),
-                "is_core": bool(plan.get("is_core", True)),
+                "check_in": _strict_bool(plan.get("check_in", True)),
+                "use_origeometry": _strict_bool(plan.get("use_origeometry", False)),
+                "is_core": _strict_bool(plan.get("is_core", True)),
             }
         )
     return normalized_plans
@@ -395,21 +399,35 @@ def _single_condition_rule(kind: str, operator: str, value: int) -> Dict[str, An
 
 def _resource_dict(payload: Dict[str, Any] | None) -> Dict[str, int]:
     payload = payload or {}
-    return {
+    values = {
         "chartered_permits": int(payload.get("chartered_permits", 0)),
         "oroberyl": int(payload.get("oroberyl", 0)),
         "arsenal_tickets": int(payload.get("arsenal_tickets", 0)),
         "origeometry": int(payload.get("origeometry", 0)),
     }
+    for key, value in values.items():
+        if value < 0:
+            raise ValueError(f"{key} 不能为负数")
+    return values
 
 
 def _counters_dict(payload: Dict[str, Any] | None) -> Dict[str, Any]:
     payload = payload or {}
-    return {
+    result: Dict[str, Any] = {
         "total": int(payload.get("total", 0)),
         "no_6star": int(payload.get("no_6star", 0)),
         "no_5star_plus": int(payload.get("no_5star_plus", 0)),
         "no_up": int(payload.get("no_up", 0)),
-        "guarantee_used": bool(payload.get("guarantee_used", False)),
-        "urgent_used": bool(payload.get("urgent_used", False)),
     }
+    for key, value in result.items():
+        if value < 0:
+            raise ValueError(f"{key} 不能为负数")
+    result["guarantee_used"] = _strict_bool(payload.get("guarantee_used", False))
+    result["urgent_used"] = _strict_bool(payload.get("urgent_used", False))
+    return result
+
+
+def _strict_bool(value: Any) -> bool:
+    if not isinstance(value, bool):
+        raise ValueError(f"布尔字段接收到非布尔值: {type(value).__name__}")
+    return value

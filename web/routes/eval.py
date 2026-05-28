@@ -49,7 +49,10 @@ def register_routes(app):
             return jsonify({"error": str(exc)}), 400
 
         job_manager = get_job_manager()
-        job_id = job_manager.submit(normalized)
+        try:
+            job_id = job_manager.submit(normalized)
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 429
         snapshot = job_manager.get_job(job_id)
         return jsonify(snapshot), 202
 
