@@ -55,6 +55,7 @@ const state = {
     bannerPlans: [],
     goals: [createDefaultGoal()],
     job: null,
+    resultDetailsExpanded: false,
     error: "",
     lastProgress: { from: 0, to: 0 },
 };
@@ -338,6 +339,12 @@ function handleClick(event) {
         return;
     }
 
+    if (action === "toggle-result-details") {
+        state.resultDetailsExpanded = !state.resultDetailsExpanded;
+        render();
+        return;
+    }
+
     if (action === "submit-eval") {
         submitEvaluation();
     }
@@ -562,6 +569,7 @@ async function submitEvaluation() {
             throw new Error(data.error || "提交评估任务失败");
         }
         state.job = data;
+        state.resultDetailsExpanded = false;
         state.currentView = "result";
         startPolling(data.job_id);
         render();

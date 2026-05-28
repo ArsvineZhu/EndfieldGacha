@@ -25,49 +25,20 @@
     const outputScore = String(Math.floor(Math.random() * 40) + 60).padStart(2, "0");
 
     function renderApp(state) {
+        const mainClass = state.currentView === "result" ? "eval-main eval-main-result" : "eval-main";
         return `
-        <div class="eval-shell">
+        <div class="eval-shell ${state.currentView === "result" ? "eval-shell-result" : ""}">
             <div class="eval-orbit eval-orbit-a"></div>
             <div class="eval-orbit eval-orbit-b"></div>
             <div class="eval-halo eval-halo-a"></div>
             <div class="eval-halo eval-halo-b"></div>
             <div class="eval-grain"></div>
-            <header class="eval-topbar">
-                <div class="eval-topbar-inner">
-                    <div class="eval-title-block">
-                        <span class="eval-kicker">终末地策略评估</span>
-                        <h1>跨卡池方案评估器</h1>
-                    </div>
-                    <a class="eval-link" href="/gacha">前往 /gacha</a>
-                </div>
-            </header>
-            <main class="eval-main">
-                <div class="eval-stage-shell">
-                    <div class="eval-stage-rail">${renderStageRail(state)}</div>
-                    ${renderCurrentView(state)}
-                    ${state.error ? `<div class="eval-error">${escapeHtml(state.error)}</div>` : ""}
-                </div>
+            <main class="${mainClass}">
+                ${renderCurrentView(state)}
+                ${state.error ? `<div class="eval-error">${escapeHtml(state.error)}</div>` : ""}
             </main>
         </div>
     `;
-    }
-
-    function renderStageRail(state) {
-        const steps = [
-            "intro",
-            "questionnaire",
-            "questionnaire_result",
-            "setup",
-            "banners",
-            "goals",
-            "submit",
-        ];
-        if (state.job) {
-            steps.push("result");
-        }
-        return steps
-            .map((step) => `<span class="eval-rail-chip ${step === state.currentView ? "is-active" : ""}">${escapeHtml(STEP_LABELS[step])}</span>`)
-            .join("");
     }
 
     function renderCurrentView(state) {
@@ -512,41 +483,22 @@
     function renderResult(state) {
         if (!state.job) {
             return `
-            <section class="eval-stage">
-                ${renderSectionHead("评估结果", "任务提交后，这里会显示排队状态、评估进度和最终得分。", [
-                button("返回提交", "go-submit"),
-            ])}
+            <section class="eval-stage eval-stage-result">
+                <div class="eval-result-pending-shell">
+                    <div class="eval-result-toolbar">
+                        <button class="eval-btn" data-action="go-submit">返回提交</button>
+                    </div>
+                    ${renderResultPending(state)}
+                </div>
             </section>
         `;
         }
         const result = state.job.result;
         return `
-        <section class="eval-stage">
-            ${renderSectionHead("评估结果", "这是一整套跨卡池方案在当前偏好下的评分结果。", [
-            button("返回提交", "go-submit"),
-        ], `<span class="eval-status-badge ${state.job.status}">${STATUS_LABELS[state.job.status] || state.job.status}</span>`)}
-            <div class="eval-panel eval-result-meta">
-                <p class="eval-note">任务 ID：${escapeHtml(state.job.job_id)}${state.job.status === "queued" ? ` · 排队位置：${state.job.queue_position}` : ""}</p>
-                ${state.job.error ? `<div class="eval-error">${escapeHtml(state.job.error)}</div>` : ""}
-            </div>
+        <section class="eval-stage eval-stage-result">
             ${result ? `
-                ${renderResultHero(result)}
-                <div class="eval-result-detail-block">
-                    <div class="eval-result-highlight-metrics eval-result-highlight-metrics-secondary">
-                        ${renderResultAccent("目标完成率", result.goal_completion_rate)}
-                        ${renderResultAccent("收益倍率", result.utility_ratio)}
-                        ${renderResultAccent("资源倍率", result.opportunity_ratio)}
-                        ${renderResultAccent("模拟次数", result.simulations)}
-                    </div>
-                    <div class="eval-result-grid">
-                        ${renderResultMetric("平均实际收益", result.mean_utility)}
-                        ${renderResultMetric("平均基准收益", result.mean_baseline)}
-                        ${renderResultMetric("平均资源机会", result.mean_opportunity)}
-                        ${renderResultMetric("低尾风险均值", result.tail_risk_mean)}
-                        ${renderResultMetric("评分版本", result.scoring_version)}
-                    </div>
-                </div>
-            ` : `<div class="eval-panel"><p class="eval-copy">任务已提交，正在等待结果。</p></div>`}
+                ${renderResultScreen(state, result)}
+            ` : renderResultPending(state)}
         </section>
     `;
     }
@@ -590,7 +542,7 @@
 
     function renderResultMetric(label, value) {
         return `
-        <div class="eval-panel eval-result-metric">
+        <div class="eval-panel eval-result-detail-card">
             <div class="label">${escapeHtml(label)}</div>
             <div class="value">${escapeHtml(String(formatMaybe(value)))}</div>
         </div>
@@ -606,41 +558,178 @@
     `;
     }
 
-    function renderResultHero(result) {
-        const completionScore = Number(result.goal_completion_rate) * 100;
+    function renderResultScreen(state, result) {
+        const detailLabel = state.resultDetailsExpanded ? ">> 收起详情" : ">> 查看详情";
         return `
-        <div class="eval-panel eval-result-hero">
-            <div class="eval-result-radial">
-                <div class="eval-result-radial-core" aria-hidden="true"></div>
-                <div class="eval-result-radial-ring" aria-hidden="true"></div>
-                ${renderRadialArm("目标达成", result.goal_score, -90)}
-                ${renderRadialArm("期望收益", result.utility_score, -18)}
-                ${renderRadialArm("资源机会", result.resource_score, 54)}
-                ${renderRadialArm("风险稳定", result.risk_score, 126)}
-                ${renderRadialArm("目标完成率", completionScore, 198)}
+        <div class="eval-result-screen">
+            <div class="eval-result-screen-noise" aria-hidden="true"></div>
+            <div class="eval-result-screen-scanline" aria-hidden="true"></div>
+            <div class="eval-result-screen-side eval-result-screen-side-left" aria-hidden="true"></div>
+            <div class="eval-result-screen-side eval-result-screen-side-right" aria-hidden="true"></div>
+            <div class="eval-result-screen-slab" aria-hidden="true"></div>
+            <div class="eval-result-screen-band" aria-hidden="true"></div>
+            <div class="eval-result-backdrop-title" aria-hidden="true">RESULTS</div>
+            <div class="eval-result-screen-head">
+                <div>
+                    <div class="eval-result-screen-kicker">跨卡池方案评估器</div>
+                    <div class="eval-result-screen-caption">当前偏好评分结果 / 战术结算终端</div>
+                </div>
+                <div class="eval-result-head-actions">
+                    <div class="eval-result-taskline">
+                        <span>任务 ID</span>
+                        <strong title="${escapeHtml(state.job.job_id)}">${escapeHtml(shortenJobId(state.job.job_id))}</strong>
+                        ${state.job.status === "queued" ? `<em>排队位置 ${escapeHtml(String(state.job.queue_position || 0))}</em>` : ""}
+                    </div>
+                    <div class="eval-result-toolbar">
+                        <span class="eval-status-badge ${state.job.status}">${STATUS_LABELS[state.job.status] || state.job.status}</span>
+                        <button class="eval-btn" data-action="go-submit">返回提交</button>
+                    </div>
+                </div>
             </div>
-            <div class="eval-result-main-score">
-                <div class="eval-result-main-grade">${escapeHtml(`[${result.grade}]`)}</div>
-                <div class="eval-result-main-value">${escapeHtml(String(formatFixed(result.raw_score, 1)))}</div>
+            <div class="eval-result-layout">
+                <section class="eval-result-radar-zone">
+                    ${renderResultRadar(result)}
+                </section>
+                <section class="eval-result-score-zone">
+                    <div class="eval-result-rank-brackets" aria-hidden="true">
+                        <span></span><span></span><span></span><span></span>
+                    </div>
+                    <div class="eval-result-rank">${escapeHtml(`[${result.grade}]`)}</div>
+                    <div class="eval-result-score-beam" aria-hidden="true"></div>
+                    <div class="eval-result-score-value">${escapeHtml(String(formatFixed(result.raw_score, 1)))}</div>
+                </section>
+            </div>
+            <footer class="eval-result-meta-zone">
+                <div class="eval-result-meta-column">
+                    ${renderResultMetaItem("当前偏好评分结果", "已完成综合评分")}
+                    ${renderResultMetaItem("评估对象", "套装卡池方案")}
+                    ${renderResultMetaItem("目标完成率", formatFixed(result.goal_completion_rate, 3))}
+                </div>
+                <div class="eval-result-meta-column">
+                    ${renderResultMetaItem("综合等级", result.grade)}
+                    ${renderResultMetaItem("收益倍率", formatFixed(result.utility_ratio, 4))}
+                    ${renderResultMetaItem("任务 ID", shortenJobId(state.job.job_id))}
+                </div>
+                <button class="eval-next" data-action="toggle-result-details">${detailLabel}</button>
+            </footer>
+        </div>
+        ${state.job.error ? `<div class="eval-error">${escapeHtml(state.job.error)}</div>` : ""}
+        ${state.resultDetailsExpanded ? renderResultDetails(state, result) : ""}
+    `;
+    }
+
+    function renderResultDetails(state, result) {
+        return `
+        <div class="eval-result-detail-block">
+            <div class="eval-result-detail-summary">
+                ${renderResultAccent("目标完成率", result.goal_completion_rate)}
+                ${renderResultAccent("收益倍率", result.utility_ratio)}
+                ${renderResultAccent("资源倍率", result.opportunity_ratio)}
+                ${renderResultAccent("模拟次数", result.simulations)}
+            </div>
+            <div class="eval-result-detail-grid">
+                ${renderResultMetric("平均实际收益", result.mean_utility)}
+                ${renderResultMetric("平均基准收益", result.mean_baseline)}
+                ${renderResultMetric("平均资源机会", result.mean_opportunity)}
+                ${renderResultMetric("低尾风险均值", result.tail_risk_mean)}
+                ${renderResultMetric("评分版本", result.scoring_version)}
+                ${renderResultMetric("完整任务 ID", state.job.job_id)}
             </div>
         </div>
     `;
     }
 
-    function renderRadialArm(label, value, angle) {
-        const score = clampScore(value);
+    function renderResultPending(state) {
         return `
-        <div class="eval-result-radial-arm" style="--arm-angle:${angle}deg; --arm-score:${score};">
-            <span class="eval-result-radial-lanes" aria-hidden="true">
-                <i class="eval-result-radial-track-full"></i>
-                <i class="eval-result-radial-track-current" style="--arm-score:${score};"></i>
-            </span>
-            <span class="eval-result-radial-label">
-                <strong>${escapeHtml(label)}</strong>
-                <em>${escapeHtml(String(formatFixed(score, 1)))}</em>
-            </span>
+        <div class="eval-panel eval-result-pending">
+            <p class="eval-note">任务 ID：${escapeHtml(state.job.job_id)}${state.job.status === "queued" ? ` · 排队位置：${escapeHtml(String(state.job.queue_position || 0))}` : ""}</p>
+            ${state.job.error ? `<div class="eval-error">${escapeHtml(state.job.error)}</div>` : ""}
+            <p class="eval-copy">任务已提交，正在等待结果。</p>
         </div>
     `;
+    }
+
+    function renderResultMetaItem(label, value) {
+        return `
+        <div class="eval-result-meta-item">
+            <span class="eval-result-meta-label">${escapeHtml(label)}</span>
+            <strong class="eval-result-meta-value">${escapeHtml(String(value))}</strong>
+        </div>
+    `;
+    }
+
+    function renderResultRadar(result) {
+        const metrics = buildResultRadarMetrics(result);
+        const center = 160;
+        const radius = 104;
+        const levels = [0.3, 0.55, 0.8, 1];
+        const grid = levels.map((level) => polygonPoints(metrics, center, center, radius * level));
+        const outline = polygonPoints(metrics, center, center, radius);
+        const dataPoints = metrics.map((metric) => polarPoint(center, center, (radius * metric.score) / 100, metric.angle));
+        return `
+        <div class="eval-result-radar">
+            <svg class="eval-result-radar-svg" viewBox="0 0 320 320" aria-label="五维评估雷达图" role="img">
+                <polygon class="eval-result-radar-shell" points="${outline}"></polygon>
+                ${grid.map((points, index) => `<polygon class="eval-result-radar-grid level-${index + 1}" points="${points}"></polygon>`).join("")}
+                ${metrics.map((metric) => {
+            const end = polarPoint(center, center, radius, metric.angle);
+            return `<line class="eval-result-radar-axis" x1="${center}" y1="${center}" x2="${end.x}" y2="${end.y}"></line>`;
+        }).join("")}
+                <polygon class="eval-result-radar-shape" points="${dataPoints.map((point) => `${point.x},${point.y}`).join(" ")}"></polygon>
+                ${dataPoints.map((point) => `<circle class="eval-result-radar-node" cx="${point.x}" cy="${point.y}" r="4"></circle>`).join("")}
+                <circle class="eval-result-radar-core" cx="${center}" cy="${center}" r="8"></circle>
+            </svg>
+            ${metrics.map((metric) => {
+            const labelPoint = polarPoint(center, center, metric.labelDistance, metric.angle);
+            return `
+                <div class="eval-result-radar-label ${metric.anchor}" style="left:${toPercent(labelPoint.x, 320)}%; top:${toPercent(labelPoint.y, 320)}%;">
+                    <span>${escapeHtml(metric.label)}</span>
+                    <strong>${escapeHtml(String(formatFixed(metric.score, 1)))}</strong>
+                </div>
+            `;
+        }).join("")}
+        </div>
+    `;
+    }
+
+    function buildResultRadarMetrics(result) {
+        const completionScore = Number(result.goal_completion_rate) * 100;
+        return [
+            { label: "目标达成", score: clampScore(result.goal_score), angle: -90, anchor: "is-top", labelDistance: 132 },
+            { label: "期望收益", score: clampScore(result.utility_score), angle: -18, anchor: "is-right-top", labelDistance: 122 },
+            { label: "资源机会", score: clampScore(result.resource_score), angle: 54, anchor: "is-right-bottom", labelDistance: 126 },
+            { label: "风险稳定", score: clampScore(result.risk_score), angle: 126, anchor: "is-left-bottom", labelDistance: 126 },
+            { label: "完成率", score: clampScore(completionScore), angle: 198, anchor: "is-left-top", labelDistance: 118 },
+        ];
+    }
+
+    function polygonPoints(metrics, centerX, centerY, radius) {
+        return metrics
+            .map((metric) => {
+                const point = polarPoint(centerX, centerY, radius, metric.angle);
+                return `${point.x},${point.y}`;
+            })
+            .join(" ");
+    }
+
+    function polarPoint(centerX, centerY, radius, angle) {
+        const radians = (angle * Math.PI) / 180;
+        return {
+            x: formatFixed(centerX + Math.cos(radians) * radius, 2),
+            y: formatFixed(centerY + Math.sin(radians) * radius, 2),
+        };
+    }
+
+    function toPercent(value, total) {
+        return formatFixed((Number(value) / total) * 100, 2);
+    }
+
+    function shortenJobId(jobId) {
+        const raw = String(jobId || "");
+        if (raw.length <= 18) {
+            return raw;
+        }
+        return `${raw.slice(0, 8)}...${raw.slice(-7)}`;
     }
 
     function clampScore(value) {
