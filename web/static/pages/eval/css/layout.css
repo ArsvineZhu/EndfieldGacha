@@ -10,10 +10,10 @@
     --eval-panel: rgba(19, 18, 18, 0.76);
     --eval-panel-strong: rgba(28, 24, 22, 0.88);
     --eval-danger: #cf7551;
-    --eval-font-ui: "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
-    --eval-font-condensed: "Bahnschrift Condensed", "Arial Narrow", "Roboto Condensed", "Liberation Sans Narrow", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-    --eval-font-display: "Bahnschrift", "Impact", "Haettenschweiler", "Arial Narrow Bold", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-    --eval-font-serif: "STSong", "Songti SC", "Noto Serif CJK SC", "Source Han Serif SC", "SimSun", serif;
+    --eval-font-ui: "IBM Plex Sans", "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
+    --eval-font-condensed: "IBM Plex Sans Condensed", "Bahnschrift Condensed", "Arial Narrow", "Roboto Condensed", "Liberation Sans Narrow", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    --eval-font-display: "Bebas Neue", "Bahnschrift", "Impact", "Haettenschweiler", "Arial Narrow Bold", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    --eval-font-serif: "Noto Serif SC", "STSong", "Songti SC", "Noto Serif CJK SC", "Source Han Serif SC", "SimSun", serif;
 }
 
 * {
@@ -434,13 +434,15 @@ body {
 
 .eval-stage-result {
     height: 100vh;
-    overflow: hidden;
+    overflow: auto;
     padding: 0;
 }
 
 .eval-result-screen {
     position: relative;
     min-height: 100vh;
+    display: flex;
+    flex-direction: column;
     padding: 34px 42px 30px;
     background:
         radial-gradient(circle at 74% 50%, rgba(255, 64, 48, 0.12), transparent 16%),
@@ -509,26 +511,29 @@ body {
     background:
         linear-gradient(180deg, rgba(255, 82, 68, 0.25), rgba(106, 16, 20, 0.44));
     transform: skewX(-29deg);
+    animation: eval-result-slab-slide 1.05s cubic-bezier(0.18, 0.82, 0.22, 1) both;
 }
 
 .eval-result-screen-band {
-    left: 28%;
-    right: 5%;
-    top: 41%;
-    height: 10%;
-    background: linear-gradient(90deg, rgba(161, 26, 30, 0.12), rgba(161, 26, 30, 0.32), rgba(161, 26, 30, 0.04));
+    left: 0;
+    right: 0;
+    top: 42%;
+    height: 16%;
+    background: linear-gradient(90deg, rgba(161, 26, 30, 0.02), rgba(161, 26, 30, 0.09) 28%, rgba(161, 26, 30, 0.38) 74%, rgba(161, 26, 30, 0.04) 100%);
     filter: blur(2px);
 }
 
 .eval-result-backdrop-title {
     left: 44%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    font-family: var(--eval-font-display);
+    top: 51%;
+    transform: translate(-30%, -50%) scaleY(0.72);
+    font-family: var(--eval-font-condensed);
+    font-weight: 700;
     font-size: clamp(110px, 13vw, 220px);
-    letter-spacing: 0.03em;
+    letter-spacing: 0.08em;
     color: rgba(255, 255, 255, 0.06);
-    line-height: 0.9;
+    line-height: 0.78;
+    animation: eval-result-title-drift 0.95s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 .eval-result-screen-head,
@@ -548,8 +553,6 @@ body {
 
 .eval-result-screen-kicker,
 .eval-result-screen-caption,
-.eval-result-taskline span,
-.eval-result-taskline em,
 .eval-result-meta-label {
     font-family: var(--eval-font-condensed);
     text-transform: uppercase;
@@ -567,30 +570,10 @@ body {
     font-size: 12px;
 }
 
-.eval-result-taskline {
-    display: grid;
-    justify-items: end;
-    gap: 6px;
-    text-align: right;
-}
-
-.eval-result-taskline span,
-.eval-result-taskline em {
-    color: rgba(193, 171, 145, 0.68);
-    font-size: 11px;
-}
-
-.eval-result-taskline strong {
-    font-family: var(--eval-font-condensed);
-    color: #f5efe5;
-    font-size: 22px;
-    letter-spacing: 1.1px;
-}
-
 .eval-result-head-actions {
-    display: grid;
-    justify-items: end;
-    gap: 14px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
 }
 
 .eval-result-toolbar {
@@ -606,13 +589,25 @@ body {
     gap: 12px;
     align-items: center;
     min-height: 480px;
-    padding: 18px 8px 0;
+    margin-top: 40px;
+    padding: 0 8px;
 }
 
 .eval-result-radar-zone {
     min-height: 440px;
     display: flex;
     align-items: center;
+}
+
+.eval-banner-option-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.eval-banner-option-head h3 {
+    margin: 0;
 }
 
 .eval-result-radar {
@@ -675,9 +670,11 @@ body {
     top: var(--arm-offset);
     width: calc(var(--eval-radial-arm-length) * var(--arm-scale));
     height: var(--eval-radial-arm-thickness);
-    transform: translateY(-50%);
+    transform: translateY(-50%) scaleX(0);
     transform-origin: left center;
     box-shadow: 0 8px 18px rgba(0, 0, 0, 0.32);
+    animation: eval-result-radial-burst 0.72s cubic-bezier(0.17, 0.84, 0.24, 1) forwards;
+    animation-delay: var(--arm-burst-delay, 0s);
 }
 
 .eval-result-radial-arm.is-cap .eval-result-radial-arm-body {
@@ -689,12 +686,6 @@ body {
     box-shadow:
         0 0 0 1px rgba(255, 120, 104, 0.14),
         0 10px 20px rgba(134, 14, 8, 0.28);
-}
-
-.eval-result-radar-core {
-    fill: #090a0c;
-    stroke: rgba(255, 255, 255, 0.84);
-    stroke-width: 4;
 }
 
 .eval-result-radar-label {
@@ -800,7 +791,7 @@ body {
 .eval-result-rank {
     font-family: var(--eval-font-display);
     color: #f4efe6;
-    font-size: clamp(92px, 10vw, 138px);
+    font-size: clamp(80px, 10vw, 120px);
     line-height: 0.85;
     letter-spacing: 1px;
 }
@@ -810,19 +801,38 @@ body {
     left: 18%;
     right: 14%;
     top: 56%;
-    height: 16px;
+    height: 24px;
     background: linear-gradient(90deg, transparent, rgba(255, 53, 40, 0.88), transparent);
-    filter: blur(8px);
+    filter: blur(10px);
 }
 
 .eval-result-score-value {
     position: relative;
-    font-family: var(--eval-font-display);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 0.01em;
+    overflow: hidden;
+    font-family: var(--eval-font-condensed);
+    font-weight: 700;
     color: #fff;
-    font-size: clamp(146px, 15vw, 236px);
+    font-size: clamp(120px, 15vw, 180px);
     line-height: 0.82;
     letter-spacing: 1px;
     text-shadow: 0 0 28px rgba(243, 48, 36, 0.34);
+}
+
+.eval-result-score-char {
+    display: inline-block;
+    opacity: 0;
+    transform: translateY(-0.4em);
+    animation: eval-result-score-roll 0.9s cubic-bezier(0.16, 0.84, 0.22, 1) both;
+    animation-delay: calc(0.12s + var(--digit-delay, 0s));
+}
+
+.eval-result-score-char.is-mark {
+    min-width: 0.24em;
+    text-align: center;
 }
 
 .eval-result-meta-zone {
@@ -830,7 +840,8 @@ body {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
     gap: 24px;
     align-items: end;
-    margin-top: 6px;
+    margin-top: auto;
+    padding-top: 48px;
 }
 
 .eval-result-meta-column {
@@ -948,7 +959,7 @@ body {
 }
 
 .eval-result-detail-card .value {
-    font-size: 34px;
+    font-size: 28px;
     word-break: break-all;
 }
 
@@ -971,6 +982,66 @@ body {
 
     to {
         background-position: 0 16px;
+    }
+}
+
+@keyframes eval-result-slab-slide {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) skewX(-29deg);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(15%) skewX(-29deg);
+    }
+}
+
+@keyframes eval-result-title-drift {
+    from {
+        opacity: 0;
+        transform: translate(40%, -50%) scaleY(0.72);
+    }
+
+    to {
+        opacity: 1;
+        transform: translate(-30%, -50%) scaleY(0.72);
+    }
+}
+
+@keyframes eval-result-radial-burst {
+    from {
+        opacity: 0;
+        transform: translateY(-50%) scaleX(0);
+    }
+
+    55% {
+        opacity: 1;
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(-50%) scaleX(1);
+    }
+}
+
+@keyframes eval-result-score-roll {
+    from {
+        opacity: 0;
+        filter: blur(8px);
+        transform: translateY(-0.46em);
+    }
+
+    68% {
+        opacity: 1;
+        filter: blur(0);
+        transform: translateY(0.10em);
+    }
+
+    to {
+        opacity: 1;
+        filter: blur(0);
+        transform: translateY(0.05em);
     }
 }
 
@@ -1100,11 +1171,6 @@ body {
 
     .eval-result-screen-head {
         gap: 14px;
-    }
-
-    .eval-result-taskline {
-        justify-items: start;
-        text-align: left;
     }
 
     .eval-result-layout {

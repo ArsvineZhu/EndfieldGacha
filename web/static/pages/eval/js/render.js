@@ -283,15 +283,17 @@
             const selected = state.bannerPlans.some((plan) => plan.config_name === config.id);
             return `
                             <article class="eval-panel eval-banner-option">
-                                <h3>${escapeHtml(config.pool_name)}</h3>
-                                <p class="eval-note">${escapeHtml(config.id)} · ${escapeHtml(config.open_time || "未填写开放时间")}</p>
+                                <div class="eval-banner-option-head">
+                                    <h3>${escapeHtml(config.pool_name)}</h3>
+                                    <div class="eval-actions eval-actions-compact">
+                                        <button class="eval-icon-btn eval-banner-add-btn ${selected ? "" : "primary"}" data-action="add-banner" data-config-id="${config.id}" title="${escapeHtml(selected ? "该卡池已在当前规划中" : "将该卡池加入当前规划")}" aria-label="${escapeHtml(selected ? "已加入规划" : "加入规划")}" ${selected ? "disabled" : ""}>
+                                            +
+                                        </button>
+                                    </div>
+                                </div>
+                                <p class="eval-note">${escapeHtml(config.open_time || "未填写开放时间")}</p>
                                 <p class="eval-copy eval-copy-compact">当期 UP：${escapeHtml((config.current_up || []).join(" / ") || "无")}</p>
                                 <p class="eval-copy eval-copy-compact">往期 UP：${escapeHtml((config.past_up || []).join(" / ") || "无")}</p>
-                                <div class="eval-actions">
-                                    <button class="eval-btn ${selected ? "" : "primary"}" data-action="add-banner" data-config-id="${config.id}" ${selected ? "disabled" : ""}>
-                                        ${selected ? "已加入" : "加入方案"}
-                                    </button>
-                                </div>
                             </article>
                         `;
         }).join("")}
@@ -315,12 +317,12 @@
                 <div>
                     <div class="eval-section-tag">阶段 ${index + 1}</div>
                     <h3>${escapeHtml(config ? config.pool_name : plan.config_name)}</h3>
-                    <p class="eval-note">${escapeHtml(plan.config_name)}</p>
+                    <p class="eval-note">${escapeHtml((config && config.open_time) || "已加入规划")}</p>
                 </div>
                 <div class="eval-inline-actions">
-                    <button class="eval-icon-btn" data-action="move-banner" data-index="${index}" data-delta="-1" ${index === 0 ? "disabled" : ""}>↑</button>
-                    <button class="eval-icon-btn" data-action="move-banner" data-index="${index}" data-delta="1" ${index === state.bannerPlans.length - 1 ? "disabled" : ""}>↓</button>
-                    <button class="eval-btn danger" data-action="remove-banner" data-index="${index}">移除</button>
+                    <button class="eval-icon-btn" data-action="move-banner" data-index="${index}" data-delta="-1" title="将该阶段上移" ${index === 0 ? "disabled" : ""}>↑</button>
+                    <button class="eval-icon-btn" data-action="move-banner" data-index="${index}" data-delta="1" title="将该阶段下移" ${index === state.bannerPlans.length - 1 ? "disabled" : ""}>↓</button>
+                    <button class="eval-btn danger" data-action="remove-banner" data-index="${index}" title="从当前规划中移除该阶段">移除</button>
                 </div>
             </div>
             <div class="eval-banner-grid">
@@ -348,8 +350,8 @@
                             <p class="eval-note">${escapeHtml(describeMatch(rule.match))}</p>
                         </div>
                         <div class="eval-inline-actions">
-                            <button class="eval-btn" data-action="add-root-condition" data-plan-index="${index}">添加条件</button>
-                            <button class="eval-btn" data-action="add-subgroup" data-plan-index="${index}">添加子组</button>
+                            <button class="eval-btn" data-action="add-root-condition" data-plan-index="${index}" title="在根组中添加一个停止条件">添加条件</button>
+                            <button class="eval-btn" data-action="add-subgroup" data-plan-index="${index}" title="在根组中添加一个逻辑子组">添加子组</button>
                         </div>
                     </div>
                     ${renderRuleGroup(index, rule, true)}
@@ -371,7 +373,7 @@
                         <option value="any" ${group.match === "any" ? "selected" : ""}>任一满足</option>
                     </select>
                 </label>
-                ${isRoot ? "" : `<button class="eval-btn danger" data-action="remove-root-child" data-plan-index="${planIndex}" data-node-index="${groupIndex}">移除子组</button>`}
+                ${isRoot ? "" : `<button class="eval-btn danger" data-action="remove-root-child" data-plan-index="${planIndex}" data-node-index="${groupIndex}" title="移除这个逻辑子组">移除子组</button>`}
             </div>
             <div class="eval-rule-children">
                 ${group.children.map((child, index) => (
@@ -382,7 +384,7 @@
             </div>
             ${isRoot ? "" : `
                 <div class="eval-actions">
-                    <button class="eval-btn" data-action="add-sub-condition" data-plan-index="${planIndex}" data-group-index="${groupIndex}">在子组里添加条件</button>
+                    <button class="eval-btn" data-action="add-sub-condition" data-plan-index="${planIndex}" data-group-index="${groupIndex}" title="在这个子组里追加一个条件">在子组里添加条件</button>
                 </div>
             `}
         </div>
@@ -403,7 +405,7 @@
                 `).join("")}
             </select>
             <select class="eval-select" ${attrs} data-condition-field="operator">
-                ${operators.map((operator) => `<option value="${operator}" ${condition.operator === operator ? "selected" : ""}>${operator}</option>`).join("")}
+                ${operators.map((operator) => `<option value="${operator}" ${condition.operator === operator ? "selected" : ""}>${escapeHtml(getOperatorLabel(operator))}</option>`).join("")}
             </select>
             ${fieldMeta.type === "boolean"
                 ? `
@@ -417,6 +419,7 @@
             <button class="eval-btn danger"
                 data-action="${parentKind === "root" ? "remove-root-child" : "remove-sub-condition"}"
                 data-plan-index="${planIndex}"
+                title="删除这个停止条件"
                 ${parentKind === "root" ? `data-node-index="${conditionIndex}"` : `data-group-index="${groupIndex}" data-node-index="${conditionIndex}"`}>
                 删除
             </button>
@@ -458,7 +461,7 @@
                 </select>`
                 : ""}
             <input class="eval-input" type="number" value="${goal.target}" data-goal-index="${index}" data-goal-field="target">
-            <button class="eval-btn danger" data-action="remove-goal" data-goal-index="${index}">删除</button>
+            <button class="eval-btn danger" data-action="remove-goal" data-goal-index="${index}" title="删除这个评分目标">删除</button>
         </div>
     `;
     }
@@ -473,7 +476,7 @@
             <div class="eval-panel eval-submit-panel">
                 <p class="eval-copy">服务端一次只评估一套整体方案，默认最多并行处理 2 个任务，其余会自动排队。</p>
                 <div class="eval-actions">
-                    <button class="eval-btn primary" data-action="submit-eval">提交评估任务</button>
+                    <button class="eval-btn primary" data-action="submit-eval" title="提交当前规划并开始评估">提交评估任务</button>
                 </div>
             </div>
         </section>
@@ -486,7 +489,7 @@
             <section class="eval-stage eval-stage-result">
                 <div class="eval-result-pending-shell">
                     <div class="eval-result-toolbar">
-                        <button class="eval-btn" data-action="go-submit">返回提交</button>
+                        <button class="eval-btn" data-action="go-submit" title="返回提交页面">返回提交</button>
                     </div>
                     ${renderResultPending(state)}
                 </div>
@@ -575,14 +578,9 @@
                     <div class="eval-result-screen-caption">评分结果 / 结算终端</div>
                 </div>
                 <div class="eval-result-head-actions">
-                    <div class="eval-result-taskline">
-                        <span>任务 ID</span>
-                        <strong title="${escapeHtml(state.job.job_id)}">${escapeHtml(shortenJobId(state.job.job_id))}</strong>
-                        ${state.job.status === "queued" ? `<em>排队位置 ${escapeHtml(String(state.job.queue_position || 0))}</em>` : ""}
-                    </div>
                     <div class="eval-result-toolbar">
                         <span class="eval-status-badge ${state.job.status}">${STATUS_LABELS[state.job.status] || state.job.status}</span>
-                        <button class="eval-btn" data-action="go-submit">返回提交</button>
+                        <button class="eval-btn" data-action="go-submit" title="返回提交页面">返回提交</button>
                     </div>
                 </div>
             </div>
@@ -594,9 +592,9 @@
                     <div class="eval-result-rank-brackets" aria-hidden="true">
                         <span></span><span></span><span></span><span></span>
                     </div>
-                    <div class="eval-result-rank">${escapeHtml(`[${result.grade}]`)}</div>
+                    <div class="eval-result-rank">${escapeHtml(String(result.grade || ""))}</div>
                     <div class="eval-result-score-beam" aria-hidden="true"></div>
-                    <div class="eval-result-score-value">${escapeHtml(String(formatFixed(result.raw_score, 1)))}</div>
+                    <div class="eval-result-score-value" aria-label="${escapeHtml(String(formatFixed(result.raw_score, 1)))}">${renderResultScoreValue(result.raw_score)}</div>
                 </section>
             </div>
             <footer class="eval-result-meta-zone">
@@ -608,9 +606,9 @@
                 <div class="eval-result-meta-column">
                     ${renderResultMetaItem("综合等级", result.grade)}
                     ${renderResultMetaItem("收益倍率", formatFixed(result.utility_ratio, 4))}
-                    ${renderResultMetaItem("任务 ID", shortenJobId(state.job.job_id))}
+                    ${renderResultMetaItem("任务 ID", shortenJobId(state.job.job_id), normalizeJobId(state.job.job_id))}
                 </div>
-                <button class="eval-next" data-action="toggle-result-details">${detailLabel}</button>
+                <button class="eval-next" data-action="toggle-result-details" title="${escapeHtml(detailLabel.replace(">> ", ""))}">${detailLabel}</button>
             </footer>
         </div>
         ${state.job.error ? `<div class="eval-error">${escapeHtml(state.job.error)}</div>` : ""}
@@ -633,7 +631,7 @@
                 ${renderResultMetric("平均资源机会", result.mean_opportunity)}
                 ${renderResultMetric("低尾风险均值", result.tail_risk_mean)}
                 ${renderResultMetric("评分版本", result.scoring_version)}
-                ${renderResultMetric("完整任务 ID", state.job.job_id)}
+                ${renderResultMetric("完整任务 ID", normalizeJobId(state.job.job_id))}
             </div>
         </div>
     `;
@@ -642,20 +640,29 @@
     function renderResultPending(state) {
         return `
         <div class="eval-panel eval-result-pending">
-            <p class="eval-note">任务 ID：${escapeHtml(state.job.job_id)}${state.job.status === "queued" ? ` · 排队位置：${escapeHtml(String(state.job.queue_position || 0))}` : ""}</p>
+            <p class="eval-note">任务 ID：${escapeHtml(normalizeJobId(state.job.job_id))}${state.job.status === "queued" ? ` · 排队位置：${escapeHtml(String(state.job.queue_position || 0))}` : ""}</p>
             ${state.job.error ? `<div class="eval-error">${escapeHtml(state.job.error)}</div>` : ""}
             <p class="eval-copy">任务已提交，正在等待结果。</p>
         </div>
     `;
     }
 
-    function renderResultMetaItem(label, value) {
+    function renderResultMetaItem(label, value, fullValue = null) {
         return `
         <div class="eval-result-meta-item">
             <span class="eval-result-meta-label">${escapeHtml(label)}</span>
-            <strong class="eval-result-meta-value">${escapeHtml(String(value))}</strong>
+            <strong class="eval-result-meta-value"${fullValue ? ` title="${escapeHtml(String(fullValue))}"` : ""}>${escapeHtml(String(value))}</strong>
         </div>
     `;
+    }
+
+    function renderResultScoreValue(score) {
+        return String(formatFixed(score, 1))
+            .split("")
+            .map((char, index) => `
+                <span class="eval-result-score-char ${/[0-9]/.test(char) ? "is-digit" : "is-mark"}" style="--digit-delay:${formatFixed(index * 0.08, 2)}s;">${escapeHtml(char)}</span>
+            `)
+            .join("");
     }
 
     function renderResultRadar(result) {
@@ -671,14 +678,13 @@
                 <polygon class="eval-result-radial-slot-shell" points="${outerShell}"></polygon>
                 <polygon class="eval-result-radial-slot-grid" points="${midShell}"></polygon>
                 <polygon class="eval-result-radial-slot-shell is-inner" points="${innerShell}"></polygon>
-                <circle class="eval-result-radar-core" cx="${center}" cy="${center}" r="8"></circle>
             </svg>
             <div class="eval-result-radial-arms" aria-hidden="true">
-                ${metrics.map((metric) => `
-                <span class="eval-result-radial-arm is-cap ${metric.anchor}" style="--arm-scale:1; --arm-angle:${metric.angle}deg; --arm-offset:${metric.capOffset}px;">
+                ${metrics.map((metric, index) => `
+                <span class="eval-result-radial-arm is-cap ${metric.anchor}" style="--arm-scale:1; --arm-angle:${metric.angle}deg; --arm-offset:${metric.capOffset}px; --arm-burst-delay:${formatFixed(index * 0.05, 2)}s;">
                     <span class="eval-result-radial-arm-body"></span>
                 </span>
-                <span class="eval-result-radial-arm is-score ${metric.anchor}" style="--arm-scale:${formatFixed(metric.score / 100, 3)}; --arm-angle:${metric.angle}deg; --arm-offset:${metric.scoreOffset}px;">
+                <span class="eval-result-radial-arm is-score ${metric.anchor}" style="--arm-scale:${formatFixed(metric.score / 100, 3)}; --arm-angle:${metric.angle}deg; --arm-offset:${metric.scoreOffset}px; --arm-burst-delay:${formatFixed(0.12 + index * 0.05, 2)}s;">
                     <span class="eval-result-radial-arm-body"></span>
                 </span>
                 `).join("")}
@@ -729,11 +735,15 @@
     }
 
     function shortenJobId(jobId) {
-        const raw = String(jobId || "");
+        const raw = normalizeJobId(jobId);
         if (raw.length <= 18) {
             return raw;
         }
         return `${raw.slice(0, 8)}...${raw.slice(-7)}`;
+    }
+
+    function normalizeJobId(jobId) {
+        return String(jobId || "").toUpperCase();
     }
 
     function clampScore(value) {
@@ -773,7 +783,35 @@
     }
 
     function button(label, action, primary = false) {
-        return `<button class="eval-btn ${primary ? "primary" : ""}" data-action="${action}">${escapeHtml(label)}</button>`;
+        return `<button class="eval-btn ${primary ? "primary" : ""}" data-action="${action}" title="${escapeHtml(getButtonTooltip(action, label))}">${escapeHtml(label)}</button>`;
+    }
+
+    function getButtonTooltip(action, label) {
+        const tips = {
+            "go-intro": "返回引导页",
+            "go-setup": "前往全局设置",
+            "go-banners": "前往卡池阶段配置",
+            "go-goals": "前往评分目标配置",
+            "go-submit": "返回提交页面",
+            "go-result": "查看当前任务结果",
+            "open-advanced": "打开高级设置并覆盖问卷结果",
+            "back-to-questionnaire-result": "返回问卷结果页",
+            "reset-questionnaire": "清空当前问卷并重新作答",
+            "add-goal": "新增一个评分目标",
+        };
+        return tips[action] || label;
+    }
+
+    function getOperatorLabel(operator) {
+        const labels = {
+            "==": "等于",
+            "!=": "不等于",
+            ">": "大于",
+            "<": "小于",
+            ">=": "不少于",
+            "<=": "不高于",
+        };
+        return labels[operator] || operator;
     }
 
     function readByPath(source, path) {
